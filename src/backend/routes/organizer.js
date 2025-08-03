@@ -7,6 +7,44 @@ const { Op } = require('sequelize');
 
 const router = express.Router();
 
+// Organizatör Etkinlikleri
+router.get('/events', organizerOnly, async (req, res) => {
+  try {
+    const events = await Event.findAll({
+      where: { organizerId: req.user.id },
+      attributes: ['id', 'ad', 'baslangic_tarih', 'durum'],
+      order: [['baslangic_tarih', 'DESC']]
+    });
+
+    // Her etkinlik için bilet ve kazanç bilgilerini hesapla
+    const eventsWithStats = await Promise.all(events.map(async (event) => {
+      const tickets = await Ticket.findAll({
+        where: { eventId: event.id }
+      });
+
+      return {
+        id: event.id,
+        ad: event.ad,
+        baslangic_tarih: event.baslangic_tarih,
+        durum: event.durum,
+        toplam_bilet: tickets.length,
+        kullanilan_bilet: tickets.filter(t => t.durum === 'kullanildi').length,
+        toplam_kazanc: tickets.reduce((sum, t) => sum + parseFloat(t.fiyat || 0), 0)
+      };
+    }));
+
+    res.json({
+      durum: 1,
+      events: eventsWithStats
+    });
+  } catch (error) {
+    res.status(500).json({
+      durum: 0,
+      message: error.message
+    });
+  }
+});
+
 // Profil Güncelleme
 router.put('/profile', organizerOnly, async (req, res) => {
   try {
