@@ -8,7 +8,16 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) => {
-  const { isAuthenticated, isOrganizer, user, logout } = useAuth();
+  const { isAuthenticated, isOrganizer, user, logout, loading } = useAuth();
+
+  // Show loading state or return null while authentication is being checked
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   if (requireAuth && !isAuthenticated) {
     return <Navigate to="/login" />;
