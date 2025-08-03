@@ -1,5 +1,5 @@
 const express = require('express');
-const QRCode = require('qrcode');
+const axios = require('axios');
 const { Ticket } = require('../models/ticket');
 const { Event } = require('../models/event');
 const { sendTicketEmail } = require('../config/email');
@@ -37,31 +37,44 @@ router.post('/purchase', async (req, res) => {
 
     const tickets = [];
     for (let i = 0; i < adet; i++) {
-      const ticket = await Ticket.create({
-        eventId: event_id,
-        userId: req.user.id,
-        bilet_tipi,
-        fiyat: biletTipi.fiyat
-      });
+      try {
+        const ticket = await Ticket.create({
+          eventId: event_id,
+          userId: req.user.id,
+          bilet_tipi,
+          fiyat: biletTipi.fiyat
+        });
 
-      const qrData = {
-        ticket_id: ticket.id,
-        event_id: event_id,
-        user_id: req.user.id,
-        bilet_tipi
-      };
+        const qrData = {
+          ticket_id: ticket.id,
+          event_id: event_id,
+          user_id: req.user.id,
+          bilet_tipi
+        };
 
-      const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrData));
-      await ticket.update({ qr_kod: qrCodeUrl });
+        // Generate QR code using goQR.me API
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(JSON.stringify(qrData))}&size=200x200&ecc=H&format=png&margin=10`;
+        
+        await ticket.update({ qr_kod: qrCodeUrl });
 
-      await sendTicketEmail({
-        to: req.user.email,
-        eventName: event.ad,
-        ticketType: bilet_tipi,
-        qrCodeUrl
-      });
+        await sendTicketEmail({
+          to: req.user.email,
+          eventName: event.ad,
+          ticketType: bilet_tipi,
+          qrCodeUrl,
+          userName: req.user.isim,
+          userSurname: req.user.soyisim
+        });
 
-      tickets.push(ticket);
+        tickets.push(ticket);
+      } catch (error) {
+        console.error('Error creating ticket:', error);
+        // If any ticket fails, delete all created tickets
+        for (const t of tickets) {
+          await t.destroy();
+        }
+        throw new Error('Bilet oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+      }
     }
 
     res.status(201).json({
@@ -73,9 +86,10 @@ router.post('/purchase', async (req, res) => {
       }))
     });
   } catch (error) {
+    console.error('Purchase endpoint error:', error);
     res.status(400).json({
       durum: 0,
-      message: error.message
+      message: error.message || 'Bilet alınırken bir hata oluştu'
     });
   }
 });
@@ -108,6 +122,24 @@ router.post('/check-in', organizerOnly, async (req, res) => {
       return res.status(400).json({
         durum: 0,
         message: 'Bu bilet daha önce kullanılmış veya iptal edilmiş'
+      });
+    }
+
+    // Verify QR code using goQR.me API
+    try {
+      const verifyResponse = await axios.get(`https://api.qrserver.com/v1/read-qr-code/?fileurl=${encodeURIComponent(ticket.qr_kod)}`);
+      const qrData = JSON.parse(verifyResponse.data[0].symbol[0].data);
+      
+      if (qrData.ticket_id !== ticket_id) {
+        return res.status(400).json({
+          durum: 0,
+          message: 'Geçersiz QR kod'
+        });
+      }
+    } catch (error) {
+      return res.status(400).json({
+        durum: 0,
+        message: 'QR kod doğrulanamadı'
       });
     }
 

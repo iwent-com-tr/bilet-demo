@@ -24,11 +24,11 @@ const sendEmail = async ({ to, subject, html }) => {
   }
 };
 
-const sendTicketEmail = async ({ to, eventName, ticketType, qrCodeUrl }) => {
+const sendTicketEmail = async ({ to, eventName, ticketType, qrCodeUrl, userName, userSurname }) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1>Iwent - Biletiniz Hazır!</h1>
-      <p>Sayın Müşterimiz,</p>
+      <h1>iWent - Biletiniz Hazır!</h1>
+      <p>Sayın ${userName} ${userSurname},</p>
       <p><strong>${eventName}</strong> etkinliği için <strong>${ticketType}</strong> biletiniz hazır.</p>
       <div style="text-align: center; margin: 20px 0;">
         <img src="${qrCodeUrl}" alt="QR Kod" style="max-width: 200px;"/>

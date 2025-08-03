@@ -53,27 +53,20 @@ const EventDetail: React.FC = () => {
     }
   };
 
-  const handlePurchase = async () => {
+  const handlePurchase = () => {
     if (!isAuthenticated) {
       toast.error('Bilet almak için giriş yapmalısınız');
       navigate('/login');
       return;
     }
 
-    try {
-      setPurchaseLoading(true);
-      await axios.post(`${process.env.REACT_APP_API_URL}/ticket/purchase`, {
-        event_id: id,
-        bilet_tipi: selectedTicket,
-        adet: ticketCount
-      });
-      toast.success('Bilet alındı! QR kod e-postanıza gönderildi.');
-      navigate('/my-tickets');
-    } catch (error) {
-      toast.error('Bilet alınırken bir hata oluştu');
-    } finally {
-      setPurchaseLoading(false);
-    }
+    navigate(`/events/${id}/purchase`, {
+      state: {
+        eventId: id,
+        ticketType: selectedTicket,
+        quantity: ticketCount
+      }
+    });
   };
 
   const formatDate = (date: string) => {

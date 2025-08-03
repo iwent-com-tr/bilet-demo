@@ -64,7 +64,7 @@ CREATE TABLE tickets (
   user_id UUID NOT NULL REFERENCES users(id),
   bilet_tipi VARCHAR(50) NOT NULL,
   fiyat DECIMAL(10,2) NOT NULL,
-  qr_kod VARCHAR(255) UNIQUE,
+  qr_kod TEXT UNIQUE,
   durum VARCHAR(20) NOT NULL DEFAULT 'aktif',
   giris_zamani TIMESTAMP,
   gise VARCHAR(50),

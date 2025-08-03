@@ -24,6 +24,8 @@ import OrganizerProfile from './pages/organizer/Profile';
 import OrganizerDevices from './pages/organizer/Devices';
 import NotFound from './pages/NotFound';
 import OrganizerEventCreateSuccess from './pages/organizer/EventCreateSuccess';
+import EventPurchase from './pages/events/EventPurchase';
+import PurchaseSuccess from './pages/events/PurchaseSuccess';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -51,6 +53,8 @@ const App: React.FC = () => {
           <Route element={<MainLayout requireAuth />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/my-tickets" element={<MyTickets />} />
+            <Route path="/events/:id/purchase" element={<EventPurchase />} />
+            <Route path="/purchase-success" element={<PurchaseSuccess />} />
           </Route>
 
           {/* Organizer Routes */}

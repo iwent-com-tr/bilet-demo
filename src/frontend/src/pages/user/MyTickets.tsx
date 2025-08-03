@@ -92,7 +92,11 @@ const MyTickets: React.FC = () => {
               {/* QR Code */}
               {ticket.durum === 'aktif' && (
                 <div className="p-4 border-b bg-gray-50 flex justify-center">
-                  <img src={ticket.qr_kod} alt="QR Kod" className="w-48 h-48" />
+                  <img 
+                    src={`data:image/png;base64,${ticket.qr_kod}`} 
+                    alt="QR Kod" 
+                    className="w-48 h-48" 
+                  />
                 </div>
               )}
 

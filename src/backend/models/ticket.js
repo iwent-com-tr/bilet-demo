@@ -34,7 +34,7 @@ const Ticket = sequelize.define('Ticket', {
     allowNull: false
   },
   qr_kod: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     unique: true
   },
   durum: {
