@@ -9,8 +9,8 @@ import AuthLayout from './components/layouts/AuthLayout';
 
 // Pages
 import Home from './pages/Home';
-import EventList from './pages/EventList';
-import EventDetail from './pages/EventDetail';
+import EventList from './pages/events/EventList';
+import EventDetail from './pages/events/EventDetail';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import OrganizerRegister from './pages/auth/OrganizerRegister';
