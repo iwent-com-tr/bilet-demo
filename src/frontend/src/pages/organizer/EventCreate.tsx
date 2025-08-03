@@ -88,7 +88,22 @@ const OrganizerEventCreate: React.FC = () => {
         });
 
         toast.success('Etkinlik oluşturuldu');
-        navigate(`/organizer/events/${response.data.event_id}`);
+        navigate('/organizer/events/create-success', {
+          state: {
+            eventId: response.data.event_id,
+            eventDetails: {
+              ad: values.ad,
+              kategori: values.kategori,
+              baslangic_tarih: values.baslangic_tarih,
+              bitis_tarih: values.bitis_tarih,
+              yer: values.yer,
+              il: values.il,
+              adres: values.adres,
+              kapasite: parseInt(values.kapasite),
+              bilet_tipleri: biletTipleri
+            }
+          }
+        });
       } catch (error) {
         toast.error('Etkinlik oluşturulurken bir hata oluştu');
       } finally {

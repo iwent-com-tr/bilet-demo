@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-toastify';
@@ -30,15 +30,47 @@ interface Event {
   durum: string;
 }
 
+const MODULES = {
+  temel: 'Temel Bilgiler',
+  konum: 'Konum Bilgileri',
+  detaylar: 'Detaylar',
+  durum: 'Durum'
+} as const;
+
 const OrganizerEventEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<Event | null>(null);
+  const moduleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Scroll to module function
+  const scrollToModule = (hash: string) => {
+    if (hash && moduleRefs.current[hash]) {
+      setTimeout(() => {
+        moduleRefs.current[hash]?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  };
 
   useEffect(() => {
     fetchEvent();
   }, [id]);
+
+  useEffect(() => {
+    // Handle hash change for navigation
+    const hash = location.hash.slice(1); // Remove the # symbol
+    scrollToModule(hash);
+  }, [location.hash]);
+
+  // Handle initial hash navigation after data is loaded
+  useEffect(() => {
+    if (!loading) {
+      const hash = location.hash.slice(1);
+      scrollToModule(hash);
+    }
+  }, [loading, location.hash]);
 
   const fetchEvent = async () => {
     try {
@@ -54,6 +86,10 @@ const OrganizerEventEdit: React.FC = () => {
       toast.error('Etkinlik bilgileri yüklenirken bir hata oluştu');
       navigate('/organizer/events');
     }
+  };
+
+  const handleModuleClick = (moduleId: string) => {
+    navigate(`#${moduleId}`);
   };
 
   const formik = useFormik({
@@ -126,9 +162,32 @@ const OrganizerEventEdit: React.FC = () => {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-8">Etkinlik Düzenle</h1>
 
+      {/* Module Navigation */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6 sticky top-0 z-10">
+        <div className="flex space-x-4">
+          {Object.entries(MODULES).map(([key, title]) => (
+            <button
+              key={key}
+              onClick={() => handleModuleClick(key)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                location.hash === `#${key}`
+                  ? 'bg-primary-100 text-primary-800'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {title}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={formik.handleSubmit} className="space-y-6">
         {/* Temel Bilgiler */}
-        <div className="bg-white shadow rounded-lg p-6">
+        <div
+          ref={el => (moduleRefs.current['temel'] = el)}
+          id="temel"
+          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
+        >
           <h2 className="text-lg font-semibold mb-4">Temel Bilgiler</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -215,7 +274,11 @@ const OrganizerEventEdit: React.FC = () => {
         </div>
 
         {/* Konum Bilgileri */}
-        <div className="bg-white shadow rounded-lg p-6">
+        <div
+          ref={el => (moduleRefs.current['konum'] = el)}
+          id="konum"
+          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
+        >
           <h2 className="text-lg font-semibold mb-4">Konum Bilgileri</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -282,7 +345,11 @@ const OrganizerEventEdit: React.FC = () => {
         </div>
 
         {/* Detaylar */}
-        <div className="bg-white shadow rounded-lg p-6">
+        <div
+          ref={el => (moduleRefs.current['detaylar'] = el)}
+          id="detaylar"
+          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
+        >
           <h2 className="text-lg font-semibold mb-4">Detaylar</h2>
           <div className="space-y-6">
             <div>
@@ -377,7 +444,11 @@ const OrganizerEventEdit: React.FC = () => {
         </div>
 
         {/* Durum */}
-        <div className="bg-white shadow rounded-lg p-6">
+        <div
+          ref={el => (moduleRefs.current['durum'] = el)}
+          id="durum"
+          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
+        >
           <h2 className="text-lg font-semibold mb-4">Durum</h2>
           <div>
             <label htmlFor="durum" className="block text-sm font-medium text-gray-700">
@@ -425,4 +496,4 @@ const OrganizerEventEdit: React.FC = () => {
   );
 };
 
-export default OrganizerEventEdit; 
+export default OrganizerEventEdit;

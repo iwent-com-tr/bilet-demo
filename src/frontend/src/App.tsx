@@ -23,6 +23,7 @@ import OrganizerEventEdit from './pages/organizer/EventEdit';
 import OrganizerProfile from './pages/organizer/Profile';
 import OrganizerDevices from './pages/organizer/Devices';
 import NotFound from './pages/NotFound';
+import OrganizerEventCreateSuccess from './pages/organizer/EventCreateSuccess';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -60,6 +61,7 @@ const App: React.FC = () => {
             <Route path="/organizer/events/:id/edit" element={<OrganizerEventEdit />} />
             <Route path="/organizer/profile" element={<OrganizerProfile />} />
             <Route path="/organizer/devices" element={<OrganizerDevices />} />
+            <Route path="/organizer/events/create-success" element={<OrganizerEventCreateSuccess />} />
           </Route>
 
           {/* 404 */}
