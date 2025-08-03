@@ -17,7 +17,8 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif']
+        sans: ['Inter', 'sans-serif'],
+        amnesty: ['Amnesty', 'sans-serif']
       }
     }
   },

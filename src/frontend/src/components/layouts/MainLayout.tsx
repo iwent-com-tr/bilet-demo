@@ -30,17 +30,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) =
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-[#262626] shadow">
         <nav className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             {/* Logo */}
-            <Link to="/" className="text-2xl font-bold text-primary-600">
-              Iwent
+            <Link to="/" className="text-3xl font-bold font-amnesty flex items-center">
+              <span style={{ color: '#5DEE83' }}>i</span>
+              <span style={{ color: '#FFFFFF' }}>Went</span>
             </Link>
 
             {/* Navigation */}
             <div className="flex items-center space-x-6">
-              <Link to="/events" className="text-gray-600 hover:text-primary-600">
+              <Link to="/events" className="text-gray-300 hover:text-white">
                 Etkinlikler
               </Link>
 
@@ -48,22 +49,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) =
                 <>
                   {isOrganizer ? (
                     <>
-                      <Link to="/organizer" className="text-gray-600 hover:text-primary-600">
+                      <Link to="/organizer" className="text-gray-300 hover:text-white">
                         Kontrol Paneli
                       </Link>
-                      <Link to="/organizer/events" className="text-gray-600 hover:text-primary-600">
+                      <Link to="/organizer/events" className="text-gray-300 hover:text-white">
                         Etkinliklerim
                       </Link>
                     </>
                   ) : (
-                    <Link to="/my-tickets" className="text-gray-600 hover:text-primary-600">
+                    <Link to="/my-tickets" className="text-gray-300 hover:text-white">
                       Biletlerim
                     </Link>
                   )}
 
                   {/* User Menu */}
                   <div className="relative group">
-                    <button className="flex items-center space-x-1 text-gray-600 hover:text-primary-600">
+                    <button className="flex items-center space-x-1 text-gray-300 hover:text-white">
                       <span>{user?.isim} {user?.soyisim} - {isOrganizer ? 'Organizatör' : 'Kullanıcı'}</span>
                       <svg
                         className="w-4 h-4"
@@ -106,12 +107,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) =
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="text-gray-600 hover:text-primary-600">
+                  <Link to="/login" className="text-gray-300 hover:text-white">
                     Giriş Yap
                   </Link>
                   <Link
                     to="/register"
-                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
+                    className="bg-[#5DEE83] text-gray-800 px-4 py-2 rounded-md hover:bg-[#4cd973]"
                   >
                     Kayıt Ol
                   </Link>
@@ -135,7 +136,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) =
             <div>
               <h3 className="text-lg font-semibold mb-4">Hakkımızda</h3>
               <p className="text-gray-300">
-                Iwent, organizatörlerin etkinlik oluşturup bilet satışı yapabileceği, kullanıcıların
+                iWent, organizatörlerin etkinlik oluşturup bilet satışı yapabileceği, kullanıcıların
                 bilet alabileceği modern bir online bilet satış platformudur.
               </p>
             </div>
