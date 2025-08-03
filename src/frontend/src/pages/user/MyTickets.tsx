@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 interface Ticket {
   id: string;
@@ -14,18 +16,41 @@ interface Ticket {
 const MyTickets: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
     fetchTickets();
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   const fetchTickets = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/ticket/my-tickets`);
-      setTickets(response.data.tickets);
-      setLoading(false);
-    } catch (error) {
-      toast.error('Biletler yüklenirken bir hata oluştu');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/ticket/my-tickets`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.durum === 1) {
+        setTickets(response.data.tickets);
+      } else {
+        toast.error('Biletler yüklenirken bir hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('Error fetching tickets:', error);
+      const errorMessage = error.response?.data?.message || 'Biletler yüklenirken bir hata oluştu';
+      toast.error(errorMessage);
+    } finally {
       setLoading(false);
     }
   };
@@ -93,7 +118,7 @@ const MyTickets: React.FC = () => {
               {ticket.durum === 'aktif' && (
                 <div className="p-4 border-b bg-gray-50 flex justify-center">
                   <img 
-                    src={`data:image/png;base64,${ticket.qr_kod}`} 
+                    src={ticket.qr_kod}
                     alt="QR Kod" 
                     className="w-48 h-48" 
                   />

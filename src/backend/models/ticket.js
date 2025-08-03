@@ -54,6 +54,7 @@ const Ticket = sequelize.define('Ticket', {
     type: DataTypes.STRING
   }
 }, {
+  tableName: 'Tickets', // Explicitly set the table name
   timestamps: true,
   indexes: [
     {
@@ -69,10 +70,19 @@ const Ticket = sequelize.define('Ticket', {
   ]
 });
 
-Ticket.belongsTo(Event);
-Event.hasMany(Ticket);
+// Update foreign key names to match the database
+Ticket.belongsTo(Event, {
+  foreignKey: 'eventId'
+});
+Event.hasMany(Ticket, {
+  foreignKey: 'eventId'
+});
 
-Ticket.belongsTo(User);
-User.hasMany(Ticket);
+Ticket.belongsTo(User, {
+  foreignKey: 'userId'
+});
+User.hasMany(Ticket, {
+  foreignKey: 'userId'
+});
 
 module.exports = { Ticket }; 

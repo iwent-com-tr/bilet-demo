@@ -3,9 +3,12 @@ const axios = require('axios');
 const { Ticket } = require('../models/ticket');
 const { Event } = require('../models/event');
 const { sendTicketEmail } = require('../config/email');
-const { organizerOnly } = require('../middleware/auth');
+const { organizerOnly, authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Apply auth middleware to all routes
+router.use(authMiddleware);
 
 // Bilet Alma
 router.post('/purchase', async (req, res) => {
@@ -166,27 +169,46 @@ router.post('/check-in', organizerOnly, async (req, res) => {
 // Kullanıcının Biletleri
 router.get('/my-tickets', async (req, res) => {
   try {
+    console.log('User ID from request:', req.user.id);
+    console.log('User Type:', req.userType);
+
     const tickets = await Ticket.findAll({
-      where: { userId: req.user.id },
-      include: [{ model: Event }],
+      where: { 
+        userId: req.user.id 
+      },
+      include: [{ 
+        model: Event,
+        required: true,
+        attributes: ['id', 'ad']
+      }],
       order: [['createdAt', 'DESC']]
     });
 
-    res.json({
-      durum: 1,
-      tickets: tickets.map(t => ({
+    console.log('Found tickets:', tickets.length);
+    console.log('Raw tickets data:', JSON.stringify(tickets, null, 2));
+
+    const mappedTickets = tickets.map(t => {
+      const ticketData = {
         id: t.id,
-        event: t.Event.ad,
+        event: t.Event?.ad,
         bilet_tipi: t.bilet_tipi,
         durum: t.durum,
         qr_kod: t.qr_kod,
         giris_zamani: t.giris_zamani
-      }))
+      };
+      console.log('Mapped ticket:', ticketData);
+      return ticketData;
+    }).filter(t => t.event); // Only return tickets with valid events
+
+    res.json({
+      durum: 1,
+      tickets: mappedTickets
     });
   } catch (error) {
+    console.error('Error fetching tickets:', error);
     res.status(500).json({
       durum: 0,
-      message: error.message
+      message: 'Biletler alınırken bir hata oluştu'
     });
   }
 });
