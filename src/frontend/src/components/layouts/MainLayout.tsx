@@ -64,7 +64,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) =
                   {/* User Menu */}
                   <div className="relative group">
                     <button className="flex items-center space-x-1 text-gray-600 hover:text-primary-600">
-                      <span>{user?.isim}</span>
+                      <span>{user?.isim} {user?.soyisim} - {isOrganizer ? 'Organizatör' : 'Kullanıcı'}</span>
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -80,7 +80,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ requireAuth, organizerOnly }) =
                       </svg>
                     </button>
 
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 z-50">
                       <Link
                         to={isOrganizer ? '/organizer/profile' : '/profile'}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
