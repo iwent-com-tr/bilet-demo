@@ -5,6 +5,65 @@ const { Organizer } = require('../models/organizer');
 
 const router = express.Router();
 
+// Token Doğrulama
+router.get('/verify', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        durum: 0,
+        message: 'Token bulunamadı'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    let user;
+    if (decoded.type === 'user') {
+      user = await User.findByPk(decoded.id);
+    } else if (decoded.type === 'organizer') {
+      user = await Organizer.findByPk(decoded.id);
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        durum: 0,
+        message: 'Kullanıcı bulunamadı'
+      });
+    }
+
+    if (decoded.type === 'organizer' && !user.onaylandi) {
+      return res.status(403).json({
+        durum: 0,
+        message: 'Hesabınız henüz onaylanmamış'
+      });
+    }
+
+    res.json({
+      durum: 1,
+      user: {
+        id: user.id,
+        isim: user.isim,
+        soyisim: user.soyisim,
+        email: user.email,
+        tip: decoded.type
+      }
+    });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        durum: 0,
+        message: 'Geçersiz veya süresi dolmuş token'
+      });
+    }
+    res.status(500).json({
+      durum: 0,
+      message: error.message
+    });
+  }
+});
+
 // Kullanıcı Kaydı
 router.post('/register', async (req, res) => {
   try {

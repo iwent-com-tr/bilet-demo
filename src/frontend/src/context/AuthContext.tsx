@@ -34,15 +34,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
+  const verifyToken = async (token: string) => {
+    try {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // TODO: Token doğrulama endpoint'i eklenecek
-      setLoading(false);
-    } else {
-      setLoading(false);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/verify`);
+      setUser(response.data.user);
+      return true;
+    } catch (error) {
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+      return false;
     }
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await verifyToken(token);
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, sifre: string, tip: 'user' | 'organizer') => {
