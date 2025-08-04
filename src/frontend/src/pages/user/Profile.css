@@ -1,0 +1,284 @@
+.profile-page {
+  min-height: 100vh;
+  background-color: #000;
+  color: white;
+  padding-bottom: 80px; /* Add space for mobile navbar */
+}
+
+.profile-mobile-content {
+  padding: 20px;
+  padding-top: 0;
+}
+
+.profile-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: 20px; /* Added spacing between header and avatar */
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+
+.profile-avatar__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.profile-avatar__overlay span {
+  color: white;
+  font-size: 12px;
+  text-align: center;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.profile-avatar:hover .profile-avatar__overlay,
+.profile-avatar:focus .profile-avatar__overlay {
+  opacity: 1;
+}
+
+.profile-username {
+  font-size: 16px;
+  color: #B3B3B3;
+  margin-bottom: 12px; /* Updated: nickname to fullname spacing */
+}
+
+.profile-fullname {
+  font-size: 18px;
+  color: #fff;
+  font-weight: 500;
+  margin-bottom: 20px; /* Updated: fullname to stats spacing */
+}
+
+.profile-stats {
+  display: flex;
+  justify-content: center;
+  gap: 24px; /* Updated: spacing between stat items */
+  margin-bottom: 20px; /* Updated: stats to settings button spacing */
+}
+
+.profile-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #B3B3B3;
+}
+
+.profile-stat-label {
+  font-size: 14px;
+  color: #B3B3B3;
+}
+
+.profile-settings-button {
+  width: 100%;
+  padding: 14px;
+  background-color: #05EF7E;
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px; /* Updated: settings button to favorite events spacing */
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.profile-settings-button:hover {
+  background-color: #04cc6b;
+}
+
+.profile-section {
+  margin-bottom: 32px;
+}
+
+/* Settings Form Styles */
+.settings-form {
+  padding: 0 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  color: #B3B3B3;
+  font-size: 14px;
+  margin-bottom: 10px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  height: 48px;
+  background: #262626;
+  border: none;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #D9D9D9;
+  font-size: 16px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9L12 15L18 9' stroke='%23D9D9D9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+.phone-input {
+  display: flex;
+  gap: 8px;
+}
+
+.phone-input .country-code {
+  width: 64px;
+  background: #262626;
+  border: none;
+  border-radius: 8px;
+  color: #D9D9D9;
+  text-align: center;
+  font-family: 'Space Grotesk', sans-serif;
+  cursor: not-allowed;
+}
+
+.phone-input .phone-number {
+  flex: 1;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.form-group.half {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.profile-update-button {
+  width: 100%;
+  height: 48px;
+  background: #05EF7E;
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 20px;
+}
+
+/* Desktop Overrides */
+@media (min-width: 768px) {
+  .profile-page {
+    max-width: var(--slider-width);
+    margin: 0 auto;
+    padding: 40px 0 80px; /* Maintain bottom padding for navbar */
+  }
+
+  .profile-mobile-content {
+    padding: 40px;
+  }
+
+  .profile-user-info {
+    flex-direction: row;
+    text-align: left;
+    gap: 32px;
+  }
+
+  .profile-stats {
+    justify-content: flex-start;
+  }
+
+  .profile-settings-button {
+    max-width: 200px;
+  }
+}
+
+/* Avatar Upload Styles */
+.avatar-upload {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  margin-top: 20px;
+}
+
+.avatar-upload__preview {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.avatar-upload__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.avatar-upload__overlay span {
+  color: white;
+  font-size: 12px;
+  text-align: center;
+}
+
+.avatar-upload__preview:hover .avatar-upload__overlay {
+  opacity: 1;
+}
+
+.avatar-upload__input {
+  display: none;
+} 

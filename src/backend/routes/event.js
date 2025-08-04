@@ -1,12 +1,12 @@
 const express = require('express');
 const { Event } = require('../models/event');
-const { organizerOnly } = require('../middleware/auth');
+const { organizerOnly, authMiddleware } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 const router = express.Router();
 
 // Etkinlik Oluşturma (Organizatör)
-router.post('/create', organizerOnly, async (req, res) => {
+router.post('/create', authMiddleware, organizerOnly, async (req, res) => {
   try {
     const {
       ad,
@@ -53,7 +53,7 @@ router.post('/create', organizerOnly, async (req, res) => {
 });
 
 // Etkinlik Güncelleme (Organizatör)
-router.put('/:id', organizerOnly, async (req, res) => {
+router.put('/:id', authMiddleware, organizerOnly, async (req, res) => {
   try {
     const event = await Event.findOne({
       where: {
@@ -85,7 +85,7 @@ router.put('/:id', organizerOnly, async (req, res) => {
 });
 
 // Etkinlik Silme (Organizatör)
-router.delete('/:id', organizerOnly, async (req, res) => {
+router.delete('/:id', authMiddleware, organizerOnly, async (req, res) => {
   try {
     const event = await Event.findOne({
       where: {

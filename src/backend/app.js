@@ -51,7 +51,7 @@ app.use(rateLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/event', authMiddleware, eventRoutes);
+app.use('/api/event', eventRoutes);
 app.use('/api/ticket', authMiddleware, ticketRoutes);
 app.use('/api/chat', authMiddleware, chatRoutes);
 app.use('/api/organizer', authMiddleware, organizerRoutes);

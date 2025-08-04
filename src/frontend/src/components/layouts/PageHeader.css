@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #262626;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.page-header__back-button,
+.page-header__menu-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.page-header__back-button:hover,
+.page-header__menu-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.page-header__title {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  padding: 0 16px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Desktop'ta gizle */
+@media (min-width: 768px) {
+  .page-header {
+    display: none;
+  }
+} 
