@@ -42,11 +42,11 @@ const App: React.FC = () => {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/events/:id/event-ticket-categories" element={<EventTicketCategories />} />
+            <Route path="/login" element={<Login />} />
           </Route>
 
           {/* Auth Routes */}
           <Route element={<AuthLayout />}>
-            <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
           </Route>
