@@ -1,123 +1,154 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import '../styles/slider.css';
+import FeaturedEvents from '../components/FeaturedEvents';
+import FeaturedArtists from '../components/FeaturedArtists';
+import PopularArtistEvents from '../components/PopularArtistEvents';
+import PopularOrganizers from '../components/PopularOrganizers';
+import WeekEvents from '../components/WeekEvents';
+
+// Import slider navigation assets
+import radioChecked from '../assets/slider/radio-button-checked.svg';
+import radioUnchecked from '../assets/slider/material-symbols_radio-button-unchecked.svg';
+
+interface Event {
+  id: string;
+  ad: string;
+  banner: string;
+  kategori: string;
+  baslangic_tarih: string;
+  yer: string;
+}
+
+interface ApiResponse {
+  durum: number;
+  toplam: number;
+  sayfa: number;
+  sayfa_sayisi: number;
+  events: Event[];
+}
 
 const Home: React.FC = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/event?status=yayinda`);
+        setEvents(response.data.events.filter((event: Event) => event.banner));
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+
+    // Auto-advance slider every 5 seconds
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % (events.length || 1));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [events.length]);
+
+  const handleSlideClick = (eventId: string) => {
+    navigate(`/events/${eventId}`);
+  };
+
   return (
-    <div>
-      {/* Hero Section */}
-      <section className="bg-primary-600 text-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Etkinlikleri Keşfet, Biletini Al
-            </h1>
-            <p className="text-lg md:text-xl mb-8">
-              Konserler, festivaller, tiyatrolar ve daha fazlası için biletinizi hemen alın.
-            </p>
-            <Link
-              to="/events"
-              className="inline-block bg-white text-primary-600 px-8 py-3 rounded-md font-semibold hover:bg-gray-100"
-            >
-              Etkinlikleri Keşfet
-            </Link>
+    <div className="flex flex-col">
+      {/* Hero Section with Slider */}
+      <section className="hero-slider">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#5DEE83]"></div>
           </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Neden Iwent?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="text-center">
-              <div className="bg-primary-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-primary-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+        ) : events.length > 0 ? (
+          <>
+            <div className="hero-slider__wrapper">
+              <div
+                className="hero-slider__container"
+                style={{
+                  transform: `translateX(-${currentSlide * 100}%)`,
+                }}
+              >
+                {events.map((event) => (
+                  <div 
+                    key={event.id} 
+                    className="hero-slider__slide"
+                    onClick={() => handleSlideClick(event.id)}
+                    style={{ cursor: 'pointer' }}
+                    role="link"
+                    aria-label={`View details for ${event.ad}`}
+                  >
+                    <img
+                      src={event.banner}
+                      alt={event.ad}
+                      className="hero-slider__image"
+                    />
+                  </div>
+                ))}
               </div>
-              <h3 className="text-xl font-semibold mb-2">Hızlı ve Kolay</h3>
-              <p className="text-gray-600">
-                Saniyeler içinde biletinizi alın, QR kodunuzu e-posta ile alın.
-              </p>
             </div>
-
-            {/* Feature 2 */}
-            <div className="text-center">
-              <div className="bg-primary-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-primary-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            <div className="hero-slider__navigation">
+              {events.map((_, index) => (
+                <button
+                  key={index}
+                  className="hero-slider__nav-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentSlide(index);
+                  }}
+                  aria-label={`Go to slide ${index + 1}`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+                  <img
+                    src={index === currentSlide ? radioChecked : radioUnchecked}
+                    alt={index === currentSlide ? "Active slide" : "Inactive slide"}
                   />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Canlı Sohbet</h3>
-              <p className="text-gray-600">
-                Etkinlik katılımcıları ile sohbet edin, bilgi paylaşın.
-              </p>
+                </button>
+              ))}
             </div>
-
-            {/* Feature 3 */}
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="bg-primary-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-primary-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Güvenli</h3>
-              <p className="text-gray-600">
-                QR kod teknolojisi ile güvenli giriş sistemi, sahte bilet önleme.
+              <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+                Etkinlikleri Keşfet, Biletini Al
+              </h1>
+              <p className="text-lg md:text-xl mb-8 text-gray-300">
+                Konserler, festivaller, tiyatrolar ve daha fazlası için biletinizi hemen alın.
               </p>
+              <Link
+                to="/events"
+                className="inline-block bg-[#5DEE83] text-black px-8 py-3 rounded-md font-semibold hover:bg-[#4cd973] transition-colors"
+              >
+                Etkinlikleri Keşfet
+              </Link>
             </div>
           </div>
-        </div>
+        )}
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-gray-100 py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-6">Organizatör müsünüz?</h2>
-            <p className="text-lg text-gray-600 mb-8">
-              Iwent ile etkinliklerinizi yönetin, bilet satışlarınızı takip edin ve daha fazlası.
-            </p>
-            <Link
-              to="/register/organizer"
-              className="inline-block bg-primary-600 text-white px-8 py-3 rounded-md font-semibold hover:bg-primary-700"
-            >
-              Hemen Başlayın
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Featured Events Section */}
+      <FeaturedEvents />
+
+      {/* Featured Artists Section */}
+      <FeaturedArtists />
+
+      {/* Popular Artist Events Section */}
+      <PopularArtistEvents />
+
+      {/* Popular Organizers Section */}
+      <PopularOrganizers />
+
+      {/* Week Events Section */}
+      <WeekEvents />
     </div>
   );
 };

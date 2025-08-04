@@ -18,7 +18,8 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-        amnesty: ['Amnesty', 'sans-serif']
+        amnesty: ['Amnesty', 'sans-serif'],
+        grotesk: ['Space Grotesk', 'sans-serif']
       }
     }
   },
