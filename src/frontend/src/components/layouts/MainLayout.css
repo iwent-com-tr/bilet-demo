@@ -1,0 +1,23 @@
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #000000;
+}
+
+.main-content {
+  flex: 1;
+  padding-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: 72px; /* Space for mobile navbar */
+  }
+
+  /* Hide desktop navbar and footer on mobile */
+  .navbar,
+  .footer {
+    display: none;
+  }
+} 

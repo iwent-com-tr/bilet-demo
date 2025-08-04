@@ -1,0 +1,33 @@
+@media (max-width: 768px) {
+  .scroll-container {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    padding: 0 16px;
+    margin: 0 -16px;
+  }
+
+  .scroll-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+
+  .scroll-content {
+    display: flex !important;
+    gap: 16px !important;
+    padding-bottom: 8px; /* Space for potential scrollbar */
+    width: max-content !important;
+  }
+
+  .scroll-item {
+    width: 160px !important;
+    flex-shrink: 0;
+  }
+} 

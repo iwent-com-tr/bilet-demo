@@ -1,0 +1,15 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-color: #000000;
+}
+
+.home-content {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+
+} 

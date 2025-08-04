@@ -108,21 +108,58 @@
 }
 
 @media (max-width: 768px) {
-  .popular-organizers__header,
-  .popular-organizers__grid {
-    width: 95vw;
+  .popular-organizers {
+    margin-top: 48px;
+  }
+
+  .popular-organizers__header {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .popular-organizers__title {
+    font-size: 18px;
+  }
+
+  .popular-organizers__grid-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .popular-organizers__grid-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 
   .popular-organizers__grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .popular-organizers__grid {
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    width: max-content;
     gap: 16px;
+    padding-left: 20px;
+    padding-right: 16px;
+    margin: 0;
+  }
+
+  .popular-organizers__card {
+    width: 140px;
+    flex-shrink: 0;
+  }
+
+  .popular-organizers__name {
+    font-size: 14px;
+  }
+
+  .popular-organizers__stats {
+    font-size: 12px;
+  }
+
+  .popular-organizers__follow-button {
+    padding: 6px 16px;
+    font-size: 12px;
   }
 
   .popular-organizers__image-container {

@@ -98,20 +98,49 @@
 }
 
 @media (max-width: 768px) {
-  .popular-events__header,
-  .popular-events__grid {
-    width: 95vw;
+  .popular-events__header {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .popular-events__title {
+    font-size: 18px;
+  }
+
+  .popular-events__grid-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .popular-events__grid-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 
   .popular-events__grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    display: flex;
+    width: max-content;
+    gap: 16px;
+    padding-left: 20px;
+    padding-right: 16px;
+    margin: 0;
   }
-}
 
-@media (max-width: 480px) {
-  .popular-events__grid {
-    grid-template-columns: repeat(1, 1fr);
-    gap: 24px;
+  .popular-events__card {
+    width: 160px;
+    flex-shrink: 0;
+  }
+
+  .popular-events__title-text {
+    font-size: 14px;
+  }
+
+  .popular-events__date,
+  .popular-events__venue {
+    font-size: 12px;
   }
 } 

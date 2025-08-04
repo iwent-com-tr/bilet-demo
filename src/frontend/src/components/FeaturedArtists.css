@@ -90,20 +90,55 @@
 }
 
 @media (max-width: 768px) {
-  .featured-artists__header,
-  .featured-artists__grid {
-    width: 95vw;
+  .featured-artists {
+    margin-top: 48px;
+    margin-bottom: 48px;
+  }
+
+  .featured-artists__header {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .featured-artists__title {
+    font-size: 18px;
+  }
+
+  .featured-artists__grid-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .featured-artists__grid-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 
   .featured-artists__grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .featured-artists__grid {
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    width: max-content;
     gap: 16px;
+    padding-left: 20px;
+    padding-right: 16px;
+    margin: 0;
+  }
+
+  .featured-artists__card {
+    width: 120px;
+    flex-shrink: 0;
+  }
+
+  .featured-artists__name {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .featured-artists__follow-button {
+    padding: 6px 16px;
+    font-size: 12px;
   }
 } 

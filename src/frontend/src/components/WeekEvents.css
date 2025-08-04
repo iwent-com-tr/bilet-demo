@@ -100,20 +100,54 @@
 }
 
 @media (max-width: 768px) {
-  .week-events__header,
-  .week-events__grid {
-    width: 95vw;
+  .week-events {
+    margin-top: 48px;
+    margin-bottom: 0; /* Remove margin as padding is handled by home-content */
+  }
+
+  .week-events__header {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .week-events__title {
+    font-size: 18px;
+  }
+
+  .week-events__grid-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .week-events__grid-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 
   .week-events__grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    display: flex;
+    width: max-content;
+    gap: 16px;
+    padding-left: 20px;
+    padding-right: 16px;
+    margin: 0;
   }
-}
 
-@media (max-width: 480px) {
-  .week-events__grid {
-    grid-template-columns: repeat(1, 1fr);
-    gap: 24px;
+  .week-events__card {
+    width: 160px;
+    flex-shrink: 0;
+  }
+
+  .week-events__title-text {
+    font-size: 14px;
+  }
+
+  .week-events__date,
+  .week-events__venue {
+    font-size: 12px;
   }
 } 

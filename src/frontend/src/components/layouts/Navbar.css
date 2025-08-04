@@ -1,0 +1,156 @@
+.navbar {
+  background: #262626;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.navbar__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.navbar__content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar__logo {
+  text-decoration: none;
+  font-size: 48px;
+  font-weight: bold;
+  font-family: 'Amnesty', sans-serif;
+  display: flex;
+  align-items: center;
+}
+
+.navbar__logo-i {
+  color: #05EF7E;
+}
+
+.navbar__logo-text {
+  color: #FFFFFF;
+}
+
+.navbar__links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.navbar__link {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  transition: color 0.2s ease;
+}
+
+.navbar__link:hover {
+  color: #05EF7E;
+}
+
+.navbar__user-menu {
+  position: relative;
+}
+
+.navbar__user-dropdown {
+  position: relative;
+}
+
+.navbar__user-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.navbar__dropdown-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.navbar__dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: #262626;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+}
+
+.navbar__user-dropdown:hover .navbar__dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.navbar__dropdown-item {
+  display: block;
+  padding: 12px 16px;
+  color: white;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.navbar__dropdown-item:hover {
+  color: #05EF7E;
+}
+
+.navbar__dropdown-button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.navbar__auth-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.navbar__button {
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.navbar__button--primary {
+  background: #05EF7E;
+  color: black;
+}
+
+.navbar__button--primary:hover {
+  background: #04d670;
+}
+
+.navbar__button--secondary {
+  background: black;
+  color: #05EF7E;
+  border: 1px solid #05EF7E;
+}
+
+.navbar__button--secondary:hover {
+  background: #1a1a1a;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    display: none;
+  }
+} 

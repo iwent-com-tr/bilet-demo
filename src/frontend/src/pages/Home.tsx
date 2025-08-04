@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/slider.css';
+import '../styles/home.css';
 import FeaturedEvents from '../components/FeaturedEvents';
 import FeaturedArtists from '../components/FeaturedArtists';
 import PopularArtistEvents from '../components/PopularArtistEvents';
 import PopularOrganizers from '../components/PopularOrganizers';
 import WeekEvents from '../components/WeekEvents';
+import MobileHeader from '../components/layouts/MobileHeader';
+import MobileNavbar from '../components/layouts/MobileNavbar';
 
 // Import slider navigation assets
 import radioChecked from '../assets/slider/radio-button-checked.svg';
@@ -62,7 +65,8 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="home-container">
+      <MobileHeader />
       {/* Hero Section with Slider */}
       <section className="hero-slider">
         {loading ? (
@@ -124,31 +128,29 @@ const Home: React.FC = () => {
               <p className="text-lg md:text-xl mb-8 text-gray-300">
                 Konserler, festivaller, tiyatrolar ve daha fazlası için biletinizi hemen alın.
               </p>
-              <Link
-                to="/events"
-                className="inline-block bg-[#5DEE83] text-black px-8 py-3 rounded-md font-semibold hover:bg-[#4cd973] transition-colors"
-              >
-                Etkinlikleri Keşfet
-              </Link>
             </div>
           </div>
         )}
       </section>
 
-      {/* Featured Events Section */}
-      <FeaturedEvents />
+      <div className="home-content">
+        {/* Featured Events Section */}
+        <FeaturedEvents />
 
-      {/* Featured Artists Section */}
-      <FeaturedArtists />
+        {/* Featured Artists Section */}
+        <FeaturedArtists />
 
-      {/* Popular Artist Events Section */}
-      <PopularArtistEvents />
+        {/* Popular Artist Events Section */}
+        <PopularArtistEvents />
 
-      {/* Popular Organizers Section */}
-      <PopularOrganizers />
+        {/* Popular Organizers Section */}
+        <PopularOrganizers />
 
-      {/* Week Events Section */}
-      <WeekEvents />
+        {/* Week Events Section */}
+        <WeekEvents />
+      </div>
+
+      <MobileNavbar />
     </div>
   );
 };

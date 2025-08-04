@@ -50,7 +50,7 @@ const App: React.FC = () => {
           </Route>
 
           {/* User Routes */}
-          <Route element={<MainLayout requireAuth />}>
+          <Route element={<MainLayout />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/my-tickets" element={<MyTickets />} />
             <Route path="/events/:id/purchase" element={<EventPurchase />} />
@@ -58,7 +58,7 @@ const App: React.FC = () => {
           </Route>
 
           {/* Organizer Routes */}
-          <Route element={<MainLayout requireAuth organizerOnly />}>
+          <Route element={<MainLayout />}>
             <Route path="/organizer" element={<OrganizerDashboard />} />
             <Route path="/organizer/events" element={<OrganizerEvents />} />
             <Route path="/organizer/events/create" element={<OrganizerEventCreate />} />
