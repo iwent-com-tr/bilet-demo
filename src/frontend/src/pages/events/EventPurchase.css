@@ -1,0 +1,227 @@
+.event-purchase {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: black;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.event-purchase__container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  margin-top: 60px;
+}
+
+.event-purchase__event-info {
+  background: #262626;
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.event-purchase__banner {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.event-purchase__banner-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.event-purchase__title {
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.event-purchase__organizer {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin-top: 12px;
+  margin-bottom: 24px;
+  text-align: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.event-purchase__ticket-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.event-purchase__info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.event-purchase__info-label {
+  color: #B3B3B3;
+  font-size: 14px;
+}
+
+.event-purchase__info-value {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.event-purchase__quantity-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 8px;
+  background: #000000;
+  border-radius: 8px;
+  width: 313px;
+  height: 48px;
+}
+
+.event-purchase__quantity-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #5DEE83;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.event-purchase__quantity-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.event-purchase__quantity {
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  min-width: 24px;
+  text-align: center;
+}
+
+.event-purchase__total {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.event-purchase__total-label {
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.event-purchase__total-amount {
+  color: #05EF7E;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.event-purchase__submit-button {
+  width: 313px;
+  height: 48px;
+  background: #05EF7E;
+  color: black;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.event-purchase__submit-button:hover:not(:disabled) {
+  background: #04d670;
+}
+
+.event-purchase__submit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Desktop Styles */
+@media (min-width: 769px) {
+  .event-purchase__container {
+    padding: 48px 20px;
+    margin-top: 0;
+    width: 100%;
+    max-width: 1400px;
+  }
+
+  .event-purchase__event-info {
+    padding: 32px;
+    align-items: flex-start;
+    margin-top: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .event-purchase__banner {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+    margin-bottom: 32px;
+  }
+
+  .event-purchase__title {
+    font-size: 32px;
+    text-align: left;
+    margin-bottom: 8px;
+  }
+
+  .event-purchase__organizer {
+    text-align: left;
+    margin-top: 0;
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+  }
+
+  .event-purchase__ticket-info {
+    margin-bottom: 32px;
+  }
+
+  .event-purchase__quantity-selector {
+    margin-bottom: 32px;
+    width: 100%;
+  }
+
+  .event-purchase__submit-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1280px) {
+  .event-purchase__container {
+    width: 90vw;
+  }
+} 

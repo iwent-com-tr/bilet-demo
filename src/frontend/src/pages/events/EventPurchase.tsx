@@ -3,66 +3,85 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-
-interface PurchaseState {
-  eventId: string;
-  ticketType: string;
-  quantity: number;
-}
+import PageHeader from '../../components/layouts/PageHeader';
+import './EventPurchase.css';
 
 interface Event {
   id: string;
   ad: string;
   banner: string;
+  organizator: string;
   bilet_tipleri: Array<{
     tip: string;
     fiyat: number;
     kapasite: number;
   }>;
-  baslangic_tarih: string;
-  yer: string;
+}
+
+interface SelectedTicket {
+  tip: string;
+  fiyat: number;
+  kapasite: number;
 }
 
 const EventPurchase: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ticketCount, setTicketCount] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
-  const [purchaseState, setPurchaseState] = useState<PurchaseState | null>(null);
+
+  // Get selectedTicket from location.state or sessionStorage
+  const getSelectedTicket = (): SelectedTicket | undefined => {
+    if (location.state?.selectedTicket) {
+      // If coming from ticket selection, save to sessionStorage
+      sessionStorage.setItem(`selectedTicket_${id}`, JSON.stringify(location.state.selectedTicket));
+      return location.state.selectedTicket;
+    }
+    
+    // Try to get from sessionStorage
+    const savedTicket = sessionStorage.getItem(`selectedTicket_${id}`);
+    return savedTicket ? JSON.parse(savedTicket) : undefined;
+  };
+
+  const selectedTicket = getSelectedTicket();
 
   useEffect(() => {
-    if (!location.state?.eventId || !location.state?.ticketType || !location.state?.quantity) {
-      toast.error('Geçersiz satın alma bilgileri');
+    if (!id) {
       navigate('/');
       return;
     }
 
-    setPurchaseState({
-      eventId: location.state.eventId,
-      ticketType: location.state.ticketType,
-      quantity: location.state.quantity
-    });
+    if (!selectedTicket) {
+      navigate(`/events/${id}/tickets`);
+      return;
+    }
 
-    fetchEventDetails(location.state.eventId);
-  }, [location.state]);
+    fetchEventDetails();
+  }, [id, selectedTicket, navigate]);
 
-  const fetchEventDetails = async (eventId: string) => {
+  const fetchEventDetails = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/event/${eventId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/event/${id}`);
       setEvent(response.data.event);
-      setLoading(false);
     } catch (error) {
+      console.error('API Error:', error);
       toast.error('Etkinlik bilgileri yüklenirken bir hata oluştu');
       navigate('/');
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Cleanup sessionStorage on unmount
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem(`selectedTicket_${id}`);
+    };
+  }, [id]);
 
   const handlePurchase = async () => {
     if (!isAuthenticated) {
@@ -71,7 +90,7 @@ const EventPurchase: React.FC = () => {
       return;
     }
 
-    if (!purchaseState || !event) return;
+    if (!event || !selectedTicket) return;
 
     try {
       setPurchaseLoading(true);
@@ -79,9 +98,9 @@ const EventPurchase: React.FC = () => {
       await axios.post(
         `${process.env.REACT_APP_API_URL}/ticket/purchase`,
         {
-          event_id: purchaseState.eventId,
-          bilet_tipi: purchaseState.ticketType,
-          adet: purchaseState.quantity
+          event_id: event.id,
+          bilet_tipi: selectedTicket.tip,
+          adet: ticketCount
         },
         {
           headers: {
@@ -90,7 +109,9 @@ const EventPurchase: React.FC = () => {
         }
       );
       toast.success('Bilet alındı! QR kod e-postanıza gönderildi.');
-      navigate('/purchase-success');
+      navigate('/purchase-success', {
+        state: { eventId: id }
+      });
     } catch (error: any) {
       console.error('Purchase error:', error);
       const errorMessage = error.response?.data?.message || 'Bilet alınırken bir hata oluştu';
@@ -101,93 +122,86 @@ const EventPurchase: React.FC = () => {
   };
 
   const calculateTotal = () => {
-    if (!event || !purchaseState) return 0;
-    const ticket = event.bilet_tipleri.find(t => t.tip === purchaseState.ticketType);
-    return (ticket?.fiyat || 0) * purchaseState.quantity;
+    if (!selectedTicket) return 0;
+    return selectedTicket.fiyat * ticketCount;
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric'
-    });
-  };
-
-  if (loading || !event || !purchaseState) {
+  if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="event-purchase">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+        </div>
       </div>
     );
   }
 
-  const selectedTicket = event.bilet_tipleri.find(t => t.tip === purchaseState.ticketType);
+  if (!event || !selectedTicket) {
+    return null;
+  }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold mb-6">Bilet Satın Alma</h1>
+    <div className="event-purchase">
+      <PageHeader title="Ödeme Sayfası" />
+      
+      <div className="event-purchase__container">
+        <div className="event-purchase__event-info">
+          <div className="event-purchase__banner">
+            <img
+              src={event.banner || '/placeholder-event.jpg'}
+              alt={event.ad}
+              className="event-purchase__banner-image"
+            />
+          </div>
 
-          {/* Event Summary */}
-          <div className="mb-8">
-            <div className="flex items-center space-x-4 mb-4">
-              <img
-                src={event.banner || '/placeholder-event.jpg'}
-                alt={event.ad}
-                className="w-20 h-20 object-cover rounded"
-              />
-              <div>
-                <h2 className="text-xl font-semibold">{event.ad}</h2>
-                <p className="text-gray-600">{formatDate(event.baslangic_tarih)}</p>
-                <p className="text-gray-600">{event.yer}</p>
-              </div>
+          <h1 className="event-purchase__title">{event.ad}</h1>
+          <h2 className="event-purchase__organizer">Wake Up Works</h2>
+
+          <div className="event-purchase__ticket-info">
+            <div className="event-purchase__info-row">
+              <span className="event-purchase__info-label">Bilet Grubu</span>
+              <span className="event-purchase__info-value">{selectedTicket.tip}</span>
+            </div>
+            <div className="event-purchase__info-row">
+              <span className="event-purchase__info-label">Bilet Fiyatı</span>
+              <span className="event-purchase__info-value">{selectedTicket.fiyat} TL</span>
+            </div>
+            <div className="event-purchase__info-row">
+              <span className="event-purchase__info-label">Hizmet Bedeli</span>
+              <span className="event-purchase__info-value">Ücretsiz</span>
             </div>
           </div>
 
-          {/* Purchase Details */}
-          <div className="space-y-4 mb-8">
-            <div className="flex justify-between py-2 border-b">
-              <span className="text-gray-600">Bilet Tipi</span>
-              <span className="font-medium">{purchaseState.ticketType}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b">
-              <span className="text-gray-600">Bilet Adedi</span>
-              <span className="font-medium">{purchaseState.quantity}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b">
-              <span className="text-gray-600">Bilet Fiyatı</span>
-              <span className="font-medium">
-                {selectedTicket?.fiyat.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-              </span>
-            </div>
-            <div className="flex justify-between py-2 border-b text-lg font-bold">
-              <span>Toplam</span>
-              <span>
-                {calculateTotal().toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-              </span>
-            </div>
+          <div className="event-purchase__total">
+            <span className="event-purchase__total-label">Toplam Tutar</span>
+            <span className="event-purchase__total-amount">
+              {calculateTotal()} TL
+            </span>
           </div>
 
-          {/* Actions */}
-          <div className="flex space-x-4">
+          <div className="event-purchase__quantity-selector">
             <button
-              onClick={() => navigate(`/events/${event.id}`)}
-              className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              onClick={() => setTicketCount(prev => Math.max(1, prev - 1))}
+              className="event-purchase__quantity-button"
             >
-              Geri Dön
+              -
             </button>
+            <span className="event-purchase__quantity">{ticketCount}</span>
             <button
-              onClick={handlePurchase}
-              disabled={purchaseLoading}
-              className="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              onClick={() => setTicketCount(prev => Math.min(5, prev + 1))}
+              className="event-purchase__quantity-button"
             >
-              {purchaseLoading ? 'İşleniyor...' : 'Satın Almayı Onayla'}
+              +
             </button>
           </div>
+
+          <button
+            onClick={handlePurchase}
+            disabled={purchaseLoading}
+            className="event-purchase__submit-button"
+          >
+            {purchaseLoading ? 'İşleniyor...' : 'Ödeme Yap'}
+          </button>
         </div>
       </div>
     </div>

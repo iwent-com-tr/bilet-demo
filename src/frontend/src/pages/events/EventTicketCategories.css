@@ -1,0 +1,89 @@
+.ticket-categories {
+  width: 100%;
+  min-height: 100vh;
+  background: black;
+}
+
+.ticket-categories__container {
+  padding: 20px;
+}
+
+.ticket-categories__group {
+  margin-bottom: 32px;
+}
+
+.ticket-categories__group:last-child {
+  margin-bottom: 0;
+}
+
+.ticket-categories__group-title {
+  color: #05EF7E;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.ticket-categories__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ticket-categories__item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ticket-categories__item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticket-categories__item-title {
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.ticket-categories__item-price {
+  color: #05EF7E;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ticket-categories__buy-button {
+  background: #05EF7E;
+  color: black;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ticket-categories__buy-button:hover {
+  background: #04d670;
+}
+
+.ticket-categories__sold-out {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Hide on desktop */
+@media (min-width: 769px) {
+  .ticket-categories {
+    display: none;
+  }
+} 
