@@ -45,6 +45,32 @@ router.get('/events', organizerOnly, async (req, res) => {
   }
 });
 
+// Profil Bilgilerini Getir
+router.get('/profile', organizerOnly, async (req, res) => {
+  try {
+    const organizer = await Organizer.findByPk(req.user.id, {
+      attributes: ['id', 'isim', 'soyisim', 'sirket', 'email', 'telefon', 'vergi_no', 'vergi_dairesi', 'adres', 'banka_hesap']
+    });
+
+    if (!organizer) {
+      return res.status(404).json({
+        durum: 0,
+        message: 'Organizatör bulunamadı'
+      });
+    }
+
+    res.json({
+      durum: 1,
+      organizer
+    });
+  } catch (error) {
+    res.status(500).json({
+      durum: 0,
+      message: error.message
+    });
+  }
+});
+
 // Profil Güncelleme
 router.put('/profile', organizerOnly, async (req, res) => {
   try {
