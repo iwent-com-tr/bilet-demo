@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import './EventCreateSuccess.css';
 
 interface EventDetails {
   ad: string;
@@ -39,87 +40,109 @@ const EventCreateSuccess: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-8">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+    <div className="event-create-success">
+      <div className="event-create-success__container">
+        {/* Success Alert */}
+        <div className="event-create-success__alert">
+          <div className="event-create-success__alert-content">
+            <svg className="event-create-success__alert-icon" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-lg font-medium text-green-800">
-              Etkinlik Başarıyla Oluşturuldu!
-            </h3>
-            <p className="text-green-700">
-              Etkinliğiniz başarıyla oluşturuldu ve yayına alındı.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Etkinlik Özeti</h2>
-        </div>
-
-        <div className="px-6 py-4 space-y-6">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900">{eventDetails.ad}</h3>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800 mt-2">
-              {eventDetails.kategori}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="text-sm font-medium text-gray-500">Tarih ve Saat</h4>
-              <p className="mt-1">
-                <span className="block">{formatDate(eventDetails.baslangic_tarih)}</span>
-                <span className="block text-gray-500">ile</span>
-                <span className="block">{formatDate(eventDetails.bitis_tarih)}</span>
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium text-gray-500">Konum</h4>
-              <p className="mt-1">
-                <span className="block font-medium">{eventDetails.yer}</span>
-                <span className="block">{eventDetails.il}</span>
-                <span className="block text-gray-600">{eventDetails.adres}</span>
+            <div className="event-create-success__alert-text">
+              <h3 className="event-create-success__alert-title">
+                ✨ Etkinlik Başarıyla Oluşturuldu!
+              </h3>
+              <p className="event-create-success__alert-description">
+                Etkinliğiniz başarıyla oluşturuldu ve sistem tarafından onaylandı.
               </p>
             </div>
           </div>
+        </div>
 
-          <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-2">Bilet Tipleri</h4>
-            <div className="space-y-2">
-              {eventDetails.bilet_tipleri.map((bilet, index) => (
-                <div key={index} className="flex justify-between items-center bg-gray-50 px-4 py-2 rounded">
-                  <span className="font-medium">{bilet.tip}</span>
-                  <div>
-                    <span className="text-gray-600">{bilet.fiyat} TL</span>
-                    <span className="text-gray-400 mx-2">•</span>
-                    <span className="text-gray-600">{bilet.kapasite} kişi</span>
-                  </div>
+        {/* Event Details Card */}
+        <div className="event-create-success__card">
+          <div className="event-create-success__card-header">
+            <h2 className="event-create-success__card-title">→ Etkinlik Özeti</h2>
+          </div>
+
+          <div className="event-create-success__card-content">
+            {/* Event Header */}
+            <div className="event-create-success__event-header">
+              <h3 className="event-create-success__event-title">{eventDetails.ad}</h3>
+              <span className="event-create-success__category-badge">
+                {eventDetails.kategori}
+              </span>
+            </div>
+
+            {/* Event Details Grid */}
+            <div className="event-create-success__details-grid">
+              <div className="event-create-success__detail-section">
+                <h4 className="event-create-success__detail-label">Tarih ve Saat</h4>
+                <div className="event-create-success__detail-content">
+                  <p className="event-create-success__detail-text event-create-success__detail-text--primary">
+                    {formatDate(eventDetails.baslangic_tarih)}
+                  </p>
+                  <p className="event-create-success__detail-text event-create-success__detail-text--muted">
+                    ile
+                  </p>
+                  <p className="event-create-success__detail-text event-create-success__detail-text--primary">
+                    {formatDate(eventDetails.bitis_tarih)}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          <div className="flex justify-between items-center pt-4">
-            <button
-              onClick={() => navigate('/organizer/events')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Etkinlik Listesine Dön
-            </button>
-            <button
-              onClick={() => navigate(`/organizer/events/${location.state?.eventId}/edit#durum`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Etkinliği Yayına Al!
-            </button>
+              <div className="event-create-success__detail-section">
+                <h4 className="event-create-success__detail-label">Konum</h4>
+                <div className="event-create-success__detail-content">
+                  <p className="event-create-success__detail-text event-create-success__detail-text--primary">
+                    {eventDetails.yer}
+                  </p>
+                  <p className="event-create-success__detail-text">{eventDetails.il}</p>
+                  <p className="event-create-success__detail-text event-create-success__detail-text--secondary">
+                    {eventDetails.adres}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Ticket Types */}
+            <div className="event-create-success__tickets">
+              <h4 className="event-create-success__detail-label">Bilet Tipleri</h4>
+              <div className="event-create-success__tickets-list">
+                {eventDetails.bilet_tipleri.map((bilet, index) => (
+                  <div key={index} className="event-create-success__ticket-item">
+                    <span className="event-create-success__ticket-name">{bilet.tip}</span>
+                    <div className="event-create-success__ticket-info">
+                      <span className="event-create-success__ticket-price">{bilet.fiyat} TL</span>
+                      <div className="event-create-success__ticket-separator"></div>
+                      <span className="event-create-success__ticket-capacity">{bilet.kapasite} kişi</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="event-create-success__actions">
+              <button
+                onClick={() => navigate('/organizer/events')}
+                className="event-create-success__back-button"
+              >
+                <svg className="event-create-success__button-icon" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                Etkinlik Listesine Dön
+              </button>
+              <button
+                onClick={() => navigate(`/organizer/events/${location.state?.eventId}/edit#durum`)}
+                className="event-create-success__publish-button"
+              >
+                <svg className="event-create-success__button-icon" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 1.414L10.586 9.5H7a.5.5 0 000 1h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
+                </svg>
+                Etkinliği Yayına Al!
+              </button>
+            </div>
           </div>
         </div>
       </div>

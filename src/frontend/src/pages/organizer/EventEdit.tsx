@@ -4,6 +4,17 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import {
+  MusicIcon,
+  FestivalIcon,
+  UniversityIcon,
+  WorkshopIcon,
+  ConferenceIcon,
+  SportsIcon,
+  TheaterIcon,
+  EducationIcon
+} from '../../components/icons/CategoryIcons';
+import './EventEdit.css';
 
 interface Event {
   id: string;
@@ -36,6 +47,49 @@ const MODULES = {
   detaylar: 'Detaylar',
   durum: 'Durum'
 } as const;
+
+const categories = [
+  { 
+    id: 'Müzik', 
+    name: 'Konser', 
+    icon: <MusicIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Festival', 
+    name: 'Festival', 
+    icon: <FestivalIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Eğitim', 
+    name: 'Üniversite', 
+    icon: <UniversityIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Workshop', 
+    name: 'Workshop', 
+    icon: <WorkshopIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Konferans', 
+    name: 'Konferans', 
+    icon: <ConferenceIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Spor', 
+    name: 'Spor', 
+    icon: <SportsIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Sanat', 
+    name: 'Sahne', 
+    icon: <TheaterIcon className="event-edit__category-icon" />
+  },
+  { 
+    id: 'Diğer', 
+    name: 'Eğitim', 
+    icon: <EducationIcon className="event-edit__category-icon" />
+  }
+];
 
 const OrganizerEventEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -90,6 +144,10 @@ const OrganizerEventEdit: React.FC = () => {
 
   const handleModuleClick = (moduleId: string) => {
     navigate(`#${moduleId}`);
+  };
+
+  const handleCategorySelect = (categoryId: string) => {
+    formik.setFieldValue('kategori', categoryId);
   };
 
   const formik = useFormik({
@@ -152,346 +210,364 @@ const OrganizerEventEdit: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="event-edit">
+        <div className="event-edit__loading">
+          <div className="event-edit__spinner"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-8">Etkinlik Düzenle</h1>
-
-      {/* Module Navigation */}
-      <div className="bg-white shadow rounded-lg p-4 mb-6 sticky top-0 z-10">
-        <div className="flex space-x-4">
-          {Object.entries(MODULES).map(([key, title]) => (
-            <button
-              key={key}
-              onClick={() => handleModuleClick(key)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                location.hash === `#${key}`
-                  ? 'bg-primary-100 text-primary-800'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {title}
-            </button>
-          ))}
+    <div className="event-edit">
+      <div className="event-edit__container">
+        <div className="event-edit__header">
+          <h1 className="event-edit__title">→ Etkinlik Düzenle</h1>
         </div>
-      </div>
 
-      <form onSubmit={formik.handleSubmit} className="space-y-6">
-        {/* Temel Bilgiler */}
-        <div
-          ref={el => (moduleRefs.current['temel'] = el)}
-          id="temel"
-          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
-        >
-          <h2 className="text-lg font-semibold mb-4">Temel Bilgiler</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="ad" className="block text-sm font-medium text-gray-700">
-                Etkinlik Adı
-              </label>
-              <input
-                type="text"
-                id="ad"
-                {...formik.getFieldProps('ad')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.ad && formik.errors.ad
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.ad && formik.errors.ad && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.ad}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="kategori" className="block text-sm font-medium text-gray-700">
-                Kategori
-              </label>
-              <select
-                id="kategori"
-                {...formik.getFieldProps('kategori')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.kategori && formik.errors.kategori
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
+        {/* Module Navigation */}
+        <div className="event-edit__module-navigation">
+          <div className="event-edit__modules">
+            {Object.entries(MODULES).map(([key, title]) => (
+              <button
+                key={key}
+                onClick={() => handleModuleClick(key)}
+                className={`event-edit__module-button ${
+                  location.hash === `#${key}` ? 'event-edit__module-button--active' : ''
                 }`}
               >
-                <option value="">Seçin</option>
-                <option value="Müzik">Müzik</option>
-                <option value="Tiyatro">Tiyatro</option>
-                <option value="Spor">Spor</option>
-                <option value="Festival">Festival</option>
-              </select>
-              {formik.touched.kategori && formik.errors.kategori && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.kategori}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="baslangic_tarih" className="block text-sm font-medium text-gray-700">
-                Başlangıç Tarihi
-              </label>
-              <input
-                type="datetime-local"
-                id="baslangic_tarih"
-                {...formik.getFieldProps('baslangic_tarih')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.baslangic_tarih && formik.errors.baslangic_tarih
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.baslangic_tarih && formik.errors.baslangic_tarih && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.baslangic_tarih}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="bitis_tarih" className="block text-sm font-medium text-gray-700">
-                Bitiş Tarihi
-              </label>
-              <input
-                type="datetime-local"
-                id="bitis_tarih"
-                {...formik.getFieldProps('bitis_tarih')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.bitis_tarih && formik.errors.bitis_tarih
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.bitis_tarih && formik.errors.bitis_tarih && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.bitis_tarih}</p>
-              )}
-            </div>
+                {title}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Konum Bilgileri */}
-        <div
-          ref={el => (moduleRefs.current['konum'] = el)}
-          id="konum"
-          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
-        >
-          <h2 className="text-lg font-semibold mb-4">Konum Bilgileri</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="yer" className="block text-sm font-medium text-gray-700">
-                Etkinlik Yeri
-              </label>
-              <input
-                type="text"
-                id="yer"
-                {...formik.getFieldProps('yer')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.yer && formik.errors.yer
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.yer && formik.errors.yer && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.yer}</p>
-              )}
+        <form onSubmit={formik.handleSubmit} className="event-edit__form">
+          {/* Temel Bilgiler */}
+          <div
+            ref={el => (moduleRefs.current['temel'] = el)}
+            id="temel"
+            className="event-edit__section"
+          >
+            <h2 className="event-edit__section-title">Temel Bilgiler</h2>
+            <div className="event-edit__grid event-edit__grid--full">
+              <div className="event-edit__field">
+                <label htmlFor="ad" className="event-edit__label">
+                  Etkinlik Adı
+                </label>
+                <input
+                  type="text"
+                  id="ad"
+                  {...formik.getFieldProps('ad')}
+                  className={`event-edit__input ${
+                    formik.touched.ad && formik.errors.ad ? 'event-edit__input--error' : ''
+                  }`}
+                  placeholder="Etkinlik adını giriniz"
+                />
+                {formik.touched.ad && formik.errors.ad && (
+                  <span className="event-edit__error">{formik.errors.ad}</span>
+                )}
+              </div>
+
+              <div className="event-edit__field">
+                <label className="event-edit__label">
+                  Kategori
+                </label>
+                <div className="event-edit__category-grid">
+                  {categories.map((category) => (
+                    <div
+                      key={category.id}
+                      className={`event-edit__category-card ${
+                        formik.values.kategori === category.id ? 'event-edit__category-card--selected' : ''
+                      }`}
+                      onClick={() => handleCategorySelect(category.id)}
+                    >
+                      {category.icon}
+                      <p className="event-edit__category-name">{category.name}</p>
+                      <div className="event-edit__category-check">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {formik.touched.kategori && formik.errors.kategori && (
+                  <span className="event-edit__error">{formik.errors.kategori}</span>
+                )}
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="il" className="block text-sm font-medium text-gray-700">
-                Şehir
-              </label>
-              <select
-                id="il"
-                {...formik.getFieldProps('il')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.il && formik.errors.il
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              >
-                <option value="">Seçin</option>
-                <option value="İstanbul">İstanbul</option>
-                <option value="Ankara">Ankara</option>
-                <option value="İzmir">İzmir</option>
-              </select>
-              {formik.touched.il && formik.errors.il && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.il}</p>
-              )}
-            </div>
+            <div className="event-edit__grid">
+              <div className="event-edit__field">
+                <label htmlFor="baslangic_tarih" className="event-edit__label">
+                  Başlangıç Tarihi
+                </label>
+                <input
+                  type="datetime-local"
+                  id="baslangic_tarih"
+                  {...formik.getFieldProps('baslangic_tarih')}
+                  className={`event-edit__input ${
+                    formik.touched.baslangic_tarih && formik.errors.baslangic_tarih ? 'event-edit__input--error' : ''
+                  }`}
+                />
+                {formik.touched.baslangic_tarih && formik.errors.baslangic_tarih && (
+                  <span className="event-edit__error">{formik.errors.baslangic_tarih}</span>
+                )}
+              </div>
 
-            <div className="md:col-span-2">
-              <label htmlFor="adres" className="block text-sm font-medium text-gray-700">
-                Açık Adres
-              </label>
-              <textarea
-                id="adres"
-                rows={3}
-                {...formik.getFieldProps('adres')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.adres && formik.errors.adres
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.adres && formik.errors.adres && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.adres}</p>
-              )}
+              <div className="event-edit__field">
+                <label htmlFor="bitis_tarih" className="event-edit__label">
+                  Bitiş Tarihi
+                </label>
+                <input
+                  type="datetime-local"
+                  id="bitis_tarih"
+                  {...formik.getFieldProps('bitis_tarih')}
+                  className={`event-edit__input ${
+                    formik.touched.bitis_tarih && formik.errors.bitis_tarih ? 'event-edit__input--error' : ''
+                  }`}
+                />
+                {formik.touched.bitis_tarih && formik.errors.bitis_tarih && (
+                  <span className="event-edit__error">{formik.errors.bitis_tarih}</span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Detaylar */}
-        <div
-          ref={el => (moduleRefs.current['detaylar'] = el)}
-          id="detaylar"
-          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
-        >
-          <h2 className="text-lg font-semibold mb-4">Detaylar</h2>
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="banner" className="block text-sm font-medium text-gray-700">
-                Banner URL
-              </label>
-              <input
-                type="url"
-                id="banner"
-                {...formik.getFieldProps('banner')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.banner && formik.errors.banner
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.banner && formik.errors.banner && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.banner}</p>
-              )}
+          {/* Konum Bilgileri */}
+          <div
+            ref={el => (moduleRefs.current['konum'] = el)}
+            id="konum"
+            className="event-edit__section"
+          >
+            <h2 className="event-edit__section-title">Konum Bilgileri</h2>
+            <div className="event-edit__grid">
+              <div className="event-edit__field">
+                <label htmlFor="yer" className="event-edit__label">
+                  Etkinlik Yeri
+                </label>
+                <input
+                  type="text"
+                  id="yer"
+                  {...formik.getFieldProps('yer')}
+                  className={`event-edit__input ${
+                    formik.touched.yer && formik.errors.yer ? 'event-edit__input--error' : ''
+                  }`}
+                  placeholder="Örn: Zorlu PSM"
+                />
+                {formik.touched.yer && formik.errors.yer && (
+                  <span className="event-edit__error">{formik.errors.yer}</span>
+                )}
+              </div>
+
+              <div className="event-edit__field">
+                <label htmlFor="il" className="event-edit__label">
+                  Şehir
+                </label>
+                <select
+                  id="il"
+                  {...formik.getFieldProps('il')}
+                  className={`event-edit__select ${
+                    formik.touched.il && formik.errors.il ? 'event-edit__select--error' : ''
+                  }`}
+                >
+                  <option value="">Seçin</option>
+                  <option value="İstanbul">İstanbul</option>
+                  <option value="Ankara">Ankara</option>
+                  <option value="İzmir">İzmir</option>
+                </select>
+                {formik.touched.il && formik.errors.il && (
+                  <span className="event-edit__error">{formik.errors.il}</span>
+                )}
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="aciklama" className="block text-sm font-medium text-gray-700">
-                Açıklama
-              </label>
-              <textarea
-                id="aciklama"
-                rows={5}
-                {...formik.getFieldProps('aciklama')}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
+            <div className="event-edit__grid event-edit__grid--full">
+              <div className="event-edit__field">
+                <label htmlFor="adres" className="event-edit__label">
+                  Açık Adres
+                </label>
+                <textarea
+                  id="adres"
+                  rows={3}
+                  {...formik.getFieldProps('adres')}
+                  className={`event-edit__textarea ${
+                    formik.touched.adres && formik.errors.adres ? 'event-edit__textarea--error' : ''
+                  }`}
+                  placeholder="Detaylı adres bilgisini giriniz"
+                />
+                {formik.touched.adres && formik.errors.adres && (
+                  <span className="event-edit__error">{formik.errors.adres}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Detaylar */}
+          <div
+            ref={el => (moduleRefs.current['detaylar'] = el)}
+            id="detaylar"
+            className="event-edit__section"
+          >
+            <h2 className="event-edit__section-title">Detaylar</h2>
+            <div className="event-edit__grid event-edit__grid--full">
+              <div className="event-edit__field">
+                <label htmlFor="banner" className="event-edit__label">
+                  Banner URL
+                </label>
+                <input
+                  type="url"
+                  id="banner"
+                  {...formik.getFieldProps('banner')}
+                  className={`event-edit__input ${
+                    formik.touched.banner && formik.errors.banner ? 'event-edit__input--error' : ''
+                  }`}
+                  placeholder="https://example.com/banner.jpg"
+                />
+                {formik.touched.banner && formik.errors.banner && (
+                  <span className="event-edit__error">{formik.errors.banner}</span>
+                )}
+              </div>
+
+              <div className="event-edit__field">
+                <label htmlFor="aciklama" className="event-edit__label">
+                  Açıklama
+                </label>
+                <textarea
+                  id="aciklama"
+                  rows={5}
+                  {...formik.getFieldProps('aciklama')}
+                  className="event-edit__textarea"
+                  placeholder="Etkinlik hakkında detaylı bilgi verin..."
+                />
+              </div>
+
+              <div className="event-edit__field">
+                <label htmlFor="kapasite" className="event-edit__label">
+                  Toplam Kapasite
+                </label>
+                <input
+                  type="number"
+                  id="kapasite"
+                  {...formik.getFieldProps('kapasite')}
+                  className={`event-edit__input ${
+                    formik.touched.kapasite && formik.errors.kapasite ? 'event-edit__input--error' : ''
+                  }`}
+                  placeholder="1000"
+                />
+                {formik.touched.kapasite && formik.errors.kapasite && (
+                  <span className="event-edit__error">{formik.errors.kapasite}</span>
+                )}
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="kapasite" className="block text-sm font-medium text-gray-700">
-                Toplam Kapasite
-              </label>
-              <input
-                type="number"
-                id="kapasite"
-                {...formik.getFieldProps('kapasite')}
-                className={`mt-1 block w-full rounded-md shadow-sm ${
-                  formik.touched.kapasite && formik.errors.kapasite
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-                }`}
-              />
-              {formik.touched.kapasite && formik.errors.kapasite && (
-                <p className="mt-1 text-sm text-red-600">{formik.errors.kapasite}</p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Sosyal Medya</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="instagram" className="block text-sm text-gray-500">
+            <div className="event-edit__social">
+              <h3 className="event-edit__social-title">Sosyal Medya</h3>
+              <div className="event-edit__social-grid">
+                <div className="event-edit__field">
+                  <label htmlFor="instagram" className="event-edit__social-label">
                     Instagram
                   </label>
                   <input
                     type="url"
                     id="instagram"
                     {...formik.getFieldProps('sosyal_medya.instagram')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    className="event-edit__input"
+                    placeholder="https://instagram.com/..."
                   />
                 </div>
-                <div>
-                  <label htmlFor="twitter" className="block text-sm text-gray-500">
+                <div className="event-edit__field">
+                  <label htmlFor="twitter" className="event-edit__social-label">
                     Twitter
                   </label>
                   <input
                     type="url"
                     id="twitter"
                     {...formik.getFieldProps('sosyal_medya.twitter')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    className="event-edit__input"
+                    placeholder="https://twitter.com/..."
                   />
                 </div>
-                <div>
-                  <label htmlFor="facebook" className="block text-sm text-gray-500">
+                <div className="event-edit__field">
+                  <label htmlFor="facebook" className="event-edit__social-label">
                     Facebook
                   </label>
                   <input
                     type="url"
                     id="facebook"
                     {...formik.getFieldProps('sosyal_medya.facebook')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    className="event-edit__input"
+                    placeholder="https://facebook.com/..."
                   />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Durum */}
-        <div
-          ref={el => (moduleRefs.current['durum'] = el)}
-          id="durum"
-          className="bg-white shadow rounded-lg p-6 scroll-mt-24"
-        >
-          <h2 className="text-lg font-semibold mb-4">Durum</h2>
-          <div>
-            <label htmlFor="durum" className="block text-sm font-medium text-gray-700">
-              Etkinlik Durumu
-            </label>
-            <select
-              id="durum"
-              {...formik.getFieldProps('durum')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.durum && formik.errors.durum
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            >
-              <option value="taslak">Taslak</option>
-              <option value="yayinda">Yayında</option>
-              <option value="iptal">İptal</option>
-              <option value="tamamlandi">Tamamlandı</option>
-            </select>
-            {formik.touched.durum && formik.errors.durum && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.durum}</p>
-            )}
+          {/* Durum */}
+          <div
+            ref={el => (moduleRefs.current['durum'] = el)}
+            id="durum"
+            className="event-edit__section"
+          >
+            <h2 className="event-edit__section-title">Durum</h2>
+            <div className="event-edit__field">
+              <label htmlFor="durum" className="event-edit__label">
+                Etkinlik Durumu
+              </label>
+              <select
+                id="durum"
+                {...formik.getFieldProps('durum')}
+                className={`event-edit__select ${
+                  formik.touched.durum && formik.errors.durum ? 'event-edit__select--error' : ''
+                }`}
+              >
+                <option value="taslak">Taslak</option>
+                <option value="yayinda">Yayında</option>
+                <option value="iptal">İptal</option>
+                <option value="tamamlandi">Tamamlandı</option>
+              </select>
+              {formik.touched.durum && formik.errors.durum && (
+                <span className="event-edit__error">{formik.errors.durum}</span>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => navigate('/organizer/events')}
-            className="px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            İptal
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-          >
-            {loading ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-          </button>
-        </div>
-      </form>
+          {/* Submit Buttons */}
+          <div className="event-edit__submit">
+            <button
+              type="button"
+              onClick={() => navigate('/organizer/events')}
+              className="event-edit__cancel-button"
+            >
+              <svg className="event-edit__submit-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              İptal
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="event-edit__submit-button"
+            >
+              {loading ? (
+                <>
+                  <div className="event-edit__spinner"></div>
+                  Kaydediliyor...
+                </>
+              ) : (
+                <>
+                  <svg className="event-edit__submit-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Değişiklikleri Kaydet
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
