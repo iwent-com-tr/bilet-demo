@@ -2,8 +2,11 @@ const express = require('express');
 const { Organizer } = require('../models/organizer');
 const { Event } = require('../models/event');
 const { Ticket } = require('../models/ticket');
+const { User } = require('../models/user');
 const { organizerOnly } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { ExcelReportGenerator } = require('../util/excelReport');
+const moment = require('moment');
 
 const router = express.Router();
 
@@ -142,11 +145,15 @@ router.get('/event/:event_id/stats', organizerOnly, async (req, res) => {
       if (!stats.bilet_tipleri[ticket.bilet_tipi]) {
         stats.bilet_tipleri[ticket.bilet_tipi] = {
           adet: 0,
-          kazanc: 0
+          kazanc: 0,
+          kullanilan: 0
         };
       }
       stats.bilet_tipleri[ticket.bilet_tipi].adet++;
       stats.bilet_tipleri[ticket.bilet_tipi].kazanc += parseFloat(ticket.fiyat);
+      if (ticket.durum === 'kullanildi') {
+        stats.bilet_tipleri[ticket.bilet_tipi].kullanilan++;
+      }
     });
 
     res.json({
@@ -161,7 +168,7 @@ router.get('/event/:event_id/stats', organizerOnly, async (req, res) => {
   }
 });
 
-// Etkinlik Raporu
+// Etkinlik Raporu - Excel İndirme
 router.get('/event/:event_id/report', organizerOnly, async (req, res) => {
   try {
     const event = await Event.findOne({
@@ -178,31 +185,71 @@ router.get('/event/:event_id/report', organizerOnly, async (req, res) => {
       });
     }
 
+    // Organizatör bilgilerini al
+    const organizer = await Organizer.findByPk(req.user.id);
+
+    // Biletleri kullanıcı bilgileriyle birlikte al
     const tickets = await Ticket.findAll({
       where: { eventId: req.params.event_id },
-      include: [{ model: Event }]
+      include: [
+        { 
+          model: Event,
+          attributes: ['ad', 'kategori', 'yer', 'il']
+        },
+        {
+          model: User,
+          attributes: ['isim', 'soyisim', 'email', 'telefon']
+        }
+      ],
+      order: [['createdAt', 'ASC']]
     });
 
-    // Excel raporu oluşturma işlemi burada yapılacak
-    // Demo sürümünde sadece JSON dönüyoruz
-    const report = tickets.map(t => ({
-      bilet_id: t.id,
-      bilet_tipi: t.bilet_tipi,
-      fiyat: t.fiyat,
-      durum: t.durum,
-      giris_zamani: t.giris_zamani,
-      gise: t.gise,
-      cihaz_id: t.cihaz_id
-    }));
+    // İstatistikleri hesapla
+    const stats = {
+      toplam_bilet: tickets.length,
+      kullanilan_bilet: tickets.filter(t => t.durum === 'kullanildi').length,
+      iptal_edilen: tickets.filter(t => t.durum === 'iptal').length,
+      toplam_kazanc: tickets.reduce((sum, t) => sum + parseFloat(t.fiyat), 0),
+      bilet_tipleri: {}
+    };
 
-    res.json({
-      durum: 1,
-      report
+    // Bilet tipi analizi
+    tickets.forEach(ticket => {
+      if (!stats.bilet_tipleri[ticket.bilet_tipi]) {
+        stats.bilet_tipleri[ticket.bilet_tipi] = {
+          adet: 0,
+          kazanc: 0,
+          kullanilan: 0
+        };
+      }
+      stats.bilet_tipleri[ticket.bilet_tipi].adet++;
+      stats.bilet_tipleri[ticket.bilet_tipi].kazanc += parseFloat(ticket.fiyat);
+      if (ticket.durum === 'kullanildi') {
+        stats.bilet_tipleri[ticket.bilet_tipi].kullanilan++;
+      }
     });
+
+    // Excel raporu oluştur
+    const reportGenerator = new ExcelReportGenerator();
+    const workbook = await reportGenerator.generateEventReport(event, tickets, stats, organizer);
+
+    // Dosya adını oluştur
+    const fileName = `${event.ad.replace(/[^a-zA-Z0-9]/g, '_')}_Rapor_${moment().format('DDMMYYYY')}.xlsx`;
+
+    // Response headers ayarla
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+
+    // Excel dosyasını stream olarak gönder
+    await workbook.xlsx.write(res);
+    res.end();
+
   } catch (error) {
+    console.error('Excel rapor hatası:', error);
     res.status(500).json({
       durum: 0,
-      message: error.message
+      message: 'Rapor oluşturulurken bir hata oluştu: ' + error.message
     });
   }
 });

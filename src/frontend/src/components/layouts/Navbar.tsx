@@ -63,6 +63,12 @@ const Navbar: React.FC = () => {
                           Etkinliklerim
                         </Link>
                         <Link
+                          to="/organizer"
+                          className="navbar__dropdown-item"
+                        >
+                          Gösterge Paneli
+                        </Link>
+                        <Link
                           to="/organizer/devices"
                           className="navbar__dropdown-item"
                         >
