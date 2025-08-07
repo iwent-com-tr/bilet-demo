@@ -1,0 +1,336 @@
+.organizer-events {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 36px;
+  margin-bottom: 72px;
+  min-height: 100vh;
+}
+
+.organizer-events__container {
+  width: var(--slider-width);
+  display: flex;
+  flex-direction: column;
+}
+
+.organizer-events__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 36px;
+}
+
+.organizer-events__title {
+  color: white;
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.organizer-events__create-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #05EF7E 0%, #00D968 100%);
+  color: #000000;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.organizer-events__create-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(5, 239, 126, 0.3);
+}
+
+.organizer-events__create-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.organizer-events__content {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+
+.organizer-events__empty {
+  text-align: center;
+  padding: 80px 40px;
+}
+
+.organizer-events__empty-title {
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.organizer-events__empty-description {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.organizer-events__table-container {
+  overflow-x: auto;
+}
+
+.organizer-events__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.organizer-events__table-header {
+  background: rgba(5, 239, 126, 0.1);
+  border-bottom: 1px solid rgba(5, 239, 126, 0.2);
+}
+
+.organizer-events__table-header th {
+  padding: 20px 24px;
+  text-align: left;
+  color: #05EF7E;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.organizer-events__table-header th:last-child {
+  text-align: right;
+}
+
+.organizer-events__table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s ease;
+}
+
+.organizer-events__table-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.organizer-events__table-cell {
+  padding: 24px;
+  vertical-align: middle;
+}
+
+.organizer-events__table-cell:last-child {
+  text-align: right;
+}
+
+.organizer-events__event-name {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.organizer-events__event-date {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin: 0;
+}
+
+.organizer-events__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.organizer-events__status--taslak {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9CA3AF;
+  border: 1px solid rgba(156, 163, 175, 0.3);
+}
+
+.organizer-events__status--yayinda {
+  background: rgba(5, 239, 126, 0.2);
+  color: #05EF7E;
+  border: 1px solid rgba(5, 239, 126, 0.3);
+}
+
+.organizer-events__status--iptal {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.organizer-events__status--tamamlandi {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3B82F6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.organizer-events__ticket-stats {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.organizer-events__ticket-used {
+  color: #05EF7E;
+}
+
+.organizer-events__revenue {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.organizer-events__actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.organizer-events__action-link {
+  color: #05EF7E;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.organizer-events__action-link:hover {
+  color: white;
+}
+
+.organizer-events__action-link--secondary {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.organizer-events__action-link--secondary:hover {
+  color: white;
+}
+
+.organizer-events__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.organizer-events__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(5, 239, 126, 0.3);
+  border-top: 3px solid #05EF7E;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 1280px) {
+  .organizer-events__container {
+    width: 90vw;
+  }
+}
+
+@media (max-width: 1024px) {
+  .organizer-events__title {
+    font-size: 28px;
+  }
+  
+  .organizer-events__create-button {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .organizer-events {
+    margin-top: 20px;
+  }
+
+  .organizer-events__container {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+  }
+
+  .organizer-events__header {
+    flex-direction: column;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .organizer-events__title {
+    font-size: 24px;
+  }
+
+  .organizer-events__create-button {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .organizer-events__table-container {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .organizer-events__table {
+    min-width: 600px;
+  }
+
+  .organizer-events__table-header th {
+    padding: 16px 12px;
+    font-size: 12px;
+  }
+
+  .organizer-events__table-cell {
+    padding: 16px 12px;
+  }
+
+  .organizer-events__event-name {
+    font-size: 14px;
+  }
+
+  .organizer-events__event-date,
+  .organizer-events__ticket-stats {
+    font-size: 12px;
+  }
+
+  .organizer-events__revenue {
+    font-size: 14px;
+  }
+
+  .organizer-events__actions {
+    gap: 12px;
+  }
+
+  .organizer-events__action-link {
+    font-size: 12px;
+  }
+
+  .organizer-events__empty {
+    padding: 60px 20px;
+  }
+
+  .organizer-events__empty-title {
+    font-size: 20px;
+  }
+
+  .organizer-events__empty-description {
+    font-size: 14px;
+  }
+}

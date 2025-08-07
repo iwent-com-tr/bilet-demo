@@ -55,12 +55,20 @@ const Navbar: React.FC = () => {
                       Profil
                     </Link>
                     {isOrganizer && (
-                      <Link
-                        to="/organizer/devices"
-                        className="navbar__dropdown-item"
-                      >
-                        Cihazlar
-                      </Link>
+                      <>
+                        <Link
+                          to="/organizer/events"
+                          className="navbar__dropdown-item"
+                        >
+                          Etkinliklerim
+                        </Link>
+                        <Link
+                          to="/organizer/devices"
+                          className="navbar__dropdown-item"
+                        >
+                          Cihazlar
+                        </Link>
+                      </>
                     )}
                     <button
                       onClick={logout}

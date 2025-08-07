@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import './Events.css';
 
 interface Event {
   id: string;
@@ -46,20 +47,7 @@ const OrganizerEvents: React.FC = () => {
     return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'taslak':
-        return 'bg-gray-100 text-gray-800';
-      case 'yayinda':
-        return 'bg-green-100 text-green-800';
-      case 'iptal':
-        return 'bg-red-100 text-red-800';
-      case 'tamamlandi':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -78,106 +66,103 @@ const OrganizerEvents: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="organizer-events">
+        <div className="organizer-events__loading">
+          <div className="organizer-events__spinner"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Etkinliklerim</h1>
-        <Link
-          to="/organizer/events/create"
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-        >
-          Yeni Etkinlik
-        </Link>
-      </div>
+    <div className="organizer-events">
+      <div className="organizer-events__container">
+        <div className="organizer-events__header">
+          <h1 className="organizer-events__title">→ Etkinliklerim</h1>
+          <Link
+            to="/organizer/events/create"
+            className="organizer-events__create-button"
+          >
+            <svg 
+              className="organizer-events__create-icon" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            Yeni Etkinlik
+          </Link>
+        </div>
 
-      {events.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">Henüz etkinliğiniz yok</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            İlk etkinliğinizi oluşturmak için "Yeni Etkinlik" butonuna tıklayın.
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Etkinlik
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tarih
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Durum
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Bilet
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kazanç
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    İşlemler
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {events.map(event => (
-                  <tr key={event.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{event.ad}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{formatDate(event.baslangic_tarih)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                          event.durum
-                        )}`}
-                      >
-                        {getStatusText(event.durum)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {event.kullanilan_bilet} / {event.toplam_bilet}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {formatCurrency(event.toplam_kazanc)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link
-                        to={`/organizer/events/${event.id}/edit`}
-                        className="text-primary-600 hover:text-primary-900 mr-4"
-                      >
-                        Düzenle
-                      </Link>
-                      <Link
-                        to={`/organizer/event/${event.id}/report`}
-                        className="text-gray-600 hover:text-gray-900"
-                      >
-                        Rapor
-                      </Link>
-                    </td>
+        <div className="organizer-events__content">
+          {events.length === 0 ? (
+            <div className="organizer-events__empty">
+              <h3 className="organizer-events__empty-title">Henüz etkinliğiniz yok</h3>
+              <p className="organizer-events__empty-description">
+                İlk etkinliğinizi oluşturmak için "Yeni Etkinlik" butonuna tıklayın.
+              </p>
+            </div>
+          ) : (
+            <div className="organizer-events__table-container">
+              <table className="organizer-events__table">
+                <thead className="organizer-events__table-header">
+                  <tr>
+                    <th>Etkinlik</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Bilet</th>
+                    <th>Kazanç</th>
+                    <th>İşlemler</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {events.map(event => (
+                    <tr key={event.id} className="organizer-events__table-row">
+                      <td className="organizer-events__table-cell">
+                        <p className="organizer-events__event-name">{event.ad}</p>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <p className="organizer-events__event-date">{formatDate(event.baslangic_tarih)}</p>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <span className={`organizer-events__status organizer-events__status--${event.durum}`}>
+                          {getStatusText(event.durum)}
+                        </span>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <p className="organizer-events__ticket-stats">
+                          <span className="organizer-events__ticket-used">{event.kullanilan_bilet}</span> / {event.toplam_bilet}
+                        </p>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <p className="organizer-events__revenue">
+                          {formatCurrency(event.toplam_kazanc)}
+                        </p>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <div className="organizer-events__actions">
+                          <Link
+                            to={`/organizer/events/${event.id}/edit`}
+                            className="organizer-events__action-link"
+                          >
+                            Düzenle
+                          </Link>
+                          <Link
+                            to={`/organizer/event/${event.id}/report`}
+                            className="organizer-events__action-link organizer-events__action-link--secondary"
+                          >
+                            Rapor
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
