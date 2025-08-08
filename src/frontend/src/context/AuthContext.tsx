@@ -34,10 +34,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Ensure a single, consistent API base including "/api"
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
+
   const verifyToken = async (token: string) => {
     try {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/verify`);
+      const response = await axios.get(`${API_BASE_URL}/auth/verify`);
       setUser(response.data.user);
       return true;
     } catch (error) {
@@ -62,16 +65,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, sifre: string, tip: 'user' | 'organizer') => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email,
         sifre,
         tip
       });
 
-      const { token, user } = response.data;
+      const { token, user: responseUser } = response.data;
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      // Prefer response user if available, otherwise verify
+      if (responseUser) {
+        setUser(responseUser);
+      } else {
+        await verifyToken(token);
+      }
     } catch (error) {
       throw error;
     }
@@ -79,11 +87,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (userData: any) => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, userData);
-      const { token, user } = response.data;
+      const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
+      const { token, user: responseUser } = response.data;
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      if (responseUser) {
+        setUser(responseUser);
+      } else {
+        await verifyToken(token);
+      }
     } catch (error) {
       throw error;
     }
@@ -92,13 +104,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const registerOrganizer = async (organizerData: any) => {
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/auth/register/organizer`,
+        `${API_BASE_URL}/auth/register/organizer`,
         organizerData
       );
-      const { token, user } = response.data;
+      const { token, user: responseUser } = response.data;
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      if (responseUser) {
+        setUser(responseUser);
+      } else {
+        await verifyToken(token);
+      }
     } catch (error) {
       throw error;
     }

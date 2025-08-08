@@ -291,6 +291,13 @@ const OrganizerDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="organizer-dashboard__quick-stat">
+                  <div className="organizer-dashboard__quick-stat-icon">💬</div>
+                  <div className="organizer-dashboard__quick-stat-content">
+                    <p className="organizer-dashboard__quick-stat-label">Sohbet</p>
+                    <p className="organizer-dashboard__quick-stat-value">Aktif</p>
+                  </div>
+                </div>
+                <div className="organizer-dashboard__quick-stat">
                   <div className="organizer-dashboard__quick-stat-icon">🎭</div>
                   <div className="organizer-dashboard__quick-stat-content">
                     <p className="organizer-dashboard__quick-stat-label">Etkinlik</p>
@@ -420,6 +427,13 @@ const OrganizerDashboard: React.FC = () => {
               >
                 <span className="organizer-dashboard__action-icon">✏️</span>
                 Etkinliği Düzenle
+              </Link>
+              <Link
+                to={`/events/${selectedEvent}/chat`}
+                className="organizer-dashboard__action-button organizer-dashboard__action-button--chat"
+              >
+                <span className="organizer-dashboard__action-icon">💬</span>
+                Sohbet Odası
               </Link>
               <button
                 onClick={downloadReport}

@@ -26,13 +26,19 @@ router.post('/message', async (req, res) => {
     });
 
     // Socket.IO ile mesajı yayınla
-    req.app.get('io').to(`event-${event_id}`).emit('new-message', {
+    const messageData = {
       id: chatMessage.id,
       gonderenId: chatMessage.gonderenId,
       gonderenTipi: chatMessage.gonderenTipi,
       mesaj: chatMessage.mesaj,
       createdAt: chatMessage.createdAt
-    });
+    };
+    
+    const roomName = `event-${event_id}`;
+    const io = req.app.get('io');
+    if (io) {
+      io.to(roomName).emit('new-message', messageData);
+    }
 
     res.status(201).json({
       durum: 1,

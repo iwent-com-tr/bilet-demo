@@ -39,15 +39,29 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST']
-  }
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['*']
+  },
+  allowEIO3: true,
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(rateLimiter);
+
+// Make Socket.IO instance available to routes
+app.set('io', io);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -57,7 +71,9 @@ app.use('/api/chat', authMiddleware, chatRoutes);
 app.use('/api/organizer', authMiddleware, organizerRoutes);
 
 // Socket.IO
+console.log('🔧 Initializing Socket.IO chat module...');
 require('./sockets/chat')(io);
+console.log('✅ Socket.IO chat module loaded');
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -73,6 +89,11 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
+    console.log('🔧 Environment check:');
+    console.log('🔧 JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    console.log('🔧 DB_NAME:', process.env.DB_NAME || 'iwent');
+    console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
+    
     await sequelize.authenticate();
     logger.info('Database connection successful');
     
@@ -80,6 +101,8 @@ async function startServer() {
     logger.info('Database sync completed');
 
     httpServer.listen(PORT, () => {
+      console.log(`🚀 Backend server started on port ${PORT}`);
+      console.log(`🔗 Socket.IO ready at http://localhost:${PORT}`);
       logger.info(`Server running on port ${PORT}`);
     });
   } catch (error) {

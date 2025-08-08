@@ -2,6 +2,7 @@ const express = require('express');
 const { Event } = require('../models/event');
 const { organizerOnly, authMiddleware } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { ChatMessage } = require('../models/chat');
 
 const router = express.Router();
 
@@ -38,6 +39,19 @@ router.post('/create', authMiddleware, organizerOnly, async (req, res) => {
       bilet_tipleri,
       organizerId: req.user.id
     });
+
+    // Etkinlik oluşturulduğunda sohbeti başlatmak için ilk mesajı oluştur
+    try {
+      await ChatMessage.create({
+        eventId: event.id,
+        gonderenId: req.user.id,
+        gonderenTipi: 'organizer',
+        mesaj: 'Etkinlik sohbeti oluşturuldu'
+      });
+    } catch (chatError) {
+      // Sohbet başlangıç mesajı oluşturulamazsa olayı engellemeyelim
+      // İsteğe bağlı: loglama eklenebilir
+    }
 
     res.status(201).json({
       durum: 1,

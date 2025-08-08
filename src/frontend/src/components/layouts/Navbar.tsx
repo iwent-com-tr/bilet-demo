@@ -54,6 +54,14 @@ const Navbar: React.FC = () => {
                     >
                       Profil
                     </Link>
+                    {!isOrganizer && (
+                      <Link
+                        to="/my-tickets"
+                        className="navbar__dropdown-item"
+                      >
+                        Biletlerim
+                      </Link>
+                    )}
                     {isOrganizer && (
                       <>
                         <Link

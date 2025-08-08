@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import './MyTickets.css';
 
 interface Ticket {
   id: string;
@@ -55,6 +56,19 @@ const MyTickets: React.FC = () => {
     }
   };
 
+  const extractEventIdFromQrUrl = (qrUrl: string): string | null => {
+    try {
+      const url = new URL(qrUrl);
+      const dataParam = url.searchParams.get('data');
+      if (!dataParam) return null;
+      const decoded = decodeURIComponent(dataParam);
+      const parsed = JSON.parse(decoded);
+      return parsed.event_id || null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {
       day: 'numeric',
@@ -65,16 +79,16 @@ const MyTickets: React.FC = () => {
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusClass = (status: string) => {
     switch (status) {
       case 'aktif':
-        return 'bg-green-100 text-green-800';
+        return 'my-tickets__status-badge--aktif';
       case 'kullanildi':
-        return 'bg-gray-100 text-gray-800';
+        return 'my-tickets__status-badge--kullanildi';
       case 'iptal':
-        return 'bg-red-100 text-red-800';
+        return 'my-tickets__status-badge--iptal';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'my-tickets__status-badge--kullanildi';
     }
   };
 
@@ -93,61 +107,77 @@ const MyTickets: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="my-tickets__loading">
+        <div className="my-tickets__spinner" />
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Biletlerim</h1>
+    <div className="my-tickets">
+      <div className="my-tickets__header">
+        <h1 className="my-tickets__title">→ Biletlerim</h1>
+        <p className="my-tickets__subtitle">Satın aldığınız biletlerin detaylarını görüntüleyin ve etkinlik sohbetine katılın.</p>
+      </div>
 
       {tickets.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">Henüz biletiniz yok</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Etkinliklere göz atıp bilet almaya başlayabilirsiniz.
-          </p>
+        <div className="my-tickets__empty">
+          <h3 className="my-tickets__empty-title">Henüz biletiniz yok</h3>
+          <p className="my-tickets__empty-text">Etkinliklere göz atıp bilet almaya başlayabilirsiniz.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tickets.map(ticket => (
-            <div key={ticket.id} className="bg-white rounded-lg shadow overflow-hidden">
-              {/* QR Code */}
-              {ticket.durum === 'aktif' && (
-                <div className="p-4 border-b bg-gray-50 flex justify-center">
-                  <img 
-                    src={ticket.qr_kod}
-                    alt="QR Kod" 
-                    className="w-48 h-48" 
-                  />
-                </div>
-              )}
+        <div className="my-tickets__grid">
+          {tickets.map(ticket => {
+            const eventId = extractEventIdFromQrUrl(ticket.qr_kod);
+            const canChat = !!eventId;
+            return (
+              <div key={ticket.id} className="my-tickets__card">
+                {ticket.durum === 'aktif' && (
+                  <div className="my-tickets__qr">
+                    <img src={ticket.qr_kod} alt="QR Kod" className="my-tickets__qr-image" />
+                  </div>
+                )}
 
-              {/* Ticket Info */}
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-2">{ticket.event}</h3>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p>
-                    <span className="font-medium">Bilet Tipi:</span> {ticket.bilet_tipi}
-                  </p>
-                  <p>
-                    <span className="font-medium">Durum:</span>{' '}
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.durum)}`}>
-                      {getStatusText(ticket.durum)}
-                    </span>
-                  </p>
-                  {ticket.giris_zamani && (
-                    <p>
-                      <span className="font-medium">Giriş Zamanı:</span>{' '}
-                      {formatDate(ticket.giris_zamani)}
-                    </p>
-                  )}
+                <div className="my-tickets__content">
+                  <h3 className="my-tickets__event-name">{ticket.event}</h3>
+                  <div className="my-tickets__meta">
+                    <div className="my-tickets__meta-row">
+                      <span className="my-tickets__meta-label">Bilet Tipi</span>
+                      <span className="my-tickets__meta-value">{ticket.bilet_tipi}</span>
+                    </div>
+                    <div className="my-tickets__meta-row">
+                      <span className="my-tickets__meta-label">Durum</span>
+                      <span className={`my-tickets__status-badge ${getStatusClass(ticket.durum)}`}>
+                        {getStatusText(ticket.durum)}
+                      </span>
+                    </div>
+                    {ticket.giris_zamani && (
+                      <div className="my-tickets__meta-row">
+                        <span className="my-tickets__meta-label">Giriş Zamanı</span>
+                        <span className="my-tickets__meta-value">{formatDate(ticket.giris_zamani)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="my-tickets__actions">
+                    <button
+                      className="my-tickets__action-btn my-tickets__action-btn--secondary"
+                      onClick={() => navigate('/events')}
+                    >
+                      Etkinliklere Göz At
+                    </button>
+                    <button
+                      className={`my-tickets__action-btn ${canChat ? 'my-tickets__action-btn--primary' : 'my-tickets__action-btn--disabled'}`}
+                      onClick={() => canChat && navigate(`/events/${eventId}/chat`)}
+                      disabled={!canChat}
+                    >
+                      Sohbete Gir
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -454,6 +454,17 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
+.organizer-dashboard__action-button--chat {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+}
+
+.organizer-dashboard__action-button--chat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+}
+
 .organizer-dashboard__action-button--loading {
   opacity: 0.8;
   cursor: not-allowed !important;
@@ -544,7 +555,7 @@
 /* Quick Stats Row */
 .organizer-dashboard__quick-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-bottom: 8px;
 }

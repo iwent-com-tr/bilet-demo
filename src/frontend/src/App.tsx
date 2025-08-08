@@ -27,6 +27,7 @@ import OrganizerEventCreateSuccess from './pages/organizer/EventCreateSuccess';
 import EventPurchase from './pages/events/EventPurchase';
 import PurchaseSuccess from './pages/events/PurchaseSuccess';
 import EventTicketCategories from './pages/events/EventTicketCategories';
+import EventChat from './pages/events/EventChat';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -42,6 +43,7 @@ const App: React.FC = () => {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/events/:id/event-ticket-categories" element={<EventTicketCategories />} />
+            <Route path="/events/:id/chat" element={<EventChat />} />
             <Route path="/login" element={<Login />} />
           </Route>
 

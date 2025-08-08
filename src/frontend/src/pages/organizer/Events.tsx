@@ -148,6 +148,12 @@ const OrganizerEvents: React.FC = () => {
                             Düzenle
                           </Link>
                           <Link
+                            to={`/events/${event.id}/chat`}
+                            className="organizer-events__action-link organizer-events__action-link--chat"
+                          >
+                            💬 Sohbet
+                          </Link>
+                          <Link
                             to={`/organizer/event/${event.id}/report`}
                             className="organizer-events__action-link organizer-events__action-link--secondary"
                           >

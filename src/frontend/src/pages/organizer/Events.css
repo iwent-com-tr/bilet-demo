@@ -218,6 +218,17 @@
   color: white;
 }
 
+.organizer-events__action-link--chat {
+  color: #8B5CF6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.organizer-events__action-link--chat:hover {
+  color: #7C3AED;
+}
+
 .organizer-events__loading {
   display: flex;
   justify-content: center;

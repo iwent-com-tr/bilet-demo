@@ -4,10 +4,12 @@ const { Organizer } = require('../models/organizer');
 const { Event } = require('../models/event');
 
 module.exports = (io) => {
+  
   // Kimlik doğrulama middleware'i
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
+      
       if (!token) {
         return next(new Error('Yetkilendirme başarısız'));
       }
@@ -29,12 +31,13 @@ module.exports = (io) => {
       socket.userType = decoded.type;
       next();
     } catch (error) {
+      console.error('❌ Socket auth error:', error.message);
+      console.error('❌ Stack trace:', error.stack);
       next(new Error('Geçersiz token'));
     }
   });
 
   io.on('connection', (socket) => {
-    console.log('Kullanıcı bağlandı:', socket.user.id);
 
     // Etkinlik odasına katılma
     socket.on('join-event', async (eventId) => {
@@ -53,7 +56,9 @@ module.exports = (io) => {
         });
 
         // Yeni odaya katıl
-        socket.join(`event-${eventId}`);
+        const roomName = `event-${eventId}`;
+        socket.join(roomName);
+        
         socket.emit('joined-event', { eventId });
 
         // Organizatör ise özel odaya da katıl
@@ -61,6 +66,7 @@ module.exports = (io) => {
           socket.join(`event-${eventId}-organizer`);
         }
       } catch (error) {
+        console.error('Error joining event:', error);
         socket.emit('error', { message: error.message });
       }
     });
@@ -74,7 +80,6 @@ module.exports = (io) => {
 
     // Bağlantı kapandığında
     socket.on('disconnect', () => {
-      console.log('Kullanıcı ayrıldı:', socket.user.id);
     });
   });
 }; 
