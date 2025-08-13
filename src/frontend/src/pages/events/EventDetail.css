@@ -17,7 +17,7 @@
   margin: 0 auto;
   flex: 1;
   padding: 0;
-  padding-bottom: calc(48px + 40px); /* Button height + bottom margin */
+  padding-bottom: calc(56px + 100px); /* Button height + extra space for blur */
 }
 
 /* Mobile Styles */
@@ -429,6 +429,7 @@
 @media (max-width: 768px) {
   .event-detail__container {
     padding: 0;
+    padding-bottom: calc(56px + 120px); /* Extra bottom space for mobile blur */
   }
 
   .event-detail__mobile-content {
@@ -458,11 +459,11 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 260px;
+    height: 200px;
     background: linear-gradient(180deg, 
       rgba(0, 0, 0, 0) 0%, 
-      rgba(0, 0, 0, 0.8) 25%,
-      rgba(0, 0, 0, 0.95) 50%,
+      rgba(0, 0, 0, 0.6) 30%,
+      rgba(0, 0, 0, 0.9) 70%,
       rgba(0, 0, 0, 1) 100%
     );
     pointer-events: none;
