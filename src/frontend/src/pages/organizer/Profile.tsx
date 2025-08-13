@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import './OrganizerProfile.css';
 
 interface OrganizerData {
-  isim: string;
-  soyisim: string;
-  sirket: string;
+  firstName: string;
+  lastName: string;
+  company: string;
   email: string;
-  telefon: string;
-  vergi_no: string;
-  vergi_dairesi: string;
-  adres: string;
-  banka_hesap: string;
+  phone: string;
+  phoneVerified?: boolean;
+  taxNumber?: string;
+  taxOffice?: string;
+  address?: string;
+  bankAccount?: string;
 }
 
 const OrganizerProfile: React.FC = () => {
@@ -23,18 +24,34 @@ const OrganizerProfile: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<OrganizerData | null>(null);
   const [fetchingProfile, setFetchingProfile] = useState(true);
-
+  const [serverError, setServerError] = useState<string | null>(null);
+  const navigate = useNavigate();
   // Fetch current organizer profile data
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/organizer/profile`);
-        if (response.data.durum === 1) {
-          setProfileData(response.data.organizer);
+        if (!user?.id) return setFetchingProfile(false);
+        const base = process.env.REACT_APP_API_URL;
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+        const response = await axios.get(`${base}/organizers/${user.id}`, { headers });
+        const org = response.data?.organizer;
+        if (org) {
+          setProfileData({
+            firstName: org.firstName,
+            lastName: org.lastName,
+            company: org.company,
+            email: org.email,
+            phone: org.phone,
+            phoneVerified: org.phoneVerified,
+            taxNumber: org.taxNumber,
+            taxOffice: org.taxOffice,
+            address: org.address,
+            bankAccount: org.bankAccount,
+          });
         }
       } catch (error) {
-        console.error('Error fetching profile data:', error);
-        toast.error('Profil bilgileri yüklenemedi');
+        setServerError('Profil bilgileri yüklenemedi');
       } finally {
         setFetchingProfile(false);
       }
@@ -49,52 +66,72 @@ const OrganizerProfile: React.FC = () => {
 
   const formik = useFormik({
     initialValues: {
-      isim: profileData?.isim || '',
-      soyisim: profileData?.soyisim || '',
-      sirket: profileData?.sirket || '',
-      email: profileData?.email || '',
-      telefon: profileData?.telefon || '',
-      vergi_no: profileData?.vergi_no || '',
-      vergi_dairesi: profileData?.vergi_dairesi || '',
-      adres: profileData?.adres || '',
-      banka_hesap: profileData?.banka_hesap || '',
-      sifre: '',
-      sifre_tekrar: ''
+      firstName: profileData?.firstName || '',
+      lastName: profileData?.lastName || '',
+      company: profileData?.company || '',
+      email: profileData?.email || '', // shown but not updated by self
+      phone: profileData?.phone || '',
+      taxNumber: profileData?.taxNumber || '',
+      taxOffice: profileData?.taxOffice || '',
+      address: profileData?.address || '',
+      bankAccount: profileData?.bankAccount || ''
     },
     enableReinitialize: true,
     validationSchema: Yup.object({
-      isim: Yup.string()
-        .min(2, 'İsim en az 2 karakter olmalıdır')
-        .required('İsim zorunludur'),
-      soyisim: Yup.string()
-        .min(2, 'Soyisim en az 2 karakter olmalıdır')
-        .required('Soyisim zorunludur'),
-      sirket: Yup.string()
-        .min(2, 'Şirket adı en az 2 karakter olmalıdır')
-        .required('Şirket adı zorunludur'),
-      email: Yup.string()
-        .email('Geçerli bir e-posta adresi giriniz')
-        .required('E-posta adresi zorunludur'),
-      telefon: Yup.string()
-        .matches(/^\+?[1-9]\d{1,14}$/, 'Geçerli bir telefon numarası giriniz')
-        .required('Telefon numarası zorunludur'),
-      vergi_no: Yup.string()
-        .matches(/^\d{10,11}$/, 'Geçerli bir vergi numarası giriniz'),
-      vergi_dairesi: Yup.string(),
-      adres: Yup.string(),
-      banka_hesap: Yup.string(),
-      sifre: Yup.string()
-        .min(6, 'Şifre en az 6 karakter olmalıdır'),
-      sifre_tekrar: Yup.string()
-        .oneOf([Yup.ref('sifre')], 'Şifreler eşleşmiyor')
+      firstName: Yup.string().min(2, 'İsim en az 2 karakter olmalıdır').required('İsim zorunludur'),
+      lastName: Yup.string().min(2, 'Soyisim en az 2 karakter olmalıdır').required('Soyisim zorunludur'),
+      company: Yup.string().min(2, 'Şirket adı en az 2 karakter olmalıdır').required('Şirket adı zorunludur'),
+      email: Yup.string().email('Geçerli bir e-posta adresi giriniz'),
+      phone: Yup.string().matches(/^\+?[0-9]{10,15}$/, 'Geçerli bir telefon numarası giriniz').required('Telefon numarası zorunludur'),
+      taxNumber: Yup.string().matches(/^[1-9][0-9]{9}$/,{ message: 'Vergi numarası 10 haneli olmalı ve 0 ile başlamaz.' }).optional(),
+      taxOffice: Yup.string().optional(),
+      address: Yup.string().optional(),
+      bankAccount: Yup.string().optional()
     }),
     onSubmit: async (values) => {
       try {
+        if (!user?.id) return;
         setLoading(true);
-        await axios.put(`${process.env.REACT_APP_API_URL}/organizer/profile`, values);
-        toast.success('Profil güncellendi');
-      } catch (error) {
-        toast.error('Profil güncellenirken bir hata oluştu');
+        setServerError(null);
+        const base = process.env.REACT_APP_API_URL;
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+        // Map to OrganizerSelfUpdateDTO (email is admin-only, do not send it here)
+        const payload: any = {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phone: values.phone,
+          company: values.company,
+          taxNumber: values.taxNumber || undefined,
+          taxOffice: values.taxOffice || undefined,
+          address: values.address || undefined,
+          bankAccount: values.bankAccount || undefined
+        };
+        await axios.patch(`${base}/organizers/${user.id}`, payload, { headers });
+        navigate('/');
+      } catch (error: any) {
+        const raw = error?.response?.data;
+        let msg: string | null = null;
+        if (typeof raw === 'string') {
+          let text = raw
+            .replace(/<br\s*\/?>(\s*)/gi, '\n')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&quot;/g, '"')
+            .replace(/<[^>]*>/g, '')
+            .trim();
+          // Prefer JSON-like message field inside ZodError payloads
+          const jsonMsg = text.match(/"message"\s*:\s*"([^"]+)"/);
+          if (jsonMsg) {
+            msg = jsonMsg[1];
+          } else {
+            const m = text.match(/Error:\s*([^\n]+)/i) || text.match(/ZodError:\s*([^\n]+)/i);
+            msg = m ? m[1].trim() : text.split('\n')[0];
+          }
+        } else {
+          const backendMsg = raw?.error || raw?.message || raw?.details?.[0]?.message;
+          msg = backendMsg || 'Profil güncelleme başarısız';
+        }
+        setServerError(msg);
       } finally {
         setLoading(false);
       }
@@ -130,47 +167,52 @@ const OrganizerProfile: React.FC = () => {
         </div>
 
         <form onSubmit={formik.handleSubmit} className="organizer-profile__form">
+          {serverError && (
+            <div className="organizer-profile__server-error" role="alert" aria-live="polite">
+              {serverError}
+            </div>
+          )}
           {/* Kişisel Bilgiler */}
           <div className="organizer-profile__section">
             <h2 className="organizer-profile__section-title">Kişisel Bilgiler</h2>
             <div className="organizer-profile__grid organizer-profile__grid--two-columns">
               <div className="organizer-profile__field">
-                <label htmlFor="isim" className="organizer-profile__label">
+                <label htmlFor="firstName" className="organizer-profile__label">
                   İsim
                 </label>
                 <input
                   type="text"
-                  id="isim"
-                  {...formik.getFieldProps('isim')}
+                  id="firstName"
+                  {...formik.getFieldProps('firstName')}
                   className={`organizer-profile__input ${
-                    formik.touched.isim && formik.errors.isim
+                    formik.touched.firstName && formik.errors.firstName
                       ? 'organizer-profile__input--error'
                       : ''
                   }`}
                   placeholder="İsminizi girin"
                 />
-                {formik.touched.isim && formik.errors.isim && (
-                  <p className="organizer-profile__error">{formik.errors.isim}</p>
+                {formik.touched.firstName && formik.errors.firstName && (
+                  <p className="organizer-profile__error">{formik.errors.firstName}</p>
                 )}
               </div>
 
               <div className="organizer-profile__field">
-                <label htmlFor="soyisim" className="organizer-profile__label">
+                <label htmlFor="lastName" className="organizer-profile__label">
                   Soyisim
                 </label>
                 <input
                   type="text"
-                  id="soyisim"
-                  {...formik.getFieldProps('soyisim')}
+                  id="lastName"
+                  {...formik.getFieldProps('lastName')}
                   className={`organizer-profile__input ${
-                    formik.touched.soyisim && formik.errors.soyisim
+                    formik.touched.lastName && formik.errors.lastName
                       ? 'organizer-profile__input--error'
                       : ''
                   }`}
                   placeholder="Soyisminizi girin"
                 />
-                {formik.touched.soyisim && formik.errors.soyisim && (
-                  <p className="organizer-profile__error">{formik.errors.soyisim}</p>
+                {formik.touched.lastName && formik.errors.lastName && (
+                  <p className="organizer-profile__error">{formik.errors.lastName}</p>
                 )}
               </div>
             </div>
@@ -181,54 +223,54 @@ const OrganizerProfile: React.FC = () => {
             <h2 className="organizer-profile__section-title">Şirket Bilgileri</h2>
             <div className="organizer-profile__grid">
               <div className="organizer-profile__field">
-                <label htmlFor="sirket" className="organizer-profile__label">
+                <label htmlFor="company" className="organizer-profile__label">
                   Şirket Adı
                 </label>
                 <input
                   type="text"
-                  id="sirket"
-                  {...formik.getFieldProps('sirket')}
+                  id="company"
+                  {...formik.getFieldProps('company')}
                   className={`organizer-profile__input ${
-                    formik.touched.sirket && formik.errors.sirket
+                    formik.touched.company && formik.errors.company
                       ? 'organizer-profile__input--error'
                       : ''
                   }`}
                   placeholder="Şirket adınızı girin"
                 />
-                {formik.touched.sirket && formik.errors.sirket && (
-                  <p className="organizer-profile__error">{formik.errors.sirket}</p>
+                {formik.touched.company && formik.errors.company && (
+                  <p className="organizer-profile__error">{formik.errors.company}</p>
                 )}
               </div>
 
               <div className="organizer-profile__grid organizer-profile__grid--two-columns">
                 <div className="organizer-profile__field">
-                  <label htmlFor="vergi_no" className="organizer-profile__label">
+                  <label htmlFor="taxNumber" className="organizer-profile__label">
                     Vergi No
                   </label>
                   <input
                     type="text"
-                    id="vergi_no"
-                    {...formik.getFieldProps('vergi_no')}
+                    id="taxNumber"
+                    {...formik.getFieldProps('taxNumber')}
                     className={`organizer-profile__input ${
-                      formik.touched.vergi_no && formik.errors.vergi_no
+                      formik.touched.taxNumber && formik.errors.taxNumber
                         ? 'organizer-profile__input--error'
                         : ''
                     }`}
                     placeholder="Vergi numaranızı girin"
                   />
-                  {formik.touched.vergi_no && formik.errors.vergi_no && (
-                    <p className="organizer-profile__error">{formik.errors.vergi_no}</p>
+                  {formik.touched.taxNumber && formik.errors.taxNumber && (
+                    <p className="organizer-profile__error">{formik.errors.taxNumber}</p>
                   )}
                 </div>
 
                 <div className="organizer-profile__field">
-                  <label htmlFor="vergi_dairesi" className="organizer-profile__label">
+                  <label htmlFor="taxOffice" className="organizer-profile__label">
                     Vergi Dairesi
                   </label>
                   <input
                     type="text"
-                    id="vergi_dairesi"
-                    {...formik.getFieldProps('vergi_dairesi')}
+                    id="taxOffice"
+                    {...formik.getFieldProps('taxOffice')}
                     className="organizer-profile__input"
                     placeholder="Vergi dairenizi girin"
                   />
@@ -236,26 +278,26 @@ const OrganizerProfile: React.FC = () => {
               </div>
 
               <div className="organizer-profile__field">
-                <label htmlFor="adres" className="organizer-profile__label">
+                <label htmlFor="address" className="organizer-profile__label">
                   Adres
                 </label>
                 <textarea
-                  id="adres"
+                  id="address"
                   rows={3}
-                  {...formik.getFieldProps('adres')}
+                  {...formik.getFieldProps('address')}
                   className="organizer-profile__textarea"
                   placeholder="Şirket adresinizi girin"
                 />
               </div>
 
               <div className="organizer-profile__field">
-                <label htmlFor="banka_hesap" className="organizer-profile__label">
+                <label htmlFor="bankAccount" className="organizer-profile__label">
                   Banka Hesap Bilgileri
                 </label>
                 <input
                   type="text"
-                  id="banka_hesap"
-                  {...formik.getFieldProps('banka_hesap')}
+                  id="bankAccount"
+                  {...formik.getFieldProps('bankAccount')}
                   className="organizer-profile__input"
                   placeholder="IBAN numaranızı girin"
                 />
@@ -269,7 +311,7 @@ const OrganizerProfile: React.FC = () => {
             <div className="organizer-profile__grid organizer-profile__grid--two-columns">
               <div className="organizer-profile__field">
                 <label htmlFor="email" className="organizer-profile__label">
-                  E-posta
+                  E-posta (değişiklik için yöneticiye <a href="mailto:admin@iwent.com">başvurun</a>.)
                 </label>
                 <input
                   type="email"
@@ -280,76 +322,41 @@ const OrganizerProfile: React.FC = () => {
                       ? 'organizer-profile__input--error'
                       : ''
                   }`}
-                  placeholder="E-posta adresinizi girin"
+                  placeholder="E-posta adresiniz"
+                  disabled
                 />
-                {formik.touched.email && formik.errors.email && (
-                  <p className="organizer-profile__error">{formik.errors.email}</p>
-                )}
               </div>
 
               <div className="organizer-profile__field">
-                <label htmlFor="telefon" className="organizer-profile__label">
+                <label htmlFor="phone" className="organizer-profile__label">
                   Telefon
                 </label>
                 <input
                   type="tel"
-                  id="telefon"
-                  {...formik.getFieldProps('telefon')}
+                  id="phone"
+                  {...formik.getFieldProps('phone')}
                   className={`organizer-profile__input ${
-                    formik.touched.telefon && formik.errors.telefon
+                    formik.touched.phone && formik.errors.phone
                       ? 'organizer-profile__input--error'
                       : ''
                   }`}
                   placeholder="Telefon numaranızı girin"
+                  disabled={Boolean(profileData?.phoneVerified)}
                 />
-                {formik.touched.telefon && formik.errors.telefon && (
-                  <p className="organizer-profile__error">{formik.errors.telefon}</p>
+                {/* Show verify action only when number is not verified (organizer verification may share same route) */}
+                {user?.tip === 'organizer' && !profileData?.phoneVerified && (
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="phone-verify-button"
+                      onClick={() => navigate('/verify-phone-organizer')}
+                    >
+                      Telefonu Doğrula
+                    </button>
+                  </div>
                 )}
-              </div>
-            </div>
-          </div>
-
-          {/* Şifre Değiştirme */}
-          <div className="organizer-profile__section">
-            <h2 className="organizer-profile__section-title">Şifre Değiştirme</h2>
-            <div className="organizer-profile__grid organizer-profile__grid--two-columns">
-              <div className="organizer-profile__field">
-                <label htmlFor="sifre" className="organizer-profile__label">
-                  Yeni Şifre
-                </label>
-                <input
-                  type="password"
-                  id="sifre"
-                  {...formik.getFieldProps('sifre')}
-                  className={`organizer-profile__input ${
-                    formik.touched.sifre && formik.errors.sifre
-                      ? 'organizer-profile__input--error'
-                      : ''
-                  }`}
-                  placeholder="Yeni şifrenizi girin"
-                />
-                {formik.touched.sifre && formik.errors.sifre && (
-                  <p className="organizer-profile__error">{formik.errors.sifre}</p>
-                )}
-              </div>
-
-              <div className="organizer-profile__field">
-                <label htmlFor="sifre_tekrar" className="organizer-profile__label">
-                  Yeni Şifre Tekrar
-                </label>
-                <input
-                  type="password"
-                  id="sifre_tekrar"
-                  {...formik.getFieldProps('sifre_tekrar')}
-                  className={`organizer-profile__input ${
-                    formik.touched.sifre_tekrar && formik.errors.sifre_tekrar
-                      ? 'organizer-profile__input--error'
-                      : ''
-                  }`}
-                  placeholder="Şifrenizi tekrar girin"
-                />
-                {formik.touched.sifre_tekrar && formik.errors.sifre_tekrar && (
-                  <p className="organizer-profile__error">{formik.errors.sifre_tekrar}</p>
+                {formik.touched.phone && formik.errors.phone && (
+                  <p className="organizer-profile__error">{formik.errors.phone}</p>
                 )}
               </div>
             </div>

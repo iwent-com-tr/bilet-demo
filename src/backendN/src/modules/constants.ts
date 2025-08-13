@@ -1,0 +1,10 @@
+export const EVENT_CATEGORIES = [
+  'CONCERT',
+  'FESTIVAL',
+  'UNIVERSITY',
+  'WORKSHOP',
+  'CONFERENCE',
+  'SPORT',
+  'PERFORMANCE',
+  'EDUCATION',
+] as const;

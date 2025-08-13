@@ -12,7 +12,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, sifre: string, tip: 'user' | 'organizer') => Promise<void>;
+  login: (identifier: string, sifre: string, tip: 'user' | 'organizer') => Promise<void>;
   register: (userData: any) => Promise<void>;
   registerOrganizer: (organizerData: any) => Promise<void>;
   logout: () => void;
@@ -26,7 +26,7 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
-  }
+    }
   return context;
 };
 
@@ -37,14 +37,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Ensure a single, consistent API base including "/api"
   const API_BASE_URL = process.env.REACT_APP_API_URL;
 
+  const mapApiUserToUiUser = (apiUser: any, tip: 'user' | 'organizer'): User => ({
+    id: apiUser.id,
+    isim: apiUser.firstName || apiUser.isim || '',
+    soyisim: apiUser.lastName || apiUser.soyisim || '',
+    email: apiUser.email,
+    tip
+  });
+
+  const persistUser = (uiUser: User, tokens?: { accessToken?: string; refreshToken?: string }) => {
+    try {
+      localStorage.setItem('user:id', uiUser.id);
+      localStorage.setItem('user:email', uiUser.email);
+      localStorage.setItem('user:firstName', uiUser.isim || '');
+      localStorage.setItem('user:lastName', uiUser.soyisim || '');
+      localStorage.setItem('user:type', uiUser.tip);
+      if (tokens?.accessToken) localStorage.setItem('token', tokens.accessToken);
+      if (tokens?.refreshToken) localStorage.setItem('refreshToken', tokens.refreshToken);
+    } catch {}
+  };
+
   const verifyToken = async (token: string) => {
     try {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.get(`${API_BASE_URL}/auth/verify`);
-      setUser(response.data.user);
+      const storedType = (localStorage.getItem('user:type') as 'user' | 'organizer' | null) || 'user';
+      if (storedType === 'organizer') {
+        const organizerId = localStorage.getItem('user:id');
+        if (!organizerId) throw new Error('missing organizer id');
+        const res = await axios.get(`${API_BASE_URL}/organizers/${organizerId}`);
+        const apiOrganizer = res.data?.organizer;
+        if (apiOrganizer) {
+          const ui = mapApiUserToUiUser(apiOrganizer, 'organizer');
+          setUser(ui);
+          persistUser(ui);
+          return true;
+        }
+      }
+      // default: user
+      const response = await axios.get(`${API_BASE_URL}/auth/me`);
+      const apiUser = response.data?.user;
+      if (apiUser) {
+        const ui = mapApiUserToUiUser(apiUser, 'user');
+        setUser(ui);
+        persistUser(ui);
+      }
       return true;
-    } catch (error) {
+    } catch (_error) {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
       return false;
@@ -63,22 +103,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = async (email: string, sifre: string, tip: 'user' | 'organizer') => {
+  const login = async (identifier: string, sifre: string, tip: 'user' | 'organizer') => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        email,
-        sifre,
-        tip
-      });
+      const endpoint = tip === 'organizer' ? `${API_BASE_URL}/auth/login-organizer` : `${API_BASE_URL}/auth/login`;
+      const trimmed = (identifier || '').trim();
+      const isEmail = /.+@.+\..+/.test(trimmed);
+      const payload = tip === 'organizer'
+        ? { email: trimmed, password: sifre }
+        : (isEmail ? { email: trimmed, password: sifre } : { phone: trimmed, password: sifre });
+      const response = await axios.post(endpoint, payload);
 
-      const { token, user: responseUser } = response.data;
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Prefer response user if available, otherwise verify
-      if (responseUser) {
-        setUser(responseUser);
-      } else {
-        await verifyToken(token);
+      const apiUser = response.data?.user || response.data?.organizer;
+      const tokens = response.data?.tokens;
+      const accessToken: string | undefined = tokens?.accessToken;
+      const refreshToken: string | undefined = tokens?.refreshToken;
+
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+
+      if (apiUser) {
+        const ui = mapApiUserToUiUser(apiUser, tip);
+        setUser(ui);
+        persistUser(ui, { accessToken, refreshToken });
+      } else if (accessToken) {
+        await verifyToken(accessToken);
       }
     } catch (error) {
       throw error;
@@ -88,13 +141,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (userData: any) => {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
-      const { token, user: responseUser } = response.data;
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      if (responseUser) {
-        setUser(responseUser);
-      } else {
-        await verifyToken(token);
+      const apiUser = response.data?.user;
+      const tokens = response.data?.tokens;
+      const accessToken: string | undefined = tokens?.accessToken;
+      const refreshToken: string | undefined = tokens?.refreshToken;
+
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+
+      if (apiUser) {
+        const ui = mapApiUserToUiUser(apiUser, 'user');
+        setUser(ui);
+        persistUser(ui, { accessToken, refreshToken });
+      } else if (accessToken) {
+        await verifyToken(accessToken);
       }
     } catch (error) {
       throw error;
@@ -104,16 +169,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const registerOrganizer = async (organizerData: any) => {
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/auth/register/organizer`,
+        `${API_BASE_URL}/auth/register-organizer`,
         organizerData
       );
-      const { token, user: responseUser } = response.data;
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      if (responseUser) {
-        setUser(responseUser);
-      } else {
-        await verifyToken(token);
+      const apiOrganizer = response.data?.organizer;
+      const tokens = response.data?.tokens;
+      const accessToken: string | undefined = tokens?.accessToken;
+      const refreshToken: string | undefined = tokens?.refreshToken;
+
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+
+      if (apiOrganizer) {
+        const ui = mapApiUserToUiUser(apiOrganizer, 'organizer');
+        setUser(ui);
+        persistUser(ui, { accessToken, refreshToken });
       }
     } catch (error) {
       throw error;
@@ -122,6 +197,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user:id');
+    localStorage.removeItem('user:email');
+    localStorage.removeItem('user:firstName');
+    localStorage.removeItem('user:lastName');
+    localStorage.removeItem('user:type');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };

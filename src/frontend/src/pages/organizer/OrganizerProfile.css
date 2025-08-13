@@ -150,6 +150,19 @@
   margin-top: 24px;
 }
 
+.organizer-profile__server-error {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.35);
+  color: #FF6961;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
 .organizer-profile__submit-button {
   background: linear-gradient(45deg, #6EEB8A, #5AE074);
   color: white;
@@ -163,6 +176,17 @@
   outline: none;
   position: relative;
   overflow: hidden;
+}
+
+/* Reusable verify button style (matches user profile) */
+.phone-verify-button {
+  padding: 0 12px;
+  background: linear-gradient(135deg, #05EF7E, #04d670);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  height: 44px;
 }
 
 .organizer-profile__submit-button:hover:not(:disabled) {

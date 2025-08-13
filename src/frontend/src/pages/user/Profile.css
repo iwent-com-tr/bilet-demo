@@ -180,6 +180,15 @@
   flex: 1;
 }
 
+.phone-verify-button {
+  padding: 0 12px;
+  background: linear-gradient(135deg, #05EF7E, #04d670);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
 .form-row {
   display: flex;
   gap: 16px;

@@ -3,18 +3,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import './EventCreateSuccess.css';
 
 interface EventDetails {
-  ad: string;
-  kategori: string;
-  baslangic_tarih: string;
-  bitis_tarih: string;
-  yer: string;
-  il: string;
-  adres: string;
-  kapasite: number;
-  bilet_tipleri: Array<{
-    tip: string;
-    fiyat: number;
-    kapasite: number;
+  name: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  venue: string;
+  city: string;
+  address: string;
+  capacity: number;
+  ticketTypes: Array<{
+    type: string;
+    price: number;
+    capacity: number;
   }>;
 }
 
@@ -27,6 +27,20 @@ const EventCreateSuccess: React.FC = () => {
     navigate('/organizer/events');
     return null;
   }
+
+  const getCategoryText = (category: string) => {
+    const categoryDictionary: { [key: string]: string } = {
+      'CONCERT': 'Konser',
+      'FESTIVAL': 'Festival',
+      'UNIVERSITY': 'Üniversite',
+      'WORKSHOP': 'Atölye',
+      'CONFERENCE': 'Konferans',
+      'SPORT': 'Spor',
+      'PERFORMANCE': 'Performans',
+      'EDUCATION': 'Eğitim'
+    };
+    return categoryDictionary[category] || category;
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -68,9 +82,9 @@ const EventCreateSuccess: React.FC = () => {
           <div className="event-create-success__card-content">
             {/* Event Header */}
             <div className="event-create-success__event-header">
-              <h3 className="event-create-success__event-title">{eventDetails.ad}</h3>
+              <h3 className="event-create-success__event-title">{eventDetails.name}</h3>
               <span className="event-create-success__category-badge">
-                {eventDetails.kategori}
+                {getCategoryText(eventDetails.category)}
               </span>
             </div>
 
@@ -80,13 +94,13 @@ const EventCreateSuccess: React.FC = () => {
                 <h4 className="event-create-success__detail-label">Tarih ve Saat</h4>
                 <div className="event-create-success__detail-content">
                   <p className="event-create-success__detail-text event-create-success__detail-text--primary">
-                    {formatDate(eventDetails.baslangic_tarih)}
+                    {formatDate(eventDetails.startDate)}
                   </p>
                   <p className="event-create-success__detail-text event-create-success__detail-text--muted">
                     ile
                   </p>
                   <p className="event-create-success__detail-text event-create-success__detail-text--primary">
-                    {formatDate(eventDetails.bitis_tarih)}
+                    {formatDate(eventDetails.endDate)}
                   </p>
                 </div>
               </div>
@@ -95,11 +109,11 @@ const EventCreateSuccess: React.FC = () => {
                 <h4 className="event-create-success__detail-label">Konum</h4>
                 <div className="event-create-success__detail-content">
                   <p className="event-create-success__detail-text event-create-success__detail-text--primary">
-                    {eventDetails.yer}
+                    {eventDetails.venue}
                   </p>
-                  <p className="event-create-success__detail-text">{eventDetails.il}</p>
+                  <p className="event-create-success__detail-text">{eventDetails.city}</p>
                   <p className="event-create-success__detail-text event-create-success__detail-text--secondary">
-                    {eventDetails.adres}
+                    {eventDetails.address}
                   </p>
                 </div>
               </div>
@@ -109,13 +123,13 @@ const EventCreateSuccess: React.FC = () => {
             <div className="event-create-success__tickets">
               <h4 className="event-create-success__detail-label">Bilet Tipleri</h4>
               <div className="event-create-success__tickets-list">
-                {eventDetails.bilet_tipleri.map((bilet, index) => (
+                {eventDetails.ticketTypes.map((ticket, index) => (
                   <div key={index} className="event-create-success__ticket-item">
-                    <span className="event-create-success__ticket-name">{bilet.tip}</span>
+                    <span className="event-create-success__ticket-name">{ticket.type}</span>
                     <div className="event-create-success__ticket-info">
-                      <span className="event-create-success__ticket-price">{bilet.fiyat} TL</span>
+                      <span className="event-create-success__ticket-price">{ticket.price} TL</span>
                       <div className="event-create-success__ticket-separator"></div>
-                      <span className="event-create-success__ticket-capacity">{bilet.kapasite} kişi</span>
+                      <span className="event-create-success__ticket-capacity">{ticket.capacity} kişi</span>
                     </div>
                   </div>
                 ))}

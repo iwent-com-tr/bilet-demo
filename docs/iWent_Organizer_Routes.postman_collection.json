@@ -1,0 +1,119 @@
+{
+  "info": {
+    "name": "Bilet Demo - Organizer Routes",
+    "description": "Organizer management routes for Bilet Demo including listing, CRUD, and approval. Admin-only actions are marked and pre-configured to use {{adminAccessToken}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{adminAccessToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "adminAccessToken", "value": "", "type": "string" },
+    { "key": "organizerAccessToken", "value": "", "type": "string" },
+    { "key": "organizerId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "List Organizers (Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/organizers?page=1&limit=20&q=", "host": ["{{baseUrl}}"], "path": ["organizers"], "query": [
+          { "key": "page", "value": "1" },
+          { "key": "limit", "value": "20" },
+          { "key": "q", "value": "" }
+        ] },
+        "description": "List all organizers with pagination and optional search. Admin only."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin Create Organizer",
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const b = pm.response.json();",
+            "  pm.collectionVariables.set('organizerId', b.organizer.id);",
+            "}"
+          ] }
+        }
+      ],
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Events\",\n  \"company\": \"Event Masters Ltd\",\n  \"phone\": \"+905551112233\",\n  \"email\": \"jane@eventmasters.com\",\n  \"password\": \"OrganizerPass123!\",\n  \"taxNumber\": \"1234567890\",\n  \"taxOffice\": \"Kadıköy\",\n  \"address\": \"123 Event Street, Istanbul\",\n  \"bankAccount\": \"TR123456789012345678901234\",\n  \"avatar\": \"https://example.com/organizer-avatar.jpg\"\n}" },
+        "url": { "raw": "{{baseUrl}}/organizers", "host": ["{{baseUrl}}"], "path": ["organizers"] },
+        "description": "Admin creates a new organizer account."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Organizer by ID (Public)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/organizers/{{organizerId}}", "host": ["{{baseUrl}}"], "path": ["organizers", "{{organizerId}}"] },
+        "description": "Fetch organizer profile by id (public)."
+      },
+      "response": []
+    },
+    {
+      "name": "Organizer Self Update",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Updated\",\n  \"company\": \"Event Masters Ltd\",\n  \"phone\": \"+905559998877\",\n  \"avatar\": \"https://example.com/new-org-avatar.jpg\"\n}" },
+        "url": { "raw": "{{baseUrl}}/organizers/{{organizerId}}", "host": ["{{baseUrl}}"], "path": ["organizers", "{{organizerId}}"] },
+        "description": "Organizer updates their own profile (self-access)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin Update Organizer",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"updated@eventmasters.com\",\n  \"approved\": true\n}" },
+        "url": { "raw": "{{baseUrl}}/organizers/{{organizerId}}", "host": ["{{baseUrl}}"], "path": ["organizers", "{{organizerId}}"] },
+        "description": "Admin can update organizer fields including approval flag."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin Approve/Reject Organizer",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"approved\": true\n}" },
+        "url": { "raw": "{{baseUrl}}/organizers/{{organizerId}}/approve", "host": ["{{baseUrl}}"], "path": ["organizers", "{{organizerId}}", "approve"] },
+        "description": "Admin sets approval status for organizer."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin Soft Delete Organizer",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/organizers/{{organizerId}}", "host": ["{{baseUrl}}"], "path": ["organizers", "{{organizerId}}"] },
+        "description": "Soft delete organizer (sets deletedAt). Admin only."
+      },
+      "response": []
+    }
+  ]
+}
+
+

@@ -1,14 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import './Register.css';
+
+interface CityItem {
+  name: string;
+  plate: string;
+  latitude?: string;
+  longitude?: string;
+}
+
+// Accept local TR formats in UI; normalize to E.164 (+90...) on submit
+const phoneRegex = /^\+?\d{10,13}$/; 
+const currentYear = new Date().getFullYear();
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [cities, setCities] = useState<CityItem[]>([]);
+
+  const API_BASE_URL = process.env.REACT_APP_API_URL as string | undefined;
+
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        if (!API_BASE_URL) return;
+        const res = await axios.get(`${API_BASE_URL}/auth/cities`);
+        const list: CityItem[] = res.data?.cities || [];
+        setCities(list);
+      } catch (e) {
+        // Non-blocking
+      }
+    };
+    fetchCities();
+  }, [API_BASE_URL]);
+
+  const sortedCities = useMemo(() => {
+    return [...cities].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  }, [cities]);
 
   const formik = useFormik({
     initialValues: {
@@ -22,46 +56,53 @@ const Register: React.FC = () => {
       sehir: ''
     },
     validationSchema: Yup.object({
-      isim: Yup.string()
-        .min(2, 'İsim en az 2 karakter olmalıdır')
-        .required('İsim zorunludur'),
-      soyisim: Yup.string()
-        .min(2, 'Soyisim en az 2 karakter olmalıdır')
-        .required('Soyisim zorunludur'),
-      email: Yup.string()
-        .email('Geçerli bir e-posta adresi giriniz')
-        .required('E-posta adresi zorunludur'),
+      isim: Yup.string().min(2, 'İsim en az 2 karakter olmalıdır').required('İsim zorunludur'),
+      soyisim: Yup.string().min(2, 'Soyisim en az 2 karakter olmalıdır').required('Soyisim zorunludur'),
+      email: Yup.string().email('Geçerli bir e-posta adresi giriniz').required('E-posta adresi zorunludur'),
       sifre: Yup.string()
-        .min(6, 'Şifre en az 6 karakter olmalıdır')
+        .min(8, 'Şifre en az 8 karakter olmalıdır')
+        .matches(/[A-Z]/, 'Şifre en az bir büyük harf içermelidir')
+        .matches(/[^A-Za-z0-9]/, 'Şifre en az bir özel karakter içermelidir')
         .required('Şifre zorunludur'),
-      sifre_tekrar: Yup.string()
-        .oneOf([Yup.ref('sifre')], 'Şifreler eşleşmiyor')
-        .required('Şifre tekrarı zorunludur'),
+      sifre_tekrar: Yup.string().oneOf([Yup.ref('sifre')], 'Şifreler eşleşmiyor').required('Şifre tekrarı zorunludur'),
       dogum_yili: Yup.number()
+        .typeError('Doğum yılı geçerli bir sayı olmalıdır')
         .min(1900, 'Geçerli bir doğum yılı giriniz')
-        .max(new Date().getFullYear(), 'Geçerli bir doğum yılı giriniz')
+        .max(currentYear, 'Geçerli bir doğum yılı giriniz')
         .required('Doğum yılı zorunludur'),
-      telefon: Yup.string()
-        .matches(/^\+?[1-9]\d{1,14}$/, 'Geçerli bir telefon numarası giriniz')
-        .required('Telefon numarası zorunludur'),
+      telefon: Yup.string().matches(phoneRegex, 'Geçerli bir telefon numarası giriniz (örn: 5551112233 veya +905551112233)').required('Telefon numarası zorunludur'),
       sehir: Yup.string().required('Şehir zorunludur')
     }),
     onSubmit: async (values) => {
       try {
         setLoading(true);
-        await register({
-          isim: values.isim,
-          soyisim: values.soyisim,
+        const toE164TR = (input: string): string => {
+          const digitsOnly = String(input || '').replace(/\D+/g, '');
+          if (!digitsOnly) return '';
+          // already like 90XXXXXXXXXX (12 digits)
+          if (digitsOnly.startsWith('90') && digitsOnly.length === 12) return `+${digitsOnly}`;
+          // trim leading zeros for local numbers like 05XXXXXXXXX
+          const local = digitsOnly.replace(/^0+/, '');
+          if (local.length === 10) return `+90${local}`;
+          if (local.length === 11 && local.startsWith('5')) return `+90${local}`;
+          return local.startsWith('+') ? local : `+90${local}`;
+        };
+        // Map to backendN RegisterDTO fields
+        const payload = {
+          firstName: values.isim,
+          lastName: values.soyisim,
           email: values.email,
-          sifre: values.sifre,
-          dogum_yili: parseInt(values.dogum_yili),
-          telefon: values.telefon,
-          sehir: values.sehir
-        });
+          password: values.sifre,
+          birthYear: parseInt(values.dogum_yili, 10),
+          phone: toE164TR(values.telefon),
+          city: values.sehir.toLowerCase()
+        };
+        await register(payload);
         toast.success('Kayıt başarılı');
         navigate('/');
-      } catch (error) {
-        toast.error('Kayıt başarısız: ' + (error as Error).message);
+      } catch (error: any) {
+        const msg = error?.response?.data?.error || error?.message || 'Bilinmeyen bir hata oluştu';
+        toast.error('Kayıt başarısız: ' + msg);
       } finally {
         setLoading(false);
       }
@@ -69,191 +110,170 @@ const Register: React.FC = () => {
   });
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-8">
-      <h2 className="text-2xl font-bold text-center mb-6">Kayıt Ol</h2>
+    <div className="register">
+      <div className="register__container">
+        <h2 className="register__title">Kayıt Ol</h2>
 
-      <form onSubmit={formik.handleSubmit} className="space-y-6">
-        {/* Name and Surname */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="isim" className="block text-sm font-medium text-gray-700">
-              İsim
-            </label>
+        <form onSubmit={formik.handleSubmit} className="register__form">
+          {/* İsim Soyisim */}
+          <div className="register__row register__row--2">
+            <div className="register__form-group">
+              <label htmlFor="isim" className="register__label">İsim</label>
+              <input
+                id="isim"
+                type="text"
+                {...formik.getFieldProps('isim')}
+                className={`register__input ${formik.touched.isim && formik.errors.isim ? 'error' : ''}`}
+              />
+              {formik.touched.isim && formik.errors.isim && (
+                <p className="register__error">{formik.errors.isim}</p>
+              )}
+            </div>
+
+            <div className="register__form-group">
+              <label htmlFor="soyisim" className="register__label">Soyisim</label>
+              <input
+                id="soyisim"
+                type="text"
+                {...formik.getFieldProps('soyisim')}
+                className={`register__input ${formik.touched.soyisim && formik.errors.soyisim ? 'error' : ''}`}
+              />
+              {formik.touched.soyisim && formik.errors.soyisim && (
+                <p className="register__error">{formik.errors.soyisim}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Email */}
+          <div className="register__form-group">
+            <label htmlFor="email" className="register__label">E-posta</label>
             <input
-              id="isim"
-              type="text"
-              {...formik.getFieldProps('isim')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.isim && formik.errors.isim
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
+              id="email"
+              type="email"
+              {...formik.getFieldProps('email')}
+              className={`register__input ${formik.touched.email && formik.errors.email ? 'error' : ''}`}
             />
-            {formik.touched.isim && formik.errors.isim && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.isim}</p>
+            {formik.touched.email && formik.errors.email && (
+              <p className="register__error">{formik.errors.email}</p>
             )}
           </div>
 
-          <div>
-            <label htmlFor="soyisim" className="block text-sm font-medium text-gray-700">
-              Soyisim
-            </label>
-            <input
-              id="soyisim"
-              type="text"
-              {...formik.getFieldProps('soyisim')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.soyisim && formik.errors.soyisim
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            />
-            {formik.touched.soyisim && formik.errors.soyisim && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.soyisim}</p>
-            )}
-          </div>
-        </div>
+          {/* Şifreler */}
+          <div className="register__row register__row--2">
+            <div className="register__form-group">
+              <label htmlFor="sifre" className="register__label">Şifre</label>
+              <input
+                id="sifre"
+                type="password"
+                {...formik.getFieldProps('sifre')}
+                className={`register__input ${formik.touched.sifre && formik.errors.sifre ? 'error' : ''}`}
+              />
+              {formik.touched.sifre && formik.errors.sifre && (
+                <p className="register__error">{formik.errors.sifre}</p>
+              )}
 
-        {/* Email */}
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            E-posta
-          </label>
-          <input
-            id="email"
-            type="email"
-            {...formik.getFieldProps('email')}
-            className={`mt-1 block w-full rounded-md shadow-sm ${
-              formik.touched.email && formik.errors.email
-                ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-            }`}
-          />
-          {formik.touched.email && formik.errors.email && (
-            <p className="mt-1 text-sm text-red-600">{formik.errors.email}</p>
-          )}
-        </div>
+              {/* Password requirements checklist */}
+              {(() => {
+                const password = formik.values.sifre || '';
+                const hasMinLength = password.length >= 8;
+                const hasUppercase = /[A-Z]/.test(password);
+                const hasSpecial = /[^A-Za-z0-9]/.test(password);
+                return (
+                  <div className="password-requirements" aria-live="polite">
+                    <div className={`password-requirements__item ${hasMinLength ? 'met' : 'unmet'}`}>
+                      <span className="password-requirements__icon">{hasMinLength ? '✓' : '✗'}</span>
+                      En az 8 karakter
+                    </div>
+                    <div className={`password-requirements__item ${hasUppercase ? 'met' : 'unmet'}`}>
+                      <span className="password-requirements__icon">{hasUppercase ? '✓' : '✗'}</span>
+                      En az bir büyük harf (A-Z)
+                    </div>
+                    <div className={`password-requirements__item ${hasSpecial ? 'met' : 'unmet'}`}>
+                      <span className="password-requirements__icon">{hasSpecial ? '✓' : '✗'}</span>
+                      En az bir özel karakter (ör. !@#$%^&*.)
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
 
-        {/* Password */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="sifre" className="block text-sm font-medium text-gray-700">
-              Şifre
-            </label>
-            <input
-              id="sifre"
-              type="password"
-              {...formik.getFieldProps('sifre')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.sifre && formik.errors.sifre
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            />
-            {formik.touched.sifre && formik.errors.sifre && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.sifre}</p>
-            )}
+            <div className="register__form-group">
+              <label htmlFor="sifre_tekrar" className="register__label">Şifre Tekrar</label>
+              <input
+                id="sifre_tekrar"
+                type="password"
+                {...formik.getFieldProps('sifre_tekrar')}
+                className={`register__input ${formik.touched.sifre_tekrar && formik.errors.sifre_tekrar ? 'error' : ''}`}
+              />
+              {formik.touched.sifre_tekrar && formik.errors.sifre_tekrar && (
+                <p className="register__error">{formik.errors.sifre_tekrar}</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="sifre_tekrar" className="block text-sm font-medium text-gray-700">
-              Şifre Tekrar
-            </label>
-            <input
-              id="sifre_tekrar"
-              type="password"
-              {...formik.getFieldProps('sifre_tekrar')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.sifre_tekrar && formik.errors.sifre_tekrar
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            />
-            {formik.touched.sifre_tekrar && formik.errors.sifre_tekrar && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.sifre_tekrar}</p>
-            )}
-          </div>
-        </div>
+          {/* Doğum Yılı, Telefon, Şehir */}
+          <div className="register__row register__row--3">
+            <div className="register__form-group">
+              <label htmlFor="dogum_yili" className="register__label">Doğum Yılı</label>
+              <input
+                id="dogum_yili"
+                type="number"
+                min={1900}
+                max={currentYear}
+                {...formik.getFieldProps('dogum_yili')}
+                className={`register__input ${formik.touched.dogum_yili && formik.errors.dogum_yili ? 'error' : ''}`}
+              />
+              {formik.touched.dogum_yili && formik.errors.dogum_yili && (
+                <p className="register__error">{formik.errors.dogum_yili}</p>
+              )}
+            </div>
 
-        {/* Birth Year, Phone, City */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="dogum_yili" className="block text-sm font-medium text-gray-700">
-              Doğum Yılı
-            </label>
-            <input
-              id="dogum_yili"
-              type="number"
-              {...formik.getFieldProps('dogum_yili')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.dogum_yili && formik.errors.dogum_yili
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            />
-            {formik.touched.dogum_yili && formik.errors.dogum_yili && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.dogum_yili}</p>
-            )}
-          </div>
+            <div className="register__form-group">
+              <label htmlFor="telefon" className="register__label">Telefon</label>
+              <input
+                id="telefon"
+                type="tel"
+                placeholder="+905551112233"
+                {...formik.getFieldProps('telefon')}
+                className={`register__input ${formik.touched.telefon && formik.errors.telefon ? 'error' : ''}`}
+              />
+              {formik.touched.telefon && formik.errors.telefon && (
+                <p className="register__error">{formik.errors.telefon}</p>
+              )}
+            </div>
 
-          <div>
-            <label htmlFor="telefon" className="block text-sm font-medium text-gray-700">
-              Telefon
-            </label>
-            <input
-              id="telefon"
-              type="tel"
-              {...formik.getFieldProps('telefon')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.telefon && formik.errors.telefon
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            />
-            {formik.touched.telefon && formik.errors.telefon && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.telefon}</p>
-            )}
+            <div className="register__form-group">
+              <label htmlFor="sehir" className="register__label">Şehir</label>
+              <select
+                id="sehir"
+                {...formik.getFieldProps('sehir')}
+                className={`register__input ${formik.touched.sehir && formik.errors.sehir ? 'error' : ''}`}
+              >
+                <option value="">Şehir seçiniz</option>
+                {sortedCities.map((c) => (
+                  <option key={c.plate} value={c.name}>
+                    {c.name.charAt(0).toUpperCase() + c.name.slice(1)}
+                  </option>
+                ))}
+              </select>
+              {formik.touched.sehir && formik.errors.sehir && (
+                <p className="register__error">{formik.errors.sehir}</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="sehir" className="block text-sm font-medium text-gray-700">
-              Şehir
-            </label>
-            <input
-              id="sehir"
-              type="text"
-              {...formik.getFieldProps('sehir')}
-              className={`mt-1 block w-full rounded-md shadow-sm ${
-                formik.touched.sehir && formik.errors.sehir
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            />
-            {formik.touched.sehir && formik.errors.sehir && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.sehir}</p>
-            )}
+          <button type="submit" disabled={loading} className="register__submit-button">
+            {loading ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
+          </button>
+
+          <div className="register__links">
+            <p className="register__link-text">
+              Zaten hesabınız var mı?{' '}
+              <Link to="/login" className="register__link">Giriş Yap</Link>
+            </p>
           </div>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-        >
-          {loading ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
-        </button>
-
-        {/* Links */}
-        <div className="text-sm text-center">
-          <p>
-            Zaten hesabınız var mı?{' '}
-            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
-              Giriş Yap
-            </Link>
-          </p>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

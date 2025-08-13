@@ -1,0 +1,142 @@
+{
+  "info": {
+    "name": "Bilet Demo - Event Routes",
+    "description": "Event routes including listing, CRUD, publish/unpublish, and category-specific details endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "organizerAccessToken", "value": "", "type": "string" },
+    { "key": "adminAccessToken", "value": "", "type": "string" },
+    { "key": "eventId", "value": "", "type": "string" },
+    { "key": "organizerId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "List Events (Public)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events?category=CONCERT&city=ankara&status=ACTIVE&page=1&limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["events"],
+          "query": [
+            { "key": "category", "value": "CONCERT" },
+            { "key": "city", "value": "ankara" },
+            { "key": "status", "value": "ACTIVE" },
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "20" }
+          ]
+        },
+        "description": "List events with filters. Public access."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Event (Organizer/Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const b = pm.response.json();",
+            "  pm.collectionVariables.set('eventId', b.event.id);",
+            "}"
+          ] }
+        }
+      ],
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Rock Night\",\n  \"category\": \"CONCERT\",\n  \"startDate\": \"2025-09-01T19:00:00Z\",\n  \"endDate\": \"2025-09-01T22:00:00Z\",\n  \"venue\": \"IF Performance Hall\",\n  \"address\": \"Atatürk Blv 12, Çankaya\",\n  \"city\": \"ankara\",\n  \"banner\": \"https://example.com/banner.jpg\",\n  \"capacity\": 500,\n  \"ticketTypes\": [{\"name\": \"Early Bird\", \"price\": 350, \"currency\": \"TRY\", \"quota\": 200}],\n  \"details\": { \"artistList\": [{ \"name\": \"Artist1\" }] }\n}" },
+        "url": { "raw": "{{baseUrl}}/events", "host": ["{{baseUrl}}"], "path": ["events"] },
+        "description": "Create event as organizer (uses organizerAccessToken). Admin can supply organizerId in body to create for another organizer."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Event by ID (Public)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}"] },
+        "description": "Get single event including category-specific details."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Event (Owner/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Rock Night Reloaded\",\n  \"banner\": \"https://example.com/new-banner.jpg\"\n}" },
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}"] },
+        "description": "Update event fields (owner organizer or admin)."
+      },
+      "response": []
+    },
+    {
+      "name": "Publish Event (Owner/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}/publish", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}", "publish"] },
+        "description": "Publish event (status -> ACTIVE)."
+      },
+      "response": []
+    },
+    {
+      "name": "Unpublish Event (Owner/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}/unpublish", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}", "unpublish"] },
+        "description": "Unpublish event (status -> DRAFT)."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Event Details (Owner/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"artistList\": [{ \"name\": \"Artist2\" }],\n  \"stageSetup\": \"Main Stage\"\n}" },
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}/details", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}", "details"] },
+        "description": "Update category-specific details based on the event's category."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Event Details (Public)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}/details", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}", "details"] },
+        "description": "Get category-specific details for an event. Public access."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Event (Owner/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["events", "{{eventId}}"] },
+        "description": "Soft delete event."
+      },
+      "response": []
+    }
+  ]
+}
+
+

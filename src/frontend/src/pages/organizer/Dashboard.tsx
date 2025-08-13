@@ -7,22 +7,45 @@ import './Dashboard.css';
 
 interface Event {
   id: string;
-  ad: string;
-  baslangic_tarih: string;
-  durum: string;
+  name: string;
+  slug: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  venue: string;
+  address: string;
+  city: string;
+  banner?: string;
+  description?: string;
+  status: string;
+  organizerId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Stats {
-  toplam_bilet: number;
-  kullanilan_bilet: number;
-  iptal_edilen: number;
-  toplam_kazanc: number;
-  bilet_tipleri: {
-    [key: string]: {
-      adet: number;
-      kazanc: number;
-      kullanilan: number;
-    };
+  totalTickets: number;
+  usedTickets: number;
+  cancelledTickets: number;
+  totalRevenue: number;
+  averagePrice: number;
+  ticketTypeBreakdown: Array<{
+    type: string;
+    count: number;
+    used: number;
+    cancelled: number;
+    revenue: number;
+    averagePrice: number;
+  }>;
+  salesOverTime: Array<{
+    date: string;
+    count: number;
+    revenue: number;
+  }>;
+  usageStats: {
+    usagePercentage: number;
+    remainingTickets: number;
+    peakEntryTime?: string;
   };
 }
 
@@ -49,7 +72,7 @@ const OrganizerDashboard: React.FC = () => {
     }
     
     fetchEvents();
-  }, [isAuthenticated, isOrganizer, navigate, authLoading]);
+  }, [isAuthenticated, isOrganizer, navigate, authLoading, user?.id]);
 
   useEffect(() => {
     if (selectedEvent) {
@@ -60,24 +83,26 @@ const OrganizerDashboard: React.FC = () => {
   const fetchEvents = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
+      if (!token || !user?.id) {
         navigate('/login');
         return;
       }
 
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/organizer/events`, {
+      // Use the new endpoint with organizerId
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/events/organizer/${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (response.data.durum === 1) {
-        setEvents(response.data.events);
-        if (response.data.events.length > 0) {
-          setSelectedEvent(response.data.events[0].id);
+      // New API returns data directly in the data array
+      if (response.data && response.data.data) {
+        setEvents(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedEvent(response.data.data[0].id);
         }
       } else {
-        toast.error('Etkinlikler yüklenirken bir hata oluştu');
+        setEvents([]);
       }
       setLoading(false);
     } catch (error: any) {
@@ -86,8 +111,11 @@ const OrganizerDashboard: React.FC = () => {
         localStorage.removeItem('token');
         navigate('/login');
         return;
+      } else if (error.response?.status === 403) {
+        toast.error('Bu etkinliklere erişim yetkiniz yok');
+      } else {
+        toast.error('Etkinlikler yüklenirken bir hata oluştu');
       }
-      toast.error('Etkinlikler yüklenirken bir hata oluştu');
       setLoading(false);
     }
   };
@@ -100,8 +128,9 @@ const OrganizerDashboard: React.FC = () => {
         return;
       }
 
+      // Use the new stats endpoint
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/organizer/event/${selectedEvent}/stats`,
+        `${process.env.REACT_APP_API_URL}/events/${selectedEvent}/stats`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -109,10 +138,11 @@ const OrganizerDashboard: React.FC = () => {
         }
       );
       
-      if (response.data.durum === 1) {
+      // New API returns stats directly
+      if (response.data && response.data.stats) {
         setStats(response.data.stats);
       } else {
-        toast.error('İstatistikler yüklenirken bir hata oluştu');
+        setStats(null);
       }
     } catch (error: any) {
       console.error('İstatistik yükleme hatası:', error);
@@ -120,8 +150,14 @@ const OrganizerDashboard: React.FC = () => {
         localStorage.removeItem('token');
         navigate('/login');
         return;
+      } else if (error.response?.status === 403) {
+        toast.error('Bu etkinlik istatistiklerine erişim yetkiniz yok');
+      } else if (error.response?.status === 404) {
+        toast.error('Etkinlik bulunamadı');
+      } else {
+        toast.error('İstatistikler yüklenirken bir hata oluştu');
       }
-      toast.error('İstatistikler yüklenirken bir hata oluştu');
+      setStats(null);
     }
   };
 
@@ -138,13 +174,13 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const calculateTicketUsagePercentage = () => {
-    if (!stats || stats.toplam_bilet === 0) return 0;
-    return Math.round((stats.kullanilan_bilet / stats.toplam_bilet) * 100);
+    if (!stats || stats.totalTickets === 0) return 0;
+    return stats.usageStats.usagePercentage;
   };
 
   const getSelectedEventName = () => {
     const event = events.find(e => e.id === selectedEvent);
-    return event ? event.ad : '';
+    return event ? event.name : '';
   };
 
   const downloadReport = async () => {
@@ -157,7 +193,7 @@ const OrganizerDashboard: React.FC = () => {
     
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/organizer/event/${selectedEvent}/report`,
+        `${process.env.REACT_APP_API_URL}/organizers/event/${selectedEvent}/report`,
         {
           responseType: 'blob',
           headers: {
@@ -267,7 +303,7 @@ const OrganizerDashboard: React.FC = () => {
               >
                 {events.map(event => (
                   <option key={event.id} value={event.id}>
-                    {event.ad} - {formatDate(event.baslangic_tarih)}
+                    {event.name} - {formatDate(event.startDate)}
                   </option>
                 ))}
               </select>
@@ -287,7 +323,7 @@ const OrganizerDashboard: React.FC = () => {
                   <div className="organizer-dashboard__quick-stat-icon">🎫</div>
                   <div className="organizer-dashboard__quick-stat-content">
                     <p className="organizer-dashboard__quick-stat-label">Kalan Bilet</p>
-                    <p className="organizer-dashboard__quick-stat-value">{stats.toplam_bilet - stats.kullanilan_bilet}</p>
+                    <p className="organizer-dashboard__quick-stat-value">{stats.usageStats.remainingTickets}</p>
                   </div>
                 </div>
                 <div className="organizer-dashboard__quick-stat">
@@ -315,7 +351,7 @@ const OrganizerDashboard: React.FC = () => {
                     <h3 className="organizer-dashboard__stat-title">Toplam Bilet</h3>
                     <div className="organizer-dashboard__stat-icon">🎫</div>
                   </div>
-                  <p className="organizer-dashboard__stat-value">{stats.toplam_bilet}</p>
+                  <p className="organizer-dashboard__stat-value">{stats.totalTickets}</p>
                   <div className="organizer-dashboard__progress">
                     <div className="organizer-dashboard__progress-bar">
                       <div 
@@ -331,7 +367,7 @@ const OrganizerDashboard: React.FC = () => {
                     <h3 className="organizer-dashboard__stat-title">Kullanılan Bilet</h3>
                     <div className="organizer-dashboard__stat-icon">✅</div>
                   </div>
-                  <p className="organizer-dashboard__stat-value">{stats.kullanilan_bilet}</p>
+                  <p className="organizer-dashboard__stat-value">{stats.usedTickets}</p>
                   <div className="organizer-dashboard__progress">
                     <div className="organizer-dashboard__progress-bar">
                       <div 
@@ -348,9 +384,9 @@ const OrganizerDashboard: React.FC = () => {
                     <h3 className="organizer-dashboard__stat-title">İptal Edilen</h3>
                     <div className="organizer-dashboard__stat-icon">❌</div>
                   </div>
-                  <p className="organizer-dashboard__stat-value">{stats.iptal_edilen}</p>
+                  <p className="organizer-dashboard__stat-value">{stats.cancelledTickets}</p>
                   <div className="organizer-dashboard__stat-change">
-                    {stats.iptal_edilen === 0 ? (
+                    {stats.cancelledTickets === 0 ? (
                       <span className="organizer-dashboard__stat-change--positive">Hiç iptal yok! 🎉</span>
                     ) : (
                       <span>Son 30 gün</span>
@@ -364,7 +400,7 @@ const OrganizerDashboard: React.FC = () => {
                     <div className="organizer-dashboard__stat-icon">💰</div>
                   </div>
                   <p className="organizer-dashboard__stat-value organizer-dashboard__stat-value--currency">
-                    {formatCurrency(stats.toplam_kazanc)}
+                    {formatCurrency(stats.totalRevenue)}
                   </p>
                   <div className="organizer-dashboard__stat-change organizer-dashboard__stat-change--positive">
                     ↗ Toplam gelir
@@ -374,7 +410,7 @@ const OrganizerDashboard: React.FC = () => {
             )}
 
             {/* Ticket Types Table */}
-            {stats && Object.keys(stats.bilet_tipleri).length > 0 && (
+            {stats && stats.ticketTypeBreakdown.length > 0 && (
               <div className="organizer-dashboard__ticket-types">
                 <div className="organizer-dashboard__section-header">
                   <h2 className="organizer-dashboard__section-title">Bilet Tipleri Detayı</h2>
@@ -390,13 +426,13 @@ const OrganizerDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="organizer-dashboard__table-body">
-                      {Object.entries(stats.bilet_tipleri).map(([tip, data]) => (
-                        <tr key={tip}>
-                          <td className="organizer-dashboard__ticket-type">{tip}</td>
-                          <td className="organizer-dashboard__ticket-sold">{data.adet}</td>
-                          <td className="organizer-dashboard__ticket-used">{data.kullanilan}</td>
+                      {stats.ticketTypeBreakdown.map((ticketType) => (
+                        <tr key={ticketType.type}>
+                          <td className="organizer-dashboard__ticket-type">{ticketType.type}</td>
+                          <td className="organizer-dashboard__ticket-sold">{ticketType.count}</td>
+                          <td className="organizer-dashboard__ticket-used">{ticketType.used}</td>
                           <td className="organizer-dashboard__ticket-revenue">
-                            {formatCurrency(data.kazanc)}
+                            {formatCurrency(ticketType.revenue)}
                           </td>
                         </tr>
                       ))}

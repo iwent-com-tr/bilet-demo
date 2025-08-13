@@ -1,0 +1,358 @@
+{
+  "info": {
+    "name": "Bilet Demo - User Routes",
+    "description": "User management routes for Bilet Demo application including user listing, profile management, search, and statistics.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminAccessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "User Profile Management",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Get current user's profile information with all fields."
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Smith\",\n  \"phone\": \"+905559876543\",\n  \"city\": \"ankara\",\n  \"avatar\": \"https://example.com/updated-avatar.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Update current user's profile information."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Search & Discovery",
+      "item": [
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/search?q=john&limit=10&city=istanbul",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "john",
+                  "description": "Search query (firstName, lastName, email)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Maximum number of results (1-50)"
+                },
+                {
+                  "key": "city",
+                  "value": "istanbul",
+                  "description": "Filter by city (optional)"
+                }
+              ]
+            },
+            "description": "Search for users by name or email with optional city filter."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Get specific user by ID. Users can access their own profile, admins can access any profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}", "stats"]
+            },
+            "description": "Get user statistics including ticket counts, friend counts, and upcoming events."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Phone Verification",
+      "item": [
+        {
+          "name": "Send Verification Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+905551234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/verify/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "verify", "send"]
+            },
+            "description": "Send an SMS verification code to the provided phone number. Requires user authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Verification Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+905551234567\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/verify/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "verify", "confirm"]
+            },
+            "description": "Confirm the verification code sent to the user's phone. Returns updated user on success. Requires user authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Verification Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/verify/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "verify", "status"]
+            },
+            "description": "Get current user's phone verification status. Returns masked phone, verification flags, and cooldown info. Requires user authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Verification Code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/verify/resend",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "verify", "resend"]
+            },
+            "description": "Resend the verification code to the user's existing phone number if not yet verified. Requires user authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Phone Number",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+905551234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/phone",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "phone"]
+            },
+            "description": "Update user's phone number and trigger a new verification flow. Returns masked phone and requiresVerification flag. Requires user authentication."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin User Management",
+      "item": [
+        {
+          "name": "List All Users (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?page=1&limit=20&q=",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of users per page (1-100)"
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Search query (optional)"
+                }
+              ]
+            },
+            "description": "List all users with pagination and search. Admin access required."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Update User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Updated Name\",\n  \"lastName\": \"Updated Surname\",\n  \"email\": \"updated@example.com\",\n  \"userType\": \"ADMIN\",\n  \"phone\": \"+905551234567\",\n  \"city\": \"istanbul\",\n  \"phoneVerified\": true,\n  \"points\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Admin update any user's information including userType and verification status."
+          },
+          "response": []
+        },
+        {
+          "name": "Soft Delete User (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Soft delete a user (sets deletedAt timestamp). Admin access required."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set userId from current user if available",
+          "if (!pm.collectionVariables.get('userId') && pm.collectionVariables.get('accessToken')) {",
+          "    // You can manually set userId or get it from /auth/me response",
+          "}"
+        ]
+      }
+    }
+  ]
+}

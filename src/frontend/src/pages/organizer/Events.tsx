@@ -1,34 +1,83 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext';
 import './Events.css';
 
 interface Event {
   id: string;
-  ad: string;
-  baslangic_tarih: string;
-  durum: string;
-  toplam_bilet: number;
-  kullanilan_bilet: number;
-  toplam_kazanc: number;
+  name: string;
+  slug: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  venue: string;
+  address: string;
+  city: string;
+  banner?: string;
+  description?: string;
+  status: string;
+  organizerId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const OrganizerEvents: React.FC = () => {
+  const { user, isAuthenticated, isOrganizer, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to load
+    
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!isOrganizer) {
+      navigate('/');
+      return;
+    }
+    
     fetchEvents();
-  }, []);
+  }, [isAuthenticated, isOrganizer, navigate, authLoading, user?.id]);
 
   const fetchEvents = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/organizer/events`);
-      setEvents(response.data.events);
+      const token = localStorage.getItem('token');
+      if (!token || !user?.id) {
+        navigate('/login');
+        return;
+      }
+
+      // Use the new endpoint with organizerId
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/events/organizer/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // New API returns data directly in the data array
+      if (response.data && response.data.data) {
+        setEvents(response.data.data);
+      } else {
+        setEvents([]);
+      }
       setLoading(false);
-    } catch (error) {
-      toast.error('Etkinlikler yüklenirken bir hata oluştu');
+    } catch (error: any) {
+      console.error('Etkinlik listeleme hatası:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/login');
+        return;
+      } else if (error.response?.status === 403) {
+        toast.error('Bu etkinliklere erişim yetkiniz yok');
+      } else {
+        toast.error('Etkinlikler yüklenirken bir hata oluştu');
+      }
       setLoading(false);
     }
   };
@@ -51,20 +100,50 @@ const OrganizerEvents: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'taslak':
+      case 'DRAFT':
         return 'Taslak';
-      case 'yayinda':
+      case 'ACTIVE':
         return 'Yayında';
-      case 'iptal':
+      case 'CANCELLED':
         return 'İptal';
-      case 'tamamlandi':
+      case 'COMPLETED':
         return 'Tamamlandı';
       default:
         return status;
     }
   };
 
-  if (loading) {
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'DRAFT':
+        return 'taslak';
+      case 'ACTIVE':
+        return 'yayinda';
+      case 'CANCELLED':
+        return 'iptal';
+      case 'COMPLETED':
+        return 'tamamlandi';
+      default:
+        return status.toLowerCase();
+    }
+  };
+
+  const getCategoryText = (category: string) => {
+    const categoryDictionary: { [key: string]: string } = {
+      'CONCERT': 'Konser',
+      'FESTIVAL': 'Festival',
+      'UNIVERSITY': 'Üniversite',
+      'WORKSHOP': 'Atölye',
+      'CONFERENCE': 'Konferans',
+      'SPORT': 'Spor',
+      'PERFORMANCE': 'Performans',
+      'EDUCATION': 'Eğitim'
+    };
+    
+    return categoryDictionary[category] || category;
+  };
+
+  if (authLoading || loading) {
     return (
       <div className="organizer-events">
         <div className="organizer-events__loading">
@@ -108,10 +187,10 @@ const OrganizerEvents: React.FC = () => {
                 <thead className="organizer-events__table-header">
                   <tr>
                     <th>Etkinlik</th>
+                    <th>Kategori</th>
                     <th>Tarih</th>
+                    <th>Mekan</th>
                     <th>Durum</th>
-                    <th>Bilet</th>
-                    <th>Kazanç</th>
                     <th>İşlemler</th>
                   </tr>
                 </thead>
@@ -119,25 +198,27 @@ const OrganizerEvents: React.FC = () => {
                   {events.map(event => (
                     <tr key={event.id} className="organizer-events__table-row">
                       <td className="organizer-events__table-cell">
-                        <p className="organizer-events__event-name">{event.ad}</p>
+                        <div className="organizer-events__event-info">
+                          <p className="organizer-events__event-name">{event.name}</p>
+                          <p className="organizer-events__event-city">{event.city}</p>
+                        </div>
                       </td>
                       <td className="organizer-events__table-cell">
-                        <p className="organizer-events__event-date">{formatDate(event.baslangic_tarih)}</p>
+                        <span className="organizer-events__category">{getCategoryText(event.category)}</span>
                       </td>
                       <td className="organizer-events__table-cell">
-                        <span className={`organizer-events__status organizer-events__status--${event.durum}`}>
-                          {getStatusText(event.durum)}
+                        <p className="organizer-events__event-date">{formatDate(event.startDate)}</p>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <div className="organizer-events__venue-info">
+                          <p className="organizer-events__venue-name">{event.venue}</p>
+                          <p className="organizer-events__venue-address">{event.address}</p>
+                        </div>
+                      </td>
+                      <td className="organizer-events__table-cell">
+                        <span className={`organizer-events__status organizer-events__status--${getStatusClass(event.status)}`}>
+                          {getStatusText(event.status)}
                         </span>
-                      </td>
-                      <td className="organizer-events__table-cell">
-                        <p className="organizer-events__ticket-stats">
-                          <span className="organizer-events__ticket-used">{event.kullanilan_bilet}</span> / {event.toplam_bilet}
-                        </p>
-                      </td>
-                      <td className="organizer-events__table-cell">
-                        <p className="organizer-events__revenue">
-                          {formatCurrency(event.toplam_kazanc)}
-                        </p>
                       </td>
                       <td className="organizer-events__table-cell">
                         <div className="organizer-events__actions">
@@ -154,10 +235,10 @@ const OrganizerEvents: React.FC = () => {
                             💬 Sohbet
                           </Link>
                           <Link
-                            to={`/organizer/event/${event.id}/report`}
+                            to={`/organizer/`}
                             className="organizer-events__action-link organizer-events__action-link--secondary"
                           >
-                            Rapor
+                            📊 İstatistik
                           </Link>
                         </div>
                       </td>

@@ -126,6 +126,12 @@
   text-align: right;
 }
 
+.organizer-events__event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .organizer-events__event-name {
   color: white;
   font-size: 16px;
@@ -133,10 +139,51 @@
   margin: 0;
 }
 
+.organizer-events__event-city {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  margin: 0;
+  font-style: italic;
+}
+
 .organizer-events__event-date {
   color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
   margin: 0;
+}
+
+.organizer-events__category {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(5, 239, 126, 0.15);
+  color: #05EF7E;
+  border: 1px solid rgba(5, 239, 126, 0.3);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.organizer-events__venue-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.organizer-events__venue-name {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.organizer-events__venue-address {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .organizer-events__status {
@@ -300,7 +347,7 @@
   }
 
   .organizer-events__table {
-    min-width: 600px;
+    min-width: 800px;
   }
 
   .organizer-events__table-header th {
@@ -316,13 +363,25 @@
     font-size: 14px;
   }
 
-  .organizer-events__event-date,
-  .organizer-events__ticket-stats {
+  .organizer-events__event-city {
+    font-size: 11px;
+  }
+
+  .organizer-events__event-date {
     font-size: 12px;
   }
 
-  .organizer-events__revenue {
-    font-size: 14px;
+  .organizer-events__category {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .organizer-events__venue-name {
+    font-size: 12px;
+  }
+
+  .organizer-events__venue-address {
+    font-size: 11px;
   }
 
   .organizer-events__actions {

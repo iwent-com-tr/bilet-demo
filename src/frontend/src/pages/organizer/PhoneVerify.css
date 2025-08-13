@@ -1,0 +1,122 @@
+.phone-verify { 
+  min-height: 100vh; 
+  background: #000; 
+  color: #fff; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 20px; 
+}
+
+.phone-verify__container { 
+  width: 100%; 
+  max-width: 520px; 
+  background: #111827; 
+  border: 1px solid rgba(255,255,255,0.08); 
+  border-radius: 16px; 
+  padding: 28px; 
+  box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+}
+
+.phone-verify__title { 
+  font-size: 22px; 
+  font-weight: 700; 
+  margin-bottom: 12px; 
+  text-align: center; 
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.phone-verify__status { 
+  background: rgba(5, 239, 126, 0.08); 
+  border: 1px solid rgba(5,239,126,0.18); 
+  color: #9ef0c2; 
+  border-radius: 10px; 
+  padding: 10px 12px; 
+  font-size: 13px; 
+  margin-bottom: 10px; 
+  text-align: center; 
+}
+
+.phone-verify__error { 
+  background: rgba(255, 59, 48, 0.1); 
+  border: 1px solid rgba(255, 59, 48, 0.35); 
+  color: #FF6961; 
+  border-radius: 10px; 
+  padding: 12px 14px; 
+  font-size: 13px; 
+  margin-bottom: 10px; 
+  text-align: center; 
+}
+
+.phone-verify__group { 
+  margin-top: 16px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+
+.phone-verify__label { 
+  color: #B3B3B3; 
+  font-size: 14px; 
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.phone-verify__input { 
+  height: 48px; 
+  background: #262626; 
+  border: none; 
+  border-radius: 8px; 
+  color: #e5e5e5; 
+  padding: 0 14px; 
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.phone-verify__input:focus { 
+  outline: 2px solid rgba(5,239,126,0.3);
+}
+
+.phone-verify__actions { 
+  display: grid; 
+  grid-template-columns: 1fr; 
+  gap: 10px; 
+}
+
+.phone-verify__button { 
+  height: 46px; 
+  background: linear-gradient(135deg, #05EF7E, #04d670); 
+  border: none; 
+  color: #000; 
+  border-radius: 8px; 
+  font-weight: 600; 
+  cursor: pointer; 
+}
+
+.phone-verify__link { 
+  height: 46px; 
+  background: transparent; 
+  border: 1px solid rgba(255,255,255,0.2); 
+  color: #fff; 
+  border-radius: 8px; 
+  font-weight: 600; 
+  cursor: pointer; 
+}
+
+.phone-verify__back { 
+  width: 100%; 
+  margin-top: 16px; 
+  height: 46px; 
+  border-radius: 8px; 
+  background: rgba(255,255,255,0.05); 
+  border: 1px solid rgba(255,255,255,0.1); 
+  color: #fff; 
+}
+
+@media (min-width: 768px) { 
+  .phone-verify__container { padding: 32px; }
+  .phone-verify__actions { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 480px) { 
+  .phone-verify__container { padding: 18px; } 
+}
+

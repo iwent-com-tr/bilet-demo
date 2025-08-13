@@ -5,7 +5,6 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
-import AuthLayout from './components/layouts/AuthLayout';
 
 // Pages
 import Home from './pages/Home';
@@ -28,7 +27,8 @@ import EventPurchase from './pages/events/EventPurchase';
 import PurchaseSuccess from './pages/events/PurchaseSuccess';
 import EventTicketCategories from './pages/events/EventTicketCategories';
 import EventChat from './pages/events/EventChat';
-
+import PhoneVerify from './pages/user/PhoneVerify';
+import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 // Context
 import { AuthProvider } from './context/AuthContext';
 
@@ -45,10 +45,6 @@ const App: React.FC = () => {
             <Route path="/events/:id/event-ticket-categories" element={<EventTicketCategories />} />
             <Route path="/events/:id/chat" element={<EventChat />} />
             <Route path="/login" element={<Login />} />
-          </Route>
-
-          {/* Auth Routes */}
-          <Route element={<AuthLayout />}>
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
           </Route>
@@ -56,6 +52,7 @@ const App: React.FC = () => {
           {/* User Routes */}
           <Route element={<MainLayout />}>
             <Route path="/profile" element={<Profile />} />
+            <Route path="/verify-phone" element={<PhoneVerify />} />
             <Route path="/my-tickets" element={<MyTickets />} />
             <Route path="/events/:id/purchase" element={<EventPurchase />} />
             <Route path="/purchase-success" element={<PurchaseSuccess />} />
@@ -70,6 +67,7 @@ const App: React.FC = () => {
             <Route path="/organizer/profile" element={<OrganizerProfile />} />
             <Route path="/organizer/devices" element={<OrganizerDevices />} />
             <Route path="/organizer/events/create-success" element={<OrganizerEventCreateSuccess />} />
+            <Route path="/verify-phone-organizer" element={<PhoneVerifyOrganizer />} />
           </Route>
 
           {/* 404 */}

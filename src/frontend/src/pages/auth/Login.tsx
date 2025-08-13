@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import showPasswordIcon from '../../assets/show-passowrd.svg';
 import './Login.css';
@@ -14,6 +13,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [awareOfScreen, setAwareOfScreen] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   // Unsplash images for the grid
   const gridImages = [
@@ -28,16 +28,25 @@ const Login: React.FC = () => {
     'https://images.unsplash.com/photo-1628336707631-68131ca720c3?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   ];
 
+  const phoneRegex = /^\+?[0-9]{10,15}$/;
+
   const formik = useFormik({
     initialValues: {
-      email: '',
+      identifier: '',
       sifre: '',
       tip: 'user'
     },
     validationSchema: Yup.object({
-      email: Yup.string()
-        .email('Geçerli bir e-posta adresi giriniz')
-        .required('E-posta adresi zorunludur'),
+      identifier: Yup.string()
+        .required('E-posta adresi veya telefon numarası zorunludur')
+        .test('email-or-phone', 'Geçerli bir e-posta veya telefon giriniz', function (val) {
+          const tip = (this.parent as any).tip;
+          if (!val) return false;
+          if (tip === 'organizer') {
+            return /.+@.+\..+/.test(val);
+          }
+          return /.+@.+\..+/.test(val) || phoneRegex.test(val);
+        }),
       sifre: Yup.string()
         .min(6, 'Şifre en az 6 karakter olmalıdır')
         .required('Şifre zorunludur'),
@@ -45,17 +54,55 @@ const Login: React.FC = () => {
     }),
     onSubmit: async (values) => {
       try {
+        setServerError(null);
         setLoading(true);
-        await login(values.email, values.sifre, values.tip as 'user' | 'organizer');
-        toast.success('Giriş başarılı');
+        await login(values.identifier, values.sifre, values.tip as 'user' | 'organizer');
+        if (rememberMe) {
+          localStorage.setItem('login:remember', '1');
+          localStorage.setItem('login:identifier', values.identifier);
+          localStorage.setItem('login:tip', values.tip);
+        } else {
+          localStorage.removeItem('login:remember');
+          localStorage.removeItem('login:identifier');
+          localStorage.removeItem('login:tip');
+        }
         navigate(values.tip === 'organizer' ? '/organizer' : '/');
-      } catch (error) {
-        toast.error('Giriş başarısız: ' + (error as Error).message);
+      } catch (error: any) {
+        const raw = error?.response?.data;
+        let msg: string | null = null;
+        if (typeof raw === 'string') {
+          // Strip HTML and extract the first line starting with "Error:"
+          const text = raw.replace(/<br\s*\/?>(\s*)/gi, '\n').replace(/<[^>]*>/g, '').trim();
+          const errorLineMatch = text.match(/Error:\s*([^\n]+)/i);
+          if (errorLineMatch) {
+            msg = `${errorLineMatch[1].trim()}`;
+          } else {
+            msg = text.split('\n')[0];
+          }
+        } else {
+          const backendMsg = raw?.error || raw?.message;
+          msg = backendMsg ? `${backendMsg}` : null;
+        }
+        if (!msg) msg = 'Giriş başarısız';
+        setServerError(msg);
       } finally {
         setLoading(false);
       }
     }
   });
+
+  const isOrganizer = formik.values.tip === 'organizer';
+
+  // Prefill from localStorage when rememberMe was set previously
+  useEffect(() => {
+    const remembered = localStorage.getItem('login:remember') === '1';
+    if (remembered) {
+      setRememberMe(true);
+      const storedId = localStorage.getItem('login:identifier') || '';
+      const storedTip = (localStorage.getItem('login:tip') as 'user' | 'organizer') || 'user';
+      formik.setValues({ identifier: storedId, sifre: '', tip: storedTip });
+    }
+  }, []);
 
   return (
     <div className="login">
@@ -75,7 +122,13 @@ const Login: React.FC = () => {
       </div>
 
       <div className="login__container">
-        <h2 className="login__title">Giriş Yap</h2>
+
+        <h2 className="login__title">{isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap'}</h2>
+        {serverError && (
+          <div className="login__server-error" role="alert" aria-live="polite">
+            {serverError}
+          </div>
+        )}
 
         <form onSubmit={formik.handleSubmit} className="login__form">
           {/* User Type - Desktop Only */}
@@ -104,27 +157,26 @@ const Login: React.FC = () => {
             </label>
           </div>
 
-          {/* Email */}
+          {/* Identifier */}
           <div className="login__form-group">
-            <label htmlFor="email" className="login__label">
-              E-Mail Adresi
+            <label htmlFor="identifier" className="login__label">
+              {isOrganizer ? 'E-Posta adresi' : 'E-Posta adresi veya Telefon Numarası'}
             </label>
             <div className="login__input-container">
               <svg className="login__input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               <input
-                id="email"
-                type="email"
-                {...formik.getFieldProps('email')}
+                id="identifier"
+                type="text"
+                inputMode="email"
+                {...formik.getFieldProps('identifier')}
                 placeholder="ornek@email.com"
-                className={`login__input ${
-                  formik.touched.email && formik.errors.email ? 'error' : ''
-                }`}
+                className={`login__input ${formik.touched.identifier && formik.errors.identifier ? 'error' : ''}`}
               />
             </div>
-            {formik.touched.email && formik.errors.email && (
-              <p className="login__error">{formik.errors.email}</p>
+            {formik.touched.identifier && formik.errors.identifier && (
+              <p className="login__error">{formik.errors.identifier as string}</p>
             )}
           </div>
 
@@ -142,9 +194,7 @@ const Login: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 {...formik.getFieldProps('sifre')}
                 placeholder="*********"
-                className={`login__input ${
-                  formik.touched.sifre && formik.errors.sifre ? 'error' : ''
-                }`}
+                className={`login__input ${formik.touched.sifre && formik.errors.sifre ? 'error' : ''}`}
               />
               <button
                 type="button"
@@ -153,7 +203,7 @@ const Login: React.FC = () => {
               >
                 <img 
                   src={showPasswordIcon} 
-                  alt={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
+                  alt={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                   className="login__password-toggle-icon"
                 />
               </button>
@@ -188,10 +238,10 @@ const Login: React.FC = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !awareOfScreen}
             className="login__submit-button"
           >
-            {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+            {loading ? 'Giriş yapılıyor...' : (isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap')}
           </button>
 
           {/* Links */}

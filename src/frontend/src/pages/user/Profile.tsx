@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import FavoriteEvents from '../../components/FavoriteEvents';
 import RecommendedEvents from '../../components/RecommendedEvents';
 import MobileNavbar from '../../components/layouts/MobileNavbar';
@@ -11,14 +11,27 @@ import PageHeader from '../../components/layouts/PageHeader';
 import avatar from '../../assets/profile/avatar.png';
 import './Profile.css';
 
+interface CityItem {
+  name: string;
+  plate: string;
+  latitude?: string;
+  longitude?: string;
+}
+
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState<{ events: number; points: number; friends: number }>({ events: 0, points: 0, friends: 0 });
+  const [favorites, setFavorites] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>(avatar);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
+  const [profilePhone, setProfilePhone] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [cities, setCities] = useState<CityItem[]>([]);
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -26,6 +39,51 @@ const Profile: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const base = process.env.REACT_APP_API_URL;
+        const res = await axios.get(`${base}/auth/cities`);
+        const list: CityItem[] = res.data?.cities || [];
+        setCities(list);
+      } catch (e) {
+        // non-blocking
+      }
+    };
+    fetchCities();
+  }, []);
+
+  // Fetch live stats, favorites, and phone info from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const base = process.env.REACT_APP_API_URL;
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+        const userId = localStorage.getItem('user:id') || undefined;
+        const favUrl = userId ? `${base}/users/favorites?userId=${encodeURIComponent(userId)}` : `${base}/users/favorites`;
+        const [attendedRes, pointsRes, friendsRes, favRes, meRes] = await Promise.all([
+          axios.get(`${base}/tickets/attended/count`, { headers }),
+          axios.get(`${base}/users/points`, { headers }),
+          axios.get(`${base}/friendships/count`, { headers }),
+          axios.get(favUrl, { headers }),
+          axios.get(`${base}/users/me`, { headers })
+        ]);
+        setStats({
+          events: attendedRes.data?.attendedCount ?? 0,
+          points: pointsRes.data?.points ?? 0,
+          friends: friendsRes.data?.friendCount ?? 0
+        });
+        setFavorites(Array.isArray(favRes.data?.events) ? favRes.data.events : []);
+        const me = meRes.data?.user;
+        setPhoneVerified(Boolean(me?.phoneVerified));
+        setProfilePhone(me?.phone || '');
+      } catch (e) {
+        // non-blocking
+      }
+    };
+    fetchData();
   }, []);
 
   const handleImageClick = () => {
@@ -37,30 +95,56 @@ const Profile: React.FC = () => {
     if (file) {
       // Dosya tipini kontrol et
       if (!file.type.startsWith('image/')) {
-        toast.error('Lütfen geçerli bir resim dosyası seçin');
+        setServerError('Lütfen geçerli bir resim dosyası seçin');
         return;
       }
       
       // Dosya boyutunu kontrol et (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('Resim dosyası 5MB\'dan küçük olmalıdır');
+        setServerError("Resim dosyası 5MB'dan küçük olmalıdır");
         return;
       }
 
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedImage(reader.result as string);
+        setServerError(null);
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const getLocalPhoneFromE164 = (input: string): string => {
+    if (!input) return '';
+    const trimmed = input.trim();
+    if (trimmed.startsWith('+90')) return trimmed.slice(3);
+    if (trimmed.startsWith('+')) return trimmed.slice(1);
+    return trimmed;
+  };
+
+  const toE164WithTurkeyPrefix = (input: string): string => {
+    // Accept local 10 or 11 digits, trim leading zeros, ensure E.164 +90XXXXXXXXXX
+    const digitsOnly = String(input || '').replace(/\D+/g, '');
+    // If already starts with 90 and length 12, assume correct without leading +
+    if (digitsOnly.startsWith('90') && digitsOnly.length === 12) return `+${digitsOnly}`;
+    // Remove any leading zero from local numbers like 05XXXXXXXXX
+    const local = digitsOnly.replace(/^0+/, '');
+    if (!local) return '';
+    // If user entered 10 digits (5XXXXXXXXX), prefix with +90
+    if (local.length === 10) return `+90${local}`;
+    // If user entered 11 digits and first is 5 (05...), treat as local and prefix +90 after trimming 0
+    if (local.length === 11 && local.startsWith('5')) return `+90${local}`;
+    // Fallback: if user somehow included + already, keep as is
+    return local.startsWith('+') ? local : `+90${local}`;
+  };
+
   const formik = useFormik({
+    enableReinitialize: true,
     initialValues: {
       isim: user?.isim || '',
       soyisim: user?.soyisim || '',
       email: user?.email || '',
-      telefon: '',
+      telefon: getLocalPhoneFromE164(profilePhone),
       dogum_yili: '',
       cinsiyet: 'Erkek',
       sehir: 'Ankara'
@@ -75,8 +159,9 @@ const Profile: React.FC = () => {
       email: Yup.string()
         .email('Geçerli bir e-posta adresi giriniz')
         .required('E-posta adresi zorunludur'),
+      // Expect local TR format (10-11 digits with or without leading 0). We convert to E.164 on submit.
       telefon: Yup.string()
-        .matches(/^\+?[1-9]\d{1,14}$/, 'Geçerli bir telefon numarası giriniz'),
+        .matches(/^\+?\d{10,13}$/i, 'Geçerli bir telefon numarası giriniz'),
       dogum_yili: Yup.string(),
       cinsiyet: Yup.string(),
       sehir: Yup.string()
@@ -84,42 +169,55 @@ const Profile: React.FC = () => {
     onSubmit: async (values) => {
       try {
         setLoading(true);
-        
-        // Profil resmini yükle
-        if (selectedImage !== avatar) {
-          const formData = new FormData();
-          const base64Data = selectedImage.split(',')[1];
-          const blob = await fetch(`data:image/jpeg;base64,${base64Data}`).then(r => r.blob());
-          formData.append('avatar', blob, 'avatar.jpg');
-          
-          await axios.post(`${process.env.REACT_APP_API_URL}/user/avatar`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        }
+        setServerError(null);
+        const base = process.env.REACT_APP_API_URL;
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 
-        // Profil bilgilerini güncelle
-        await axios.put(`${process.env.REACT_APP_API_URL}/user/profile`, values);
-        toast.success('Profil güncellendi');
+        // Map to backend UpdateProfileDTO
+        const payload: any = {
+          firstName: values.isim,
+          lastName: values.soyisim,
+          email: values.email,
+          phone: phoneVerified ? undefined : (values.telefon ? toE164WithTurkeyPrefix(values.telefon) : undefined),
+          city: values.sehir,
+          avatar: selectedImage !== avatar ? selectedImage : undefined,
+        };
+
+        await axios.patch(`${base}/users/me`, payload, { headers });
         setShowSettings(false);
-      } catch (error) {
-        toast.error('Profil güncellenirken bir hata oluştu');
+      } catch (error: any) {
+        const raw = error?.response?.data;
+        let msg: string | null = null;
+        if (typeof raw === 'string') {
+          const text = raw.replace(/<br\s*\/?>(\s*)/gi, '\n').replace(/<[^>]*>/g, '').trim();
+          const m = text.match(/Error:\s*([^\n]+)/i);
+          msg = m ? m[1].trim() : text.split('\n')[0];
+        } else {
+          const backendMsg = raw?.error || raw?.message;
+          msg = backendMsg || 'Profil güncelleme başarısız';
+        }
+        setServerError(msg);
       } finally {
         setLoading(false);
       }
     }
   });
 
-  // Stats data
-  const stats = [
-    { label: 'Etkinlik', value: '94' },
-    { label: 'Puan', value: '1204' },
-    { label: 'Arkadaş', value: '505' }
+  // Stats data (from API)
+  const statsList = [
+    { label: 'Etkinlik', value: String(stats.events) },
+    { label: 'Puan', value: String(stats.points) },
+    { label: 'Arkadaş', value: String(stats.friends) }
   ];
 
   const renderSettingsForm = () => (
     <form onSubmit={formik.handleSubmit} className="settings-form">
+      {serverError && (
+        <div className="profile__server-error" role="alert" aria-live="polite">
+          {serverError}
+        </div>
+      )}
       <div className="avatar-upload">
         <div 
           className="avatar-upload__preview"
@@ -180,18 +278,17 @@ const Profile: React.FC = () => {
         <label htmlFor="telefon">İletişim Numarası</label>
         <div className="phone-input">
           <input
-            type="text"
-            value="+90"
-            disabled
-            className="country-code"
-            aria-label="Ülke kodu"
-          />
-          <input
             type="tel"
             id="telefon"
             {...formik.getFieldProps('telefon')}
             className="phone-number"
+            disabled={phoneVerified}
           />
+          {!phoneVerified && (
+            <button type="button" className="phone-verify-button" onClick={() => navigate('/verify-phone')}>
+              Doğrula
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,9 +320,11 @@ const Profile: React.FC = () => {
             id="sehir"
             {...formik.getFieldProps('sehir')}
           >
-            <option value="Ankara">Ankara</option>
-            <option value="İstanbul">İstanbul</option>
-            <option value="İzmir">İzmir</option>
+            {cities.map((city) => (
+              <option key={city.name} value={city.name}>
+                {city.name.charAt(0).toUpperCase() + city.name.slice(1)}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -268,10 +367,10 @@ const Profile: React.FC = () => {
                 </div>
               </div>
               <div className="profile-user-details">
-                <h2 className="profile-username">@{user?.isim?.toLowerCase()}{user?.soyisim?.toLowerCase()}</h2>
+                <h2 className="profile-username">@{((user?.isim || '').trim().toLowerCase() + (user?.soyisim || '').trim().toLowerCase()).replace(/\s+/g, '')}</h2>
                 <h3 className="profile-fullname">{user?.isim} {user?.soyisim} · Üye</h3>
                 <div className="profile-stats">
-                  {stats.map((stat, index) => (
+                  {statsList.map((stat, index) => (
                     <div key={index} className="profile-stat-item">
                       <span className="profile-stat-value">{stat.value}</span>
                       <span className="profile-stat-label">{stat.label}</span>
@@ -290,7 +389,7 @@ const Profile: React.FC = () => {
 
             <div className="profile-events">
               <div className="profile-section">
-                <FavoriteEvents />
+                <FavoriteEvents events={favorites} />
               </div>
               <div className="profile-section">
                 <RecommendedEvents />

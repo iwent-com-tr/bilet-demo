@@ -1,0 +1,105 @@
+{
+  "info": {
+    "name": "Bilet Demo - Ticket Routes",
+    "description": "Ticket routes including listing (admin), purchase with email QR, get by id (owner/admin), update status, and verify (organizer/admin).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "organizerAccessToken", "value": "", "type": "string" },
+    { "key": "adminAccessToken", "value": "", "type": "string" },
+    { "key": "ticketId", "value": "", "type": "string" },
+    { "key": "eventId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "List Tickets (Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tickets?eventId={{eventId}}&userId={{userId}}&status=ACTIVE&page=1&limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets"],
+          "query": [
+            { "key": "eventId", "value": "{{eventId}}" },
+            { "key": "userId", "value": "{{userId}}" },
+            { "key": "status", "value": "ACTIVE" },
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "20" }
+          ]
+        },
+        "description": "List tickets with filters. Admin only."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Ticket (Purchase)",
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "  const b = pm.response.json();",
+            "  pm.collectionVariables.set('ticketId', b.ticket.id);",
+            "}"
+          ] }
+        }
+      ],
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"ticketType\": \"VIP\",\n  \"price\": 350\n}" },
+        "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] },
+        "description": "Create ticket for current user (emails QR inline)."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Ticket by ID (Owner/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}"] },
+        "description": "Fetch a single ticket by id."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Ticket Status (Organizer/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"USED\"\n}" },
+        "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}"] },
+        "description": "Update ticket status to ACTIVE/USED/CANCELLED."
+      },
+      "response": []
+    },
+    {
+      "name": "Verify Ticket (Organizer/Admin)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"code\": \"ABCDEFG2\",\n  \"deviceId\": \"dev_1\",\n  \"gate\": \"Gate A\"\n}" },
+        "url": { "raw": "{{baseUrl}}/tickets/{{ticketId}}/verify", "host": ["{{baseUrl}}"], "path": ["tickets", "{{ticketId}}", "verify"] },
+        "description": "Verify ticket by reference code; marks as USED on success."
+      },
+      "response": []
+    }
+  ]
+}
+
+
