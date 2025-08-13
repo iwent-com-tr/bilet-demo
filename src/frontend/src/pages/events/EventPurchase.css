@@ -114,16 +114,42 @@
   transition: background-color 0.2s ease;
 }
 
-.event-purchase__quantity-button:hover {
+.event-purchase__quantity-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.event-purchase__quantity {
+.event-purchase__quantity-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.event-purchase__quantity-input {
   color: white;
   font-size: 16px;
   font-weight: 500;
-  min-width: 24px;
+  min-width: 60px;
   text-align: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.event-purchase__quantity-input:focus {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.event-purchase__quantity-input::-webkit-inner-spin-button,
+.event-purchase__quantity-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.event-purchase__quantity-input[type=number] {
+  -moz-appearance: textfield;
 }
 
 .event-purchase__total {

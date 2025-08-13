@@ -28,11 +28,12 @@ const EventPurchase: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [ticketCount, setTicketCount] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
 
   // Get selectedTicket from location.state or sessionStorage
   const getSelectedTicket = (): SelectedTicket | undefined => {
@@ -47,6 +48,16 @@ const EventPurchase: React.FC = () => {
     return savedTicket ? JSON.parse(savedTicket) : undefined;
   };
 
+  // Get participants data from location.state or sessionStorage
+  const getParticipants = () => {
+    if (location.state?.participants) {
+      return location.state.participants;
+    }
+    
+    const savedParticipants = sessionStorage.getItem(`participants_${slug}`);
+    return savedParticipants ? JSON.parse(savedParticipants) : [];
+  };
+
   const selectedTicket = getSelectedTicket();
 
   useEffect(() => {
@@ -58,6 +69,13 @@ const EventPurchase: React.FC = () => {
     if (!selectedTicket) {
       navigate(`/events/${slug}/event-ticket-categories`);
       return;
+    }
+
+    // Get participants and ticket count from location.state or sessionStorage
+    const participantsData = getParticipants();
+    if (participantsData.length > 0) {
+      setParticipants(participantsData);
+      setTicketCount(participantsData.length + 1); // +1 for current user
     }
 
     fetchEventDetails();
@@ -93,29 +111,86 @@ const EventPurchase: React.FC = () => {
 
     if (!event || !selectedTicket) return;
 
+    // If multiple tickets, navigate to participant info page
+    if (ticketCount > 1) {
+      // Save event data to sessionStorage
+      sessionStorage.setItem(`event_${slug}`, JSON.stringify(event));
+      sessionStorage.setItem(`selectedTicket_${slug}`, JSON.stringify(selectedTicket));
+      sessionStorage.setItem(`ticketCount_${slug}`, ticketCount.toString());
+      
+      navigate(`/events/${slug}/participant-info`, {
+        state: {
+          event: event,
+          selectedTicket: selectedTicket,
+          ticketCount: ticketCount
+        }
+      });
+      return;
+    }
+
+    // Single ticket purchase
     try {
       setPurchaseLoading(true);
       const token = localStorage.getItem('token');
       
-      // Use the correct ticket endpoint and DTO structure
-      await axios.post(
-        `${process.env.REACT_APP_API_URL}/tickets`,
-        {
-          eventId: event.id,
-          ticketType: selectedTicket.type,
-          price: selectedTicket.price
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+      if (ticketCount === 1) {
+        // Single ticket purchase
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/tickets`,
+          {
+            eventId: event.id,
+            ticketType: selectedTicket.type,
+            price: selectedTicket.price
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
+        );
+        
+        toast.success('Bilet alındı! QR kod e-postanıza gönderildi.');
+        navigate('/purchase-success', {
+          state: { eventId: event.id }
+        });
+      } else {
+        // Multiple tickets purchase
+        const ticketsData = [
+          // Current user's ticket
+          {
+            eventId: event.id,
+            ticketType: selectedTicket.type,
+            price: selectedTicket.price,
+            email: user?.email
+          },
+          // Additional participants' tickets
+          ...participants.map(participant => ({
+            eventId: event.id,
+            ticketType: selectedTicket.type,
+            price: selectedTicket.price,
+            email: participant.email,
+            phone: participant.phone
+          }))
+        ];
+
+        // Purchase all tickets
+        for (const ticketData of ticketsData) {
+          await axios.post(
+            `${process.env.REACT_APP_API_URL}/tickets`,
+            ticketData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
         }
-      );
-      
-      toast.success('Bilet alındı! QR kod e-postanıza gönderildi.');
-      navigate('/purchase-success', {
-        state: { eventId: event.id }
-      });
+        
+        toast.success(`${ticketCount} bilet başarıyla alındı! QR kodlar e-posta adreslerine gönderildi.`);
+        navigate('/purchase-success', {
+          state: { eventId: event.id }
+        });
+      }
     } catch (error: any) {
       console.error('Purchase error:', error);
       const errorMessage = error.response?.data?.message || 'Bilet alınırken bir hata oluştu';
@@ -187,13 +262,24 @@ const EventPurchase: React.FC = () => {
             <button
               onClick={() => setTicketCount(prev => Math.max(1, prev - 1))}
               className="event-purchase__quantity-button"
+              disabled={ticketCount <= 1}
             >
               -
             </button>
-            <span className="event-purchase__quantity">{ticketCount}</span>
+            <input
+              type="number"
+              max={selectedTicket.capacity}
+              value={ticketCount}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 1;
+                setTicketCount(Math.max(1, Math.min(selectedTicket.capacity, value)));
+              }}
+              className="event-purchase__quantity-input"
+            />
             <button
-              onClick={() => setTicketCount(prev => Math.min(5, prev + 1))}
+              onClick={() => setTicketCount(prev => Math.min(selectedTicket.capacity, prev + 1))}
               className="event-purchase__quantity-button"
+              disabled={ticketCount >= selectedTicket.capacity}
             >
               +
             </button>
@@ -204,7 +290,7 @@ const EventPurchase: React.FC = () => {
             disabled={purchaseLoading}
             className="event-purchase__submit-button"
           >
-            {purchaseLoading ? 'İşleniyor...' : 'Ödeme Yap'}
+            {purchaseLoading ? 'İşleniyor...' : ticketCount > 1 ? 'Devam Et' : 'Ödeme Yap'}
           </button>
         </div>
       </div>

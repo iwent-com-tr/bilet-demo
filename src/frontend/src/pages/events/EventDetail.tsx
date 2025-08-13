@@ -60,6 +60,7 @@ const EventDetail: React.FC = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
 
   useEffect(() => {
     fetchEvent();
@@ -69,6 +70,10 @@ const EventDetail: React.FC = () => {
     // Check if we're returning from a successful purchase
     if (location.state?.purchaseSuccess) {
       setShowSuccessPopup(true);
+      // Set participants if available
+      if (location.state?.participants) {
+        setParticipants(location.state.participants);
+      }
       // Clear the state after showing popup
       window.history.replaceState({}, document.title);
     }
@@ -218,10 +223,24 @@ const EventDetail: React.FC = () => {
     if (event?.category === 'CONCERT' && event?.details?.artistList) {
       return event.details.artistList.map((artist, index) => ({
         name: typeof artist === 'string' ? artist : artist.name || 'Unknown Artist',
-        image: '/placeholder-artist.jpg'
+        image: '/placeholder-artist.jpg',
       }));
     }
-    return [];
+    // For demo purposes, show some sample artists
+    return [
+      {
+        name: 'Santi & Tuğçe',
+        image: '/placeholder-artist.jpg',
+      },
+      {
+        name: 'Okan Güven',
+        image: '/placeholder-artist.jpg',
+      },
+      {
+        name: 'Ali Bakır',
+        image: '/placeholder-artist.jpg',
+      }
+    ];
   };
 
   const artists = getArtists();
@@ -285,55 +304,15 @@ const EventDetail: React.FC = () => {
           <h1 className="event-detail__mobile-title">{event.name}</h1>
           
           <div className="event-detail__info-section">
-            <div className="event-detail__mobile-attendees">
-              <div className="event-detail__mobile-attendees-avatars">
-                <div className="event-detail__mobile-attendee-avatar"></div>
-                <div className="event-detail__mobile-attendee-avatar"></div>
-                <div className="event-detail__mobile-attendee-avatar"></div>
-              </div>
-              <span className="event-detail__mobile-attendees-text">
-                Akif, Dilsu ve Duhan gidiyor
-              </span>
-            </div>
-
-            <div className="event-detail__mobile-datetime">
-              <span className="event-detail__mobile-datetime">
-                {new Date(event.startDate).toLocaleDateString('tr-TR', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                })} - {new Date(event.startDate).toLocaleTimeString('tr-TR', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </span>
-            </div>
-
-            {/* Event Details Section */}
-            <div className="event-detail__mobile-details">
-              <div className="event-detail__mobile-detail-item">
-                <span className="event-detail__mobile-detail-label">Mekan:</span>
-                <span className="event-detail__mobile-detail-value">{event.venue}</span>
-              </div>
-              
-              {event.address && (
-                <div className="event-detail__mobile-detail-item">
-                  <span className="event-detail__mobile-detail-label">Adres:</span>
-                  <span className="event-detail__mobile-detail-value">{event.address}</span>
-                </div>
-              )}
-              
-              <div className="event-detail__mobile-detail-item">
-                <span className="event-detail__mobile-detail-label">Şehir:</span>
-                <span className="event-detail__mobile-detail-value">{event.city}</span>
-              </div>
-
-              {event.description && (
-                <div className="event-detail__mobile-detail-item event-detail__mobile-detail-description">
-                  <span className="event-detail__mobile-detail-label">Açıklama:</span>
-                  <span className="event-detail__mobile-detail-value">{event.description}</span>
-                </div>
-              )}
+                          <div className="event-detail__mobile-datetime">
+              {new Date(event.startDate).toLocaleDateString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              })} - {new Date(event.startDate).toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
             </div>
 
             {/* Show artists section only if there are artists */}
@@ -388,6 +367,35 @@ const EventDetail: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Event Details Section */}
+            <div className="event-detail__mobile-details">
+              <div className="event-detail__mobile-detail-item">
+                <span className="event-detail__mobile-detail-label">Mekan:</span>
+                <span className="event-detail__mobile-detail-value">{event.venue}</span>
+              </div>
+              
+              {event.address && (
+                <div className="event-detail__mobile-detail-item">
+                  <span className="event-detail__mobile-detail-label">Adres:</span>
+                  <span className="event-detail__mobile-detail-value">{event.address}</span>
+                </div>
+              )}
+              
+              <div className="event-detail__mobile-detail-item">
+                <span className="event-detail__mobile-detail-label">Şehir:</span>
+                <span className="event-detail__mobile-detail-value">{event.city}</span>
+              </div>
+
+              {event.description && (
+                <div className="event-detail__mobile-detail-item event-detail__mobile-detail-description">
+                  <span className="event-detail__mobile-detail-label">Açıklama:</span>
+                  <span className="event-detail__mobile-detail-value">{event.description}</span>
+                </div>
+              )}
+            </div>
+
+
           </div>
 
           {/* Desktop only ticket selection */}
@@ -477,8 +485,30 @@ const EventDetail: React.FC = () => {
             </div>
             <h2 className="event-detail__success-title">Tebrikler!</h2>
             <p className="event-detail__success-message">
-              Hazırsın {user?.isim}! {event.name} maceranın bileti cebinde. Sohbet grubuna katıl, anılar şimdi başlasın
+              {location.state?.ticketCount > 1 
+                ? `${location.state.ticketCount} bilet başarıyla alındı! QR kodlar tüm katılımcıların e-posta adreslerine gönderildi.`
+                : `Hazırsın ${user?.isim}! ${event.name} maceranın bileti cebinde. Sohbet grubuna katıl, anılar şimdi başlasın`
+              }
             </p>
+            
+            {location.state?.ticketCount > 1 && participants.length > 0 && (
+              <div className="event-detail__participants-info">
+                <h3 className="event-detail__participants-title">Katılımcılar:</h3>
+                <div className="event-detail__participants-list">
+                  <div className="event-detail__participant-item">
+                    <span className="event-detail__participant-name">{user?.isim} {user?.soyisim}</span>
+                    <span className="event-detail__participant-email">{user?.email}</span>
+                  </div>
+                  {participants.map((participant, index) => (
+                    <div key={index} className="event-detail__participant-item">
+                      <span className="event-detail__participant-name">Katılımcı {index + 2}</span>
+                      <span className="event-detail__participant-email">{participant.email}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <button className="event-detail__success-button" onClick={handleClosePopup}>
               Sohbet Grubuna Git
             </button>

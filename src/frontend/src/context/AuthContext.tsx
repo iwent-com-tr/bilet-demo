@@ -6,6 +6,7 @@ interface User {
   isim: string;
   soyisim: string;
   email: string;
+  phone: string;
   tip: 'user' | 'organizer';
 }
 
@@ -42,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isim: apiUser.firstName || apiUser.isim || '',
     soyisim: apiUser.lastName || apiUser.soyisim || '',
     email: apiUser.email,
+    phone: apiUser.phone,
     tip
   });
 

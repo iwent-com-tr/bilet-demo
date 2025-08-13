@@ -18,6 +18,14 @@ export const CreateTicketDTO = z.object({
   price: z.number().positive({ message: 'price pozitif olmalıdır.' }),
 });
 
+export const SendTicketDTO = z.object({
+  participantEmail: z.string().email({ message: 'Geçerli bir e-posta adresi giriniz.' }),
+  eventId: z.string().uuid({ message: 'eventId geçerli bir UUID olmalıdır.' }),
+  ticketType: z.string().min(1, { message: 'ticketType zorunludur.' }),
+  price: z.number().positive({ message: 'price pozitif olmalıdır.' }),
+  purchaserUserId: z.string().uuid({ message: 'purchaserUserId geçerli bir UUID olmalıdır.' }),
+});
+
 export const UpdateTicketStatusDTO = z.object({
   status: z.enum(TicketStatuses),
 });
@@ -30,6 +38,7 @@ export const VerifyTicketDTO = z.object({
 
 export type ListTicketsQuery = z.infer<typeof ListTicketsQueryDTO>;
 export type CreateTicketInput = z.infer<typeof CreateTicketDTO>;
+export type SendTicketInput = z.infer<typeof SendTicketDTO>;
 export type UpdateTicketStatusInput = z.infer<typeof UpdateTicketStatusDTO>;
 export type VerifyTicketInput = z.infer<typeof VerifyTicketDTO>;
 

@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
+import ProtectedRoute from './components/layouts/ProtectedRoute';
 
 // Pages
 import Home from './pages/Home';
@@ -27,6 +28,7 @@ import EventPurchase from './pages/events/EventPurchase';
 import PurchaseSuccess from './pages/events/PurchaseSuccess';
 import EventTicketCategories from './pages/events/EventTicketCategories';
 import EventChat from './pages/events/EventChat';
+import ParticipantInfo from './pages/events/ParticipantInfo';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 // Context
@@ -43,7 +45,6 @@ const App: React.FC = () => {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:slug" element={<EventDetail />} />
             <Route path="/events/:slug/event-ticket-categories" element={<EventTicketCategories />} />
-            <Route path="/events/:slug/chat" element={<EventChat />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
@@ -51,23 +52,85 @@ const App: React.FC = () => {
 
           {/* User Routes */}
           <Route element={<MainLayout />}>
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/verify-phone" element={<PhoneVerify />} />
-            <Route path="/my-tickets" element={<MyTickets />} />
-            <Route path="/events/:slug/purchase" element={<EventPurchase />} />
-            <Route path="/purchase-success" element={<PurchaseSuccess />} />
+            <Route path="/profile" element={
+              <ProtectedRoute requiredRole="user">
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/verify-phone" element={
+              <ProtectedRoute requiredRole="user">
+                <PhoneVerify />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-tickets" element={
+              <ProtectedRoute requiredRole="user">
+                <MyTickets />
+              </ProtectedRoute>
+            } />
+            <Route path="/events/:slug/purchase" element={
+              <ProtectedRoute requiredRole="user">
+                <EventPurchase />
+              </ProtectedRoute>
+            } />
+            <Route path="/events/:slug/participant-info" element={
+              <ProtectedRoute requiredRole="user">
+                <ParticipantInfo />
+              </ProtectedRoute>
+            } />
+            <Route path="/events/:slug/chat" element={
+              <ProtectedRoute requiredRole="user">
+                <EventChat />
+              </ProtectedRoute>
+            } />
+            <Route path="/purchase-success" element={
+              <ProtectedRoute requiredRole="user">
+                <PurchaseSuccess />
+              </ProtectedRoute>
+            } />
           </Route>
 
           {/* Organizer Routes */}
           <Route element={<MainLayout />}>
-            <Route path="/organizer" element={<OrganizerDashboard />} />
-            <Route path="/organizer/events" element={<OrganizerEvents />} />
-            <Route path="/organizer/events/create" element={<OrganizerEventCreate />} />
-            <Route path="/organizer/events/:id/edit" element={<OrganizerEventEdit />} />
-            <Route path="/organizer/profile" element={<OrganizerProfile />} />
-            <Route path="/organizer/devices" element={<OrganizerDevices />} />
-            <Route path="/organizer/events/create-success" element={<OrganizerEventCreateSuccess />} />
-            <Route path="/verify-phone-organizer" element={<PhoneVerifyOrganizer />} />
+            <Route path="/organizer" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/events" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerEvents />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/events/create" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerEventCreate />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/events/:id/edit" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerEventEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/profile" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/devices" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerDevices />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/events/create-success" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerEventCreateSuccess />
+              </ProtectedRoute>
+            } />
+            <Route path="/verify-phone-organizer" element={
+              <ProtectedRoute requiredRole="organizer">
+                <PhoneVerifyOrganizer />
+              </ProtectedRoute>
+            } />
           </Route>
 
           {/* 404 */}

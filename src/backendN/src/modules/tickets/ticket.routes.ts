@@ -26,6 +26,9 @@ r.patch('/:id', authGuard.required, rbac('ADMIN', 'ORGANIZER'), ctrl.updateStatu
 // Verify ticket — Organizer/Admin
 r.post('/:id/verify', authGuard.required, rbac('ADMIN', 'ORGANIZER'), ctrl.verify);
 
+// Send ticket to unregistered participant email — authenticated user
+r.post('/send-unregistered', authGuard.required, ctrl.sendTicketUnregistered);
+
 export default r;
 
 

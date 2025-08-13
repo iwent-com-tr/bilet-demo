@@ -71,9 +71,9 @@ const Profile: React.FC = () => {
           axios.get(`${base}/users/me`, { headers })
         ]);
         setStats({
-          events: attendedRes.data?.attendedCount ?? 0,
-          points: pointsRes.data?.points ?? 0,
-          friends: friendsRes.data?.friendCount ?? 0
+          events: attendedRes.data?.count,
+          points: pointsRes.data?.points,
+          friends: friendsRes.data?.count
         });
         setFavorites(Array.isArray(favRes.data?.events) ? favRes.data.events : []);
         const me = meRes.data?.user;
