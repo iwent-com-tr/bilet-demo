@@ -5,6 +5,7 @@ import './FavoriteEvents.css';
 type BackendEvent = {
   id: string;
   name: string;
+  slug: string;
   startDate?: string;
   venue?: string;
   city?: string;
@@ -37,7 +38,7 @@ const FavoriteEvents: React.FC<Props> = ({ events }) => {
       <div className="favorite-events__grid-container">
         <div className="favorite-events__grid">
           {events!.map(ev => (
-            <Link key={ev.id} to={`/events/${ev.id}`} className="favorite-events__card">
+            <Link key={ev.id} to={`/events/${ev.slug}`} className="favorite-events__card">
               <div className="favorite-events__image-container">
                 {ev.banner ? (
                   <img src={ev.banner} alt={ev.name} className="favorite-events__image" />

@@ -42,12 +42,20 @@ export async function verify(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
-export async function getMyAttendedCount(req: Request, res: Response, next: NextFunction) {
+export const getMyAttendedCount = async (req: any, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).user?.id as string;
+    const userId = req.user.id;
     const count = await TicketService.countUserAttendedEvents(userId);
-    res.json({ attendedCount: count });
+    res.json({ count });
   } catch (e) { next(e); }
-}
+};
+
+export const getMyTickets = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user.id;
+    const tickets = await TicketService.getMyTickets(userId);
+    res.json({ tickets });
+  } catch (e) { next(e); }
+};
 
 

@@ -7,6 +7,7 @@ const r = Router();
 
 // Public list and get
 r.get('/', ctrl.list);
+r.get('/slug/:slug', ctrl.getBySlug);
 r.get('/:id', ctrl.getById);
 
 // Get events by organizer ID for organizer dashboard

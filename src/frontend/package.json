@@ -14,6 +14,7 @@
     "axios": "^1.6.5",
     "date-fns": "^4.1.0",
     "formik": "^2.4.5",
+    "qrcode": "^1.5.4",
     "qrcode.react": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -26,13 +27,14 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",
+    "dotenv-cli": "^7.4.1",
     "postcss": "^8.4.33",
     "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
-    "dotenv-cli": "^7.4.1"
+    "typescript": "^4.9.5"
   },
   "browserslist": {
     "production": [

@@ -41,9 +41,9 @@ const App: React.FC = () => {
           <Route element={<MainLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/events" element={<EventList />} />
-            <Route path="/events/:id" element={<EventDetail />} />
-            <Route path="/events/:id/event-ticket-categories" element={<EventTicketCategories />} />
-            <Route path="/events/:id/chat" element={<EventChat />} />
+            <Route path="/events/:slug" element={<EventDetail />} />
+            <Route path="/events/:slug/event-ticket-categories" element={<EventTicketCategories />} />
+            <Route path="/events/:slug/chat" element={<EventChat />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
@@ -54,7 +54,7 @@ const App: React.FC = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/verify-phone" element={<PhoneVerify />} />
             <Route path="/my-tickets" element={<MyTickets />} />
-            <Route path="/events/:id/purchase" element={<EventPurchase />} />
+            <Route path="/events/:slug/purchase" element={<EventPurchase />} />
             <Route path="/purchase-success" element={<PurchaseSuccess />} />
           </Route>
 

@@ -150,6 +150,17 @@ export class EventService {
     return { ...event, details } as const;
   }
 
+  static async findBySlug(slug: string) {
+    const event = await prisma.event.findFirst({ where: { slug, deletedAt: null } });
+    if (!event) {
+      const e: any = new Error('event not found');
+      e.status = 404; e.code = 'NOT_FOUND';
+      throw e;
+    }
+    const details = await loadCategoryDetails(event.id, event.category);
+    return { ...event, details } as const;
+  }
+
   static async create(input: CreateEventInput & { organizerId: string }) {
     if (input.endDate < input.startDate) {
       const e: any = new Error('endDate cannot be earlier than startDate');

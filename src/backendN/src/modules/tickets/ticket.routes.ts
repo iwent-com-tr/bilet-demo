@@ -14,6 +14,9 @@ r.post('/', authGuard.required, ctrl.create);
 // Attended events count for current user
 r.get('/attended/count', authGuard.required, ctrl.getMyAttendedCount);
 
+// Get current user's tickets
+r.get('/my-tickets', authGuard.required, ctrl.getMyTickets);
+
 // Get ticket by id — owner or admin (enforced in future via rbac self-check + controller)
 r.get('/:id', authGuard.required, ctrl.getById);
 

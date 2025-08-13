@@ -18,15 +18,22 @@ export const ListEventsQueryDTO = z.object({
     .max(100, { message: 'Limit en fazla 100 olabilir.' })
     .default(20),
   q: z.string().min(1, { message: 'Arama sorgusu en az 1 karakter olmalıdır.' }).optional(),
-  city: z.string().min(1, { message: 'Şehir adı en az 1 karakter olmalıdır.' }).optional(),
-  category: z
-    .union([
-      z.enum(EVENT_CATEGORIES),
-      z.array(z.enum(EVENT_CATEGORIES)),
-    ])
-    .optional(),
-  dateFrom: z.coerce.date().optional(),
-  dateTo: z.coerce.date().optional(),
+  city: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || val.length >= 1, { message: 'Şehir adı en az 1 karakter olmalıdır.' }),
+  category: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || EVENT_CATEGORIES.includes(val as any), { message: 'Geçersiz kategori seçimi.' }),
+  dateFrom: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
+  dateTo: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
   organizerId: z.string().uuid({ message: 'organizerId geçerli bir UUID olmalıdır.' }).optional(),
   status: z.enum(EventStatuses).optional(),
 });

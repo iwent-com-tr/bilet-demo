@@ -33,6 +33,20 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
+export async function getPublicById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const organizer = await OrganizerService.findById(req.params.id);
+    // Return only safe public information
+    const publicInfo = {
+      id: organizer.id,
+      company: organizer.company,
+      approved: organizer.approved,
+      avatar: organizer.avatar
+    };
+    res.json(publicInfo);
+  } catch (e) { next(e); }
+}
+
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const isAdmin = ((req as any).user?.role === 'ADMIN');

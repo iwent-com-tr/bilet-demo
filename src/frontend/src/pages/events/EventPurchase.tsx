@@ -8,24 +8,24 @@ import './EventPurchase.css';
 
 interface Event {
   id: string;
-  ad: string;
-  banner: string;
-  organizator: string;
-  bilet_tipleri: Array<{
-    tip: string;
-    fiyat: number;
-    kapasite: number;
+  name: string;
+  banner?: string;
+  organizerId: string;
+  ticketTypes: Array<{
+    type: string;
+    price: number;
+    capacity: number;
   }>;
 }
 
 interface SelectedTicket {
-  tip: string;
-  fiyat: number;
-  kapasite: number;
+  type: string;
+  price: number;
+  capacity: number;
 }
 
 const EventPurchase: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -38,35 +38,36 @@ const EventPurchase: React.FC = () => {
   const getSelectedTicket = (): SelectedTicket | undefined => {
     if (location.state?.selectedTicket) {
       // If coming from ticket selection, save to sessionStorage
-      sessionStorage.setItem(`selectedTicket_${id}`, JSON.stringify(location.state.selectedTicket));
+      sessionStorage.setItem(`selectedTicket_${slug}`, JSON.stringify(location.state.selectedTicket));
       return location.state.selectedTicket;
     }
     
     // Try to get from sessionStorage
-    const savedTicket = sessionStorage.getItem(`selectedTicket_${id}`);
+    const savedTicket = sessionStorage.getItem(`selectedTicket_${slug}`);
     return savedTicket ? JSON.parse(savedTicket) : undefined;
   };
 
   const selectedTicket = getSelectedTicket();
 
   useEffect(() => {
-    if (!id) {
+    if (!slug) {
       navigate('/');
       return;
     }
 
     if (!selectedTicket) {
-      navigate(`/events/${id}/tickets`);
+      navigate(`/events/${slug}/event-ticket-categories`);
       return;
     }
 
     fetchEventDetails();
-  }, [id, selectedTicket, navigate]);
+  }, [slug, selectedTicket, navigate]);
 
   const fetchEventDetails = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/event/${id}`);
-      setEvent(response.data.event);
+      // Use the new backendN API endpoint with slug
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/events/slug/${slug}`);
+      setEvent(response.data);
     } catch (error) {
       console.error('API Error:', error);
       toast.error('Etkinlik bilgileri yüklenirken bir hata oluştu');
@@ -79,9 +80,9 @@ const EventPurchase: React.FC = () => {
   // Cleanup sessionStorage on unmount
   useEffect(() => {
     return () => {
-      sessionStorage.removeItem(`selectedTicket_${id}`);
+      sessionStorage.removeItem(`selectedTicket_${slug}`);
     };
-  }, [id]);
+  }, [slug]);
 
   const handlePurchase = async () => {
     if (!isAuthenticated) {
@@ -95,12 +96,14 @@ const EventPurchase: React.FC = () => {
     try {
       setPurchaseLoading(true);
       const token = localStorage.getItem('token');
+      
+      // Use the correct ticket endpoint and DTO structure
       await axios.post(
-        `${process.env.REACT_APP_API_URL}/ticket/purchase`,
+        `${process.env.REACT_APP_API_URL}/tickets`,
         {
-          event_id: event.id,
-          bilet_tipi: selectedTicket.tip,
-          adet: ticketCount
+          eventId: event.id,
+          ticketType: selectedTicket.type,
+          price: selectedTicket.price
         },
         {
           headers: {
@@ -108,9 +111,10 @@ const EventPurchase: React.FC = () => {
           }
         }
       );
+      
       toast.success('Bilet alındı! QR kod e-postanıza gönderildi.');
       navigate('/purchase-success', {
-        state: { eventId: id }
+        state: { eventId: event.id }
       });
     } catch (error: any) {
       console.error('Purchase error:', error);
@@ -123,7 +127,7 @@ const EventPurchase: React.FC = () => {
 
   const calculateTotal = () => {
     if (!selectedTicket) return 0;
-    return selectedTicket.fiyat * ticketCount;
+    return selectedTicket.price * ticketCount;
   };
 
   if (loading) {
@@ -149,22 +153,22 @@ const EventPurchase: React.FC = () => {
           <div className="event-purchase__banner">
             <img
               src={event.banner || '/placeholder-event.jpg'}
-              alt={event.ad}
+              alt={event.name}
               className="event-purchase__banner-image"
             />
           </div>
 
-          <h1 className="event-purchase__title">{event.ad}</h1>
-          <h2 className="event-purchase__organizer">Wake Up Works</h2>
+          <h1 className="event-purchase__title">{event.name}</h1>
+          <h2 className="event-purchase__organizer">Organizatör</h2>
 
           <div className="event-purchase__ticket-info">
             <div className="event-purchase__info-row">
               <span className="event-purchase__info-label">Bilet Grubu</span>
-              <span className="event-purchase__info-value">{selectedTicket.tip}</span>
+              <span className="event-purchase__info-value">{selectedTicket.type}</span>
             </div>
             <div className="event-purchase__info-row">
               <span className="event-purchase__info-label">Bilet Fiyatı</span>
-              <span className="event-purchase__info-value">{selectedTicket.fiyat} TL</span>
+              <span className="event-purchase__info-value">{selectedTicket.price} TL</span>
             </div>
             <div className="event-purchase__info-row">
               <span className="event-purchase__info-label">Hizmet Bedeli</span>

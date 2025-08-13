@@ -32,6 +32,13 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
+export async function getBySlug(req: Request, res: Response, next: NextFunction) {
+  try {
+    const event = await EventService.findBySlug(req.params.slug);
+    res.json(event);
+  } catch (e) { next(e); }
+}
+
 export async function getEventsByOrganizer(req: Request, res: Response, next: NextFunction) {
   try {
     const { organizerId } = req.params;

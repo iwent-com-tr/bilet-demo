@@ -128,6 +128,29 @@ export class TicketService {
     });
     return rows.length;
   }
+
+  static async getMyTickets(userId: string) {
+    const tickets = await prisma.ticket.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            startDate: true,
+            endDate: true,
+            venue: true,
+            city: true,
+            banner: true,
+            category: true
+          }
+        }
+      }
+    });
+    return tickets;
+  }
 }
 
 

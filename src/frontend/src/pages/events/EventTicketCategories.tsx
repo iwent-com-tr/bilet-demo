@@ -6,35 +6,36 @@ import PageHeader from '../../components/layouts/PageHeader';
 import './EventTicketCategories.css';
 
 interface TicketCategory {
-  tip: string;
-  fiyat: number;
-  kapasite: number;
-  kategori: string;
+  type: string;
+  price: number;
+  capacity: number;
+  category: string;
   sold_out: boolean;
 }
 
 interface Event {
   id: string;
-  ad: string;
-  banner: string;
-  organizator: string;
-  bilet_tipleri: TicketCategory[];
+  name: string;
+  banner?: string;
+  organizerId: string;
+  ticketTypes: TicketCategory[];
 }
 
 const EventTicketCategories: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchEventDetails();
-  }, [id]);
+  }, [slug]);
 
   const fetchEventDetails = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/event/${id}`);
-      setEvent(response.data.event);
+      // Use the new backendN API endpoint with slug
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/events/slug/${slug}`);
+      setEvent(response.data);
       setLoading(false);
     } catch (error) {
       toast.error('Etkinlik bilgileri yüklenirken bir hata oluştu');
@@ -43,23 +44,23 @@ const EventTicketCategories: React.FC = () => {
   };
 
   const handlePurchase = (ticket: TicketCategory) => {
-    navigate(`/events/${id}/purchase`, {
+    navigate(`/events/${slug}/purchase`, {
       state: {
         selectedTicket: ticket,
-        eventId: id
+        eventId: event?.id
       }
     });
   };
 
   // Group tickets by category
-  const groupedTickets = event?.bilet_tipleri.reduce((acc, ticket) => {
-    const category = ticket.kategori || 'Standard Tickets';
+  const groupedTickets = event?.ticketTypes?.reduce((acc, ticket) => {
+    const category = ticket.category || 'Standard Tickets';
     if (!acc[category]) {
       acc[category] = [];
     }
     acc[category].push(ticket);
     return acc;
-  }, {} as Record<string, TicketCategory[]>);
+  }, {} as Record<string, TicketCategory[]>) || {};
 
   if (loading || !event) {
     return (
@@ -74,7 +75,7 @@ const EventTicketCategories: React.FC = () => {
       <PageHeader title="Bilet Kategorileri" />
       
       <div className="ticket-categories__container">
-        {Object.entries(groupedTickets || {}).map(([category, tickets]) => (
+        {Object.entries(groupedTickets).map(([category, tickets]) => (
           <div key={category} className="ticket-categories__group">
             <h2 className="ticket-categories__group-title">{category}</h2>
             
@@ -82,8 +83,8 @@ const EventTicketCategories: React.FC = () => {
               {tickets.map((ticket, index) => (
                 <div key={index} className="ticket-categories__item">
                   <div className="ticket-categories__item-info">
-                    <h3 className="ticket-categories__item-title">{ticket.tip}</h3>
-                    <span className="ticket-categories__item-price">{ticket.fiyat} TL</span>
+                    <h3 className="ticket-categories__item-title">{ticket.type}</h3>
+                    <span className="ticket-categories__item-price">{ticket.price} TL</span>
                   </div>
                   
                   {ticket.sold_out ? (

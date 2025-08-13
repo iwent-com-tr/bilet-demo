@@ -17,19 +17,20 @@ import radioUnchecked from '../assets/slider/material-symbols_radio-button-unche
 
 interface Event {
   id: string;
-  ad: string;
-  banner: string;
-  kategori: string;
-  baslangic_tarih: string;
-  yer: string;
+  name: string;
+  slug: string;
+  banner?: string;
+  category: string;
+  startDate: string;
+  venue: string;
+  status: string;
 }
 
 interface ApiResponse {
-  durum: number;
-  toplam: number;
-  sayfa: number;
-  sayfa_sayisi: number;
-  events: Event[];
+  data: Event[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 const Home: React.FC = () => {
@@ -41,8 +42,15 @@ const Home: React.FC = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/event?status=yayinda`);
-        setEvents(response.data.events.filter((event: Event) => event.banner));
+        // Use the new backendN API endpoint with status filter
+        const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/events?status=ACTIVE`);
+        
+        // Filter events that have banners - use response.data.data instead of response.data.events
+        const eventsWithBanners = response.data.data?.filter((event: Event) => 
+          event.banner && event.banner.trim() !== ''
+        ) || [];
+        
+        setEvents(eventsWithBanners);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching events:', error);
@@ -60,8 +68,8 @@ const Home: React.FC = () => {
     return () => clearInterval(interval);
   }, [events.length]);
 
-  const handleSlideClick = (eventId: string) => {
-    navigate(`/events/${eventId}`);
+  const handleSlideClick = (eventSlug: string) => {
+    navigate(`/events/${eventSlug}`);
   };
 
   return (
@@ -86,14 +94,14 @@ const Home: React.FC = () => {
                   <div 
                     key={event.id} 
                     className="hero-slider__slide"
-                    onClick={() => handleSlideClick(event.id)}
+                    onClick={() => handleSlideClick(event.slug)}
                     style={{ cursor: 'pointer' }}
                     role="link"
-                    aria-label={`View details for ${event.ad}`}
+                    aria-label={`View details for ${event.name}`}
                   >
                     <img
                       src={event.banner}
-                      alt={event.ad}
+                      alt={event.name}
                       className="hero-slider__image"
                     />
                   </div>
