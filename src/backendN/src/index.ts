@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { ZodError } from 'zod';
 import http from 'http';
 import path from 'path';
 import authRoutes from './modules/auth/auth.routes';
@@ -18,8 +17,10 @@ import { setupChat } from './chat';
 dotenv.config();
 
 const app = express();
-const API_PREFIX = process.env.API_PREFIX;
+const API_PREFIX = process.env.API_PREFIX || '/api/v1';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+
+// Security & logging middlewares
 app.use(helmet());
 app.use(cors({
   origin: [CLIENT_ORIGIN],
@@ -29,12 +30,16 @@ app.use(cors({
 }));
 app.use(morgan('dev'));
 app.use(express.json());
-// Serve uploaded assets
+
+// Uploaded assets
 app.use('/uploads', (req, res, next) => {
   if (req.url.includes('..')) return res.status(400).end();
   next();
 }, express.static(path.join(process.cwd(), 'uploads')));
 
+// --------------------
+// API ROUTES (önce)
+// --------------------
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);
 app.use(`${API_PREFIX}/organizers`, organizerRoutes);
@@ -42,8 +47,10 @@ app.use(`${API_PREFIX}/events`, eventRoutes);
 app.use(`${API_PREFIX}/tickets`, ticketRoutes);
 app.use(`${API_PREFIX}/friendships`, friendshipRoutes);
 
-// Server status check
-app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
+app.get(`${API_PREFIX}/health`, (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
     await prisma.$connect();
@@ -53,10 +60,21 @@ app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   }
 });
 
+// --------------------
+// Static files + SPA fallback (API dışı yollar)
+// --------------------
+const clientBuildPath = path.join(process.cwd(), 'build');
+app.use(express.static(clientBuildPath));
 
+// SPA fallback sadece API dışındaki istekler için
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
 
+// --------------------
+// Server & Socket.IO
+// --------------------
 const server = http.createServer(app);
-// Initialize Socket.IO chat server (namespace: /chat)
 setupChat(server);
 
 const port = process.env.PORT || 3000;
