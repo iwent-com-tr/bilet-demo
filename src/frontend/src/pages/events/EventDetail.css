@@ -575,6 +575,97 @@
   transform: none;
 }
 
+/* Split Button Styles for Desktop */
+.event-detail__ticket-buttons-split {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.event-detail__ticket-button-half {
+  flex: 1;
+  height: 56px;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 8px 24px rgba(93, 238, 131, 0.3);
+}
+
+.event-detail__ticket-button-new {
+  background: linear-gradient(135deg, #5DEE83 0%, #04d670 100%);
+  color: black;
+}
+
+.event-detail__ticket-button-new:hover:not(:disabled) {
+  background: linear-gradient(135deg, #04d670 0%, #03b85f 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(93, 238, 131, 0.4);
+}
+
+.event-detail__ticket-button-new:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.event-detail__ticket-button-chat {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  color: #5DEE83;
+  border: 2px solid #5DEE83;
+  box-shadow: 0 8px 24px rgba(93, 238, 131, 0.2);
+}
+
+.event-detail__ticket-button-chat:hover {
+  background: linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(93, 238, 131, 0.3);
+}
+
+/* Split Button Styles for Mobile */
+.event-detail__mobile-buttons-split {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.event-detail__mobile-button-half {
+  flex: 1;
+  height: 56px;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.event-detail__mobile-button-new {
+  background: linear-gradient(135deg, #5DEE83 0%, #04d670 100%);
+  color: black;
+}
+
+.event-detail__mobile-button-new:hover:not(:disabled) {
+  background: linear-gradient(135deg, #04d670 0%, #03b85f 100%);
+}
+
+.event-detail__mobile-button-new:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.event-detail__mobile-button-chat {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  color: #5DEE83;
+  border: 2px solid #5DEE83;
+}
+
 .event-detail__success-popup {
   position: fixed;
   top: 50%;

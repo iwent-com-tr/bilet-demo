@@ -49,7 +49,7 @@ const FavoriteEvents: React.FC<Props> = ({ events }) => {
               <div className="favorite-events__content">
                 <p className="favorite-events__date">{renderDate(ev.startDate)}</p>
                 <h3 className="favorite-events__name">{ev.name}</h3>
-                <p className="favorite-events__venue">{[ev.venue, ev.city].filter(Boolean).join(', ')}</p>
+                <p className="favorite-events__venue">{[ev.venue, ev.city ? ev.city.charAt(0).toUpperCase() + ev.city.slice(1) : ''].filter(Boolean).join(', ')}</p>
               </div>
             </Link>
           ))}

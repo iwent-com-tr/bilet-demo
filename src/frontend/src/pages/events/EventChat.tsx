@@ -5,13 +5,13 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import './EventChat.css';
 
-type SenderType = 'user' | 'organizer';
+type SenderType = 'USER' | 'ORGANIZER';
 
 interface ChatMessageDto {
   id: string;
-  gonderenId: string;
-  gonderenTipi: SenderType;
-  mesaj: string;
+  senderId: string;
+  senderType: SenderType;
+  message: string;
   createdAt: string;
 }
 
@@ -19,7 +19,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
 
 const EventChat: React.FC = () => {
-  const { id: eventId } = useParams<{ id: string }>();
+  const { slug: eventIdOrSlug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated, loading } = useAuth();
 
@@ -27,6 +27,7 @@ const EventChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [eventData, setEventData] = useState<{ id: string; slug: string } | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -39,30 +40,31 @@ const EventChat: React.FC = () => {
     }
   }, [loading, isAuthenticated, navigate]);
 
-  // Fetch initial messages
-  useEffect(() => {
-    let isMounted = true;
-    const fetchMessages = async () => {
-      if (!eventId) return;
-      try {
-        const { data } = await axios.get(`${API_BASE}/chat/event/${eventId}?sayfa=1&limit=100`);
-        if (!isMounted) return;
-        const list: ChatMessageDto[] = data.messages || [];
-        // Oldest first
-        setMessages(list.sort((a: ChatMessageDto, b: ChatMessageDto) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
-      } catch (err) {
-        // noop for now
+  // Determine if the param is a UUID (event ID) or slug
+  const isUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
+  // Fetch initial messages via socket after connection
+  const loadChatHistory = (socket: Socket) => {
+    if (!eventIdOrSlug) return;
+    
+    const payload = isUUID(eventIdOrSlug) 
+      ? { eventId: eventIdOrSlug, limit: 100 }
+      : { eventSlug: eventIdOrSlug, limit: 100 };
+      
+    socket.emit('chat:history', payload, (response: any) => {
+      if (response?.ok && response?.data) {
+        const list: ChatMessageDto[] = response.data;
+        setMessages(list);
       }
-    };
-    fetchMessages();
-    return () => {
-      isMounted = false;
-    };
-  }, [eventId]);
+    });
+  };
 
   // Setup socket connection
   useEffect(() => {
-    if (!eventId || !token || !isAuthenticated) {
+    if (!eventIdOrSlug || !token || !isAuthenticated) {
       return;
     }
     
@@ -74,6 +76,7 @@ const EventChat: React.FC = () => {
     }
     
     const socket = io(SOCKET_URL, {
+      path: '/chat',
       auth: { token },
       forceNew: true,
       withCredentials: true,
@@ -89,9 +92,22 @@ const EventChat: React.FC = () => {
     socket.on('connect', () => {
       if (isMounted) {
         setSocketConnected(true);
-        // Delay join-event to ensure auth middleware is processed
+        // Join the event chat room
         setTimeout(() => {
-          socket.emit('join-event', eventId);
+          const joinPayload = isUUID(eventIdOrSlug) 
+            ? { eventId: eventIdOrSlug }
+            : { eventSlug: eventIdOrSlug };
+            
+          socket.emit('chat:join', joinPayload, (response: any) => {
+            if (response?.ok) {
+              // Store event data from response
+              if (response.eventId && response.eventSlug) {
+                setEventData({ id: response.eventId, slug: response.eventSlug });
+              }
+              // Load chat history after successfully joining
+              loadChatHistory(socket);
+            }
+          });
         }, 100);
       }
     });
@@ -108,9 +124,8 @@ const EventChat: React.FC = () => {
       }
     });
 
-    // No-op handlers for optional events can be added here if needed
-
-    socket.on('new-message', (msg: ChatMessageDto) => {
+    // Listen for new messages
+    socket.on('chat:message', (msg: ChatMessageDto) => {
       if (isMounted) {
         setMessages((prev) => {
           // Duplicate check
@@ -123,22 +138,35 @@ const EventChat: React.FC = () => {
       }
     });
 
-    socket.on('delete-message', ({ message_id }: { message_id: string }) => {
+    // Listen for chat events
+    socket.on('chat:joined', ({ eventId: joinedEventId, eventSlug: joinedEventSlug }: { eventId?: string; eventSlug?: string }) => {
       if (isMounted) {
-        setMessages((prev) => prev.filter((m) => m.id !== message_id));
+        console.log('Successfully joined event chat:', joinedEventId || joinedEventSlug);
+        if (joinedEventId && joinedEventSlug) {
+          setEventData({ id: joinedEventId, slug: joinedEventSlug });
+        }
+      }
+    });
+
+    socket.on('chat:error', ({ code, message }: { code: string; message: string }) => {
+      if (isMounted) {
+        console.error('Chat error:', code, message);
       }
     });
 
     return () => {
       isMounted = false;
       if (socket.connected) {
-        socket.emit('leave-event', eventId);
+        const leavePayload = isUUID(eventIdOrSlug) 
+          ? { eventId: eventIdOrSlug }
+          : { eventSlug: eventIdOrSlug };
+        socket.emit('chat:leave', leavePayload);
       }
       socket.disconnect();
       socketRef.current = null;
       setSocketConnected(false);
     };
-  }, [eventId, token, isAuthenticated]);
+  }, [eventIdOrSlug, token, isAuthenticated]);
 
   // Auto scroll to bottom on new messages
   useEffect(() => {
@@ -149,27 +177,27 @@ const EventChat: React.FC = () => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !eventId || sending) return;
+    if (!input.trim() || !eventIdOrSlug || sending || !socketRef.current) return;
     
     const messageText = input.trim();
     setInput(''); // Clear input immediately for better UX
     setSending(true);
     
-    try {
-      const response = await axios.post(`${API_BASE}/chat/message`, {
-        event_id: eventId,
-        mesaj: messageText,
-      });
-      // new message will arrive via socket 'new-message'
-    } catch {
-      // Restore input on error
-      setInput(messageText);
-    } finally {
+    const sendPayload = isUUID(eventIdOrSlug) 
+      ? { eventId: eventIdOrSlug, message: messageText }
+      : { eventSlug: eventIdOrSlug, message: messageText };
+    
+    socketRef.current.emit('chat:send', sendPayload, (response: any) => {
+      if (!response?.ok) {
+        // Restore input on error
+        setInput(messageText);
+        console.error('Failed to send message:', response?.message);
+      }
       setSending(false);
-    }
+    });
   };
 
-  if (!eventId) {
+  if (!eventIdOrSlug) {
     return (
       <div className="event-chat">
         <div className="event-chat__error">Geçersiz etkinlik</div>
@@ -192,7 +220,7 @@ const EventChat: React.FC = () => {
 
         <div ref={listRef} className="event-chat__messages">
           {messages.map((m) => {
-            const mine = user && m.gonderenId === user.id;
+            const mine = user && m.senderId === user.id;
             return (
               <div 
                 key={m.id} 
@@ -200,9 +228,9 @@ const EventChat: React.FC = () => {
               >
                 <div className={`event-chat__message-bubble ${mine ? 'event-chat__message-bubble--mine' : 'event-chat__message-bubble--other'}`}>
                   <div className={`event-chat__message-header ${mine ? 'event-chat__message-header--mine' : 'event-chat__message-header--other'}`}>
-                    {m.gonderenTipi === 'organizer' ? 'Organizatör' : 'Kullanıcı'}
+                    {m.senderType === 'ORGANIZER' ? 'Organizatör' : 'Kullanıcı'}
                   </div>
-                  <p className="event-chat__message-text">{m.mesaj}</p>
+                  <p className="event-chat__message-text">{m.message}</p>
                   <div className="event-chat__message-time">
                     {new Date(m.createdAt).toLocaleString('tr-TR', {
                       hour: '2-digit',

@@ -61,6 +61,8 @@ const EventDetail: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [userHasTicket, setUserHasTicket] = useState(false);
+  const [checkingTickets, setCheckingTickets] = useState(false);
 
   useEffect(() => {
     fetchEvent();
@@ -83,6 +85,7 @@ const EventDetail: React.FC = () => {
     // Check if this event is in user's favorites when event loads
     if (event && isAuthenticated) {
       checkFavoriteStatus();
+      checkUserTickets();
     }
   }, [event, isAuthenticated]);
 
@@ -136,6 +139,29 @@ const EventDetail: React.FC = () => {
     }
   };
 
+  const checkUserTickets = async () => {
+    if (!event || !isAuthenticated) return;
+    
+    setCheckingTickets(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/tickets/my-tickets`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const tickets = response.data.tickets || [];
+      const hasTicketForEvent = tickets.some((ticket: any) => ticket.event.id === event.id);
+      setUserHasTicket(hasTicketForEvent);
+    } catch (error) {
+      console.error('Error checking user tickets:', error);
+      setUserHasTicket(false);
+    } finally {
+      setCheckingTickets(false);
+    }
+  };
+
   const handlePurchase = () => {
     if (!isAuthenticated) {
       toast.error('Bilet almak için giriş yapmalısınız');
@@ -167,6 +193,21 @@ const EventDetail: React.FC = () => {
 
   const handleClosePopup = () => {
     setShowSuccessPopup(false);
+  };
+
+  const handleGoToChat = () => {
+    if (!isAuthenticated) {
+      toast.error('Sohbete katılmak için giriş yapmalısınız');
+      navigate('/login');
+      return;
+    }
+    
+    if (!userHasTicket) {
+      toast.error('Sohbete katılmak için etkinlik biletiniz olmalıdır');
+      return;
+    }
+
+    navigate(`/events/${slug}/chat`);
   };
 
   const handleFavoriteClick = async () => {
@@ -439,13 +480,31 @@ const EventDetail: React.FC = () => {
                 </select>
               </div>
 
-              <button
-                onClick={handlePurchase}
-                disabled={purchaseLoading}
-                className="event-detail__ticket-button"
-              >
-                {purchaseLoading ? 'İşleniyor...' : 'Biletini Seç'}
-              </button>
+              {userHasTicket ? (
+                <div className="event-detail__ticket-buttons-split">
+                  <button
+                    onClick={handlePurchase}
+                    disabled={purchaseLoading}
+                    className="event-detail__ticket-button-half event-detail__ticket-button-new"
+                  >
+                    {purchaseLoading ? 'İşleniyor...' : 'Yeni Bilet Al'}
+                  </button>
+                  <button
+                    onClick={handleGoToChat}
+                    className="event-detail__ticket-button-half event-detail__ticket-button-chat"
+                  >
+                    Sohbete Git
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handlePurchase}
+                  disabled={purchaseLoading}
+                  className="event-detail__ticket-button"
+                >
+                  {purchaseLoading ? 'İşleniyor...' : 'Biletini Seç'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -454,13 +513,31 @@ const EventDetail: React.FC = () => {
       {/* Mobile only purchase button */}
       <div className="event-detail__mobile-purchase-blur" />
       <div className="event-detail__mobile-purchase-container">
-        <button
-          onClick={handlePurchase}
-          disabled={purchaseLoading}
-          className="event-detail__mobile-purchase-button"
-        >
-          Biletini Seç
-        </button>
+        {userHasTicket ? (
+          <div className="event-detail__mobile-buttons-split">
+            <button
+              onClick={handlePurchase}
+              disabled={purchaseLoading}
+              className="event-detail__mobile-button-half event-detail__mobile-button-new"
+            >
+              {purchaseLoading ? 'İşleniyor...' : 'Yeni Bilet Al'}
+            </button>
+            <button
+              onClick={handleGoToChat}
+              className="event-detail__mobile-button-half event-detail__mobile-button-chat"
+            >
+              Sohbete Git
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handlePurchase}
+            disabled={purchaseLoading}
+            className="event-detail__mobile-purchase-button"
+          >
+            {purchaseLoading ? 'İşleniyor...' : 'Biletini Seç'}
+          </button>
+        )}
       </div>
 
       {showSuccessPopup && (
@@ -509,7 +586,10 @@ const EventDetail: React.FC = () => {
               </div>
             )}
             
-            <button className="event-detail__success-button" onClick={handleClosePopup}>
+            <button className="event-detail__success-button" onClick={() => {
+              handleClosePopup();
+              handleGoToChat();
+            }}>
               Sohbet Grubuna Git
             </button>
           </div>

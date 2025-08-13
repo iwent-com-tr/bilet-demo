@@ -3,7 +3,7 @@ import { prisma } from '../../lib/prisma';
 import type { CreateEventInput, ListEventsQuery, UpdateEventInput, EventStats } from './event.dto';
 import { EventStatuses } from './event.dto';
 import { EVENT_CATEGORIES } from '../constants';
-import { notifyEventCreated } from '../../chat';
+import { notifyEventCreated, notifyEventPublished } from '../../chat';
 
 function slugify(input: string): string {
   return input
@@ -253,6 +253,14 @@ export class EventService {
   static async publish(id: string) {
     const event = await prisma.event.update({ where: { id }, data: { status: 'ACTIVE' } });
     const details = await loadCategoryDetails(id, event.category);
+    
+    // Notify chat system that event is published and chat room should be available
+    try { 
+      await notifyEventPublished(id); 
+    } catch (error) {
+      console.error('Failed to notify chat system about event publication:', error);
+    }
+    
     return { ...event, details };
   }
 

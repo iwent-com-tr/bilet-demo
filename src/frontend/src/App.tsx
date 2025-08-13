@@ -78,7 +78,7 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } />
             <Route path="/events/:slug/chat" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute>
                 <EventChat />
               </ProtectedRoute>
             } />
@@ -131,6 +131,7 @@ const App: React.FC = () => {
                 <PhoneVerifyOrganizer />
               </ProtectedRoute>
             } />
+
           </Route>
 
           {/* 404 */}

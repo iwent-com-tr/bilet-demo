@@ -16,6 +16,7 @@ export function getIO(): SocketIOServer {
 }
 
 export function eventRoom(eventId: string): string { return `event:${eventId}`; }
+export function eventRoomBySlug(slug: string): string { return `event-slug:${slug}`; }
 export function userRoom(userId: string): string { return `user:${userId}`; }
 
 export function setupChat(server: http.Server): SocketIOServer {
@@ -24,7 +25,7 @@ export function setupChat(server: http.Server): SocketIOServer {
   io = new SocketIOServer(server, {
     path: '/chat',
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: process.env.CLIENT_ORIGIN || '*',
       credentials: true,
     },
   });
@@ -77,12 +78,22 @@ export function setupChat(server: http.Server): SocketIOServer {
     const principal: Principal | undefined = (socket.data as any)?.principal;
     if (principal) socket.join(userRoom(principal.id));
 
-    // Client requests to join an event chat room
-    socket.on('chat:join', async (payload: { eventId: string }, ack?: (res: any) => void) => {
+    // Client requests to join an event chat room (by ID or slug)
+    socket.on('chat:join', async (payload: { eventId?: string; eventSlug?: string }, ack?: (res: any) => void) => {
       try {
         if (!principal) throw Object.assign(new Error('unauthorized'), { status: 401, code: 'UNAUTHORIZED' });
-        const { eventId } = payload || {} as any;
-        if (!eventId) throw Object.assign(new Error('eventId required'), { status: 400, code: 'BAD_REQUEST' });
+        const { eventId, eventSlug } = payload || {} as any;
+        if (!eventId && !eventSlug) throw Object.assign(new Error('eventId or eventSlug required'), { status: 400, code: 'BAD_REQUEST' });
+
+        // Find event by ID or slug
+        let event;
+        if (eventId) {
+          event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true, slug: true, organizerId: true, status: true } });
+        } else if (eventSlug) {
+          event = await prisma.event.findUnique({ where: { slug: eventSlug }, select: { id: true, slug: true, organizerId: true, status: true } });
+        }
+
+        if (!event) throw Object.assign(new Error('event not found'), { status: 404, code: 'NOT_FOUND' });
 
         let allowed = false;
         // Admins always allowed
@@ -90,42 +101,65 @@ export function setupChat(server: http.Server): SocketIOServer {
 
         // Organizers can join their own events
         if (!allowed && principal.role === 'ORGANIZER') {
-          const ev = await prisma.event.findUnique({ where: { id: eventId }, select: { organizerId: true } });
-          if (ev && ev.organizerId === principal.id) allowed = true;
+          if (event.organizerId === principal.id) allowed = true;
         }
 
         // Users can join if they have an active ticket
         if (!allowed && principal.role === 'USER') {
-          const t = await prisma.ticket.findFirst({ where: { eventId, userId: principal.id } });
+          const t = await prisma.ticket.findFirst({ where: { eventId: event.id, userId: principal.id } });
           if (t) allowed = true;
         }
 
         if (!allowed) throw Object.assign(new Error('forbidden'), { status: 403, code: 'FORBIDDEN' });
 
-        await socket.join(eventRoom(eventId));
-        ack?.({ ok: true });
-        socket.emit('chat:joined', { eventId });
+        // Join both ID and slug-based rooms for consistency
+        await socket.join(eventRoom(event.id));
+        await socket.join(eventRoomBySlug(event.slug));
+        
+        ack?.({ ok: true, eventId: event.id, eventSlug: event.slug });
+        socket.emit('chat:joined', { eventId: event.id, eventSlug: event.slug });
       } catch (err: any) {
         ack?.({ ok: false, error: err?.code || 'ERROR', message: err?.message || 'failed to join' });
         socket.emit('chat:error', { code: err?.code || 'ERROR', message: err?.message || 'failed to join' });
       }
     });
 
-    socket.on('chat:leave', async (payload: { eventId: string }, ack?: (res: any) => void) => {
-      const { eventId } = payload || {} as any;
-      if (eventId) await socket.leave(eventRoom(eventId));
+    socket.on('chat:leave', async (payload: { eventId?: string; eventSlug?: string }, ack?: (res: any) => void) => {
+      const { eventId, eventSlug } = payload || {} as any;
+      
+      if (eventId) {
+        await socket.leave(eventRoom(eventId));
+        // Also get slug and leave slug room
+        const event = await prisma.event.findUnique({ where: { id: eventId }, select: { slug: true } });
+        if (event?.slug) await socket.leave(eventRoomBySlug(event.slug));
+      } else if (eventSlug) {
+        await socket.leave(eventRoomBySlug(eventSlug));
+        // Also get ID and leave ID room
+        const event = await prisma.event.findUnique({ where: { slug: eventSlug }, select: { id: true } });
+        if (event?.id) await socket.leave(eventRoom(event.id));
+      }
+      
       ack?.({ ok: true });
     });
 
     // Load last N messages
-    socket.on('chat:history', async (payload: { eventId: string; limit?: number }, ack?: (res: any) => void) => {
+    socket.on('chat:history', async (payload: { eventId?: string; eventSlug?: string; limit?: number }, ack?: (res: any) => void) => {
       try {
         if (!principal) throw Object.assign(new Error('unauthorized'), { status: 401, code: 'UNAUTHORIZED' });
-        const { eventId, limit } = payload || {} as any;
-        if (!eventId) throw Object.assign(new Error('eventId required'), { status: 400, code: 'BAD_REQUEST' });
+        const { eventId, eventSlug, limit } = payload || {} as any;
+        if (!eventId && !eventSlug) throw Object.assign(new Error('eventId or eventSlug required'), { status: 400, code: 'BAD_REQUEST' });
+        
+        // Find event by ID or slug to get the actual eventId for database queries
+        let actualEventId = eventId;
+        if (!actualEventId && eventSlug) {
+          const event = await prisma.event.findUnique({ where: { slug: eventSlug }, select: { id: true } });
+          if (!event) throw Object.assign(new Error('event not found'), { status: 404, code: 'NOT_FOUND' });
+          actualEventId = event.id;
+        }
+        
         const take = Math.min(Math.max(limit || 50, 1), 200);
         const messages = await prisma.chatMessage.findMany({
-          where: { eventId, status: 'ACTIVE' },
+          where: { eventId: actualEventId, status: 'ACTIVE' },
           orderBy: { createdAt: 'desc' },
           take,
           select: { id: true, eventId: true, senderId: true, senderType: true, message: true, createdAt: true },
@@ -138,34 +172,44 @@ export function setupChat(server: http.Server): SocketIOServer {
     });
 
     // Send a message to an event chat room
-    socket.on('chat:send', async (payload: { eventId: string; message: string }, ack?: (res: any) => void) => {
+    socket.on('chat:send', async (payload: { eventId?: string; eventSlug?: string; message: string }, ack?: (res: any) => void) => {
       try {
         if (!principal) throw Object.assign(new Error('unauthorized'), { status: 401, code: 'UNAUTHORIZED' });
-        const { eventId, message } = payload || {} as any;
-        if (!eventId || !message || message.trim().length === 0) {
-          throw Object.assign(new Error('eventId and message required'), { status: 400, code: 'BAD_REQUEST' });
+        const { eventId, eventSlug, message } = payload || {} as any;
+        if ((!eventId && !eventSlug) || !message || message.trim().length === 0) {
+          throw Object.assign(new Error('eventId/eventSlug and message required'), { status: 400, code: 'BAD_REQUEST' });
         }
 
+        // Find event by ID or slug
+        let event;
+        if (eventId) {
+          event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true, slug: true, organizerId: true } });
+        } else if (eventSlug) {
+          event = await prisma.event.findUnique({ where: { slug: eventSlug }, select: { id: true, slug: true, organizerId: true } });
+        }
+
+        if (!event) throw Object.assign(new Error('event not found'), { status: 404, code: 'NOT_FOUND' });
+
         // Must be in the room or authorized to join
-        const inRoom = socket.rooms.has(eventRoom(eventId));
+        const inRoom = socket.rooms.has(eventRoom(event.id)) || socket.rooms.has(eventRoomBySlug(event.slug));
         if (!inRoom) {
           // Attempt implicit authorization as in join
           let allowed = principal.role === 'ADMIN';
           if (!allowed && principal.role === 'ORGANIZER') {
-            const ev = await prisma.event.findUnique({ where: { id: eventId }, select: { organizerId: true } });
-            if (ev && ev.organizerId === principal.id) allowed = true;
+            if (event.organizerId === principal.id) allowed = true;
           }
           if (!allowed && principal.role === 'USER') {
-            const t = await prisma.ticket.findFirst({ where: { eventId, userId: principal.id, status: 'ACTIVE' } });
+            const t = await prisma.ticket.findFirst({ where: { eventId: event.id, userId: principal.id, status: 'ACTIVE' } });
             if (t) allowed = true;
           }
           if (!allowed) throw Object.assign(new Error('forbidden'), { status: 403, code: 'FORBIDDEN' });
-          await socket.join(eventRoom(eventId));
+          await socket.join(eventRoom(event.id));
+          await socket.join(eventRoomBySlug(event.slug));
         }
 
         const saved = await prisma.chatMessage.create({
           data: {
-            eventId,
+            eventId: event.id,
             senderId: principal.id,
             senderType: principal.role === 'ORGANIZER' ? 'ORGANIZER' : 'USER',
             message: message.trim(),
@@ -173,7 +217,8 @@ export function setupChat(server: http.Server): SocketIOServer {
           select: { id: true, eventId: true, senderId: true, senderType: true, message: true, createdAt: true },
         });
 
-        io!.to(eventRoom(eventId)).emit('chat:message', saved);
+        // Send to both ID and slug rooms
+        io!.to(eventRoom(event.id)).to(eventRoomBySlug(event.slug)).emit('chat:message', saved);
         ack?.({ ok: true, data: saved });
       } catch (err: any) {
         ack?.({ ok: false, error: err?.code || 'ERROR', message: err?.message || 'failed to send message' });
@@ -327,6 +372,29 @@ export async function notifyEventCreated(eventId: string): Promise<void> {
   if (ev?.organizerId) {
     io.to(userRoom(ev.organizerId)).emit('chat:ready', { eventId });
   }
+}
+
+export async function notifyEventPublished(eventId: string): Promise<void> {
+  if (!io) return;
+  const event = await prisma.event.findUnique({ 
+    where: { id: eventId }, 
+    select: { id: true, slug: true, organizerId: true, name: true } 
+  });
+  
+  if (!event) return;
+
+  // Notify the organizer that the chat room is now active
+  if (event.organizerId) {
+    io.to(userRoom(event.organizerId)).emit('chat:event-published', { 
+      eventId: event.id, 
+      eventSlug: event.slug,
+      eventName: event.name 
+    });
+  }
+
+  // The chat rooms are automatically created when users join
+  // Both event:${eventId} and event-slug:${slug} rooms will be available
+  console.log(`Event published: ${event.name} (${event.slug}) - Chat rooms ready`);
 }
 
 

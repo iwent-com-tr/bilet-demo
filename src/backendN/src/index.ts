@@ -19,8 +19,14 @@ dotenv.config();
 
 const app = express();
 const API_PREFIX = process.env.API_PREFIX;
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: [CLIENT_ORIGIN],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(morgan('dev'));
 app.use(express.json());
 // Serve uploaded assets
