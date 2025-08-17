@@ -21,7 +21,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListEventsQueryDTO.parse(req.query);
     const result = await EventService.list(query);
-    res.json({ ...result, data: result.data.map(sanitizeEvent) });
+    res.json({ ...result, data: result.data.map(sanitizeEvent).filter(Boolean) });
   } catch (e) { next(e); }
 }
 

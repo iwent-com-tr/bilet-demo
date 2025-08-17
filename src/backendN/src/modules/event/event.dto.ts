@@ -17,7 +17,7 @@ export const ListEventsQueryDTO = z.object({
     .min(1, { message: 'Limit en az 1 olmalıdır.' })
     .max(100, { message: 'Limit en fazla 100 olabilir.' })
     .default(20),
-  q: z.string().min(1, { message: 'Arama sorgusu en az 1 karakter olmalıdır.' }).optional(),
+  q: z.string().optional(),
   city: z.string()
     .transform(val => val === '' ? undefined : val)
     .optional()

@@ -34,3 +34,6 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db 
+
+# change script
+changes.txt

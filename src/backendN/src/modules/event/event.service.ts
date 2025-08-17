@@ -4,6 +4,8 @@ import type { CreateEventInput, ListEventsQuery, UpdateEventInput, EventStats } 
 import { EventStatuses } from './event.dto';
 import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
+import { eventIndex } from '../../lib/meili';
+import { fi } from 'zod/v4/locales/index.cjs';
 
 function slugify(input: string): string {
   return input
@@ -27,32 +29,70 @@ async function generateUniqueSlug(base: string): Promise<string> {
   return `${initial}-${i}`;
 }
 
-function buildEventWhere(filters: ListEventsQuery): any /* Prisma.EventWhereInput */ {
-  const where: any = { deletedAt: null };
-  if (filters.q) {
-    (where as any).OR = [
-      { name: { contains: filters.q, mode: 'insensitive' } },
-      { description: { contains: filters.q, mode: 'insensitive' } },
-      { city: { contains: filters.q, mode: 'insensitive' } },
-      { venue: { contains: filters.q, mode: 'insensitive' } },
-    ];
+async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventWhereInput */ {
+
+  let queryResults: any = undefined;
+
+  let filter: any[] = [
+      `status=${filters.status || 'ACTIVE'}`
+  ];
+
+  if (filters.dateFrom && filters.dateTo) {
+    filter.push(`startDate >= ${filters.dateFrom} AND startDate <= ${filters.dateTo}`);
   }
-  if (filters.city) where.city = { equals: filters.city, mode: 'insensitive' } as any;
-  if (filters.organizerId) where.organizerId = filters.organizerId;
-  if (filters.status) where.status = filters.status;
+
+  if (filters.city) {
+    filter.push(`city=${filters.city}`);
+  }
+
   if (filters.category) {
-    where.category = Array.isArray(filters.category)
-      ? { in: filters.category }
-      : (filters.category as any);
+    filter.push(Array.isArray(filters.category) ? filters.category.map((c) => `category=${c} OR `).slice(0, -4) : `category=${filters.category}`);
   }
-  if (filters.dateFrom || filters.dateTo) {
-    where.startDate = {
-      gte: filters.dateFrom,
-      lte: filters.dateTo,
-    } as any;
+
+
+  const searchDetails = {
+      limit: filters.limit,
+      offset: filters.limit * (filters.page - 1),
+      filter,
+    };
+
+  if (filters.q){
+    queryResults = await eventIndex.search(filters.q, searchDetails)
+  } else {
+    queryResults = await eventIndex.getDocuments(searchDetails);
   }
-  return where;
+
+  return [ queryResults.estimatedTotalHits || queryResults.total, (queryResults.hits || queryResults.results).map((hit: any) => hit.id.toString()) ];
 }
+
+// deprecated
+
+// function buildEventWhere(filters: ListEventsQuery): any /* Prisma.EventWhereInput */ {
+//   const where: any = { deletedAt: null };
+//   if (filters.q) {
+//     (where as any).OR = [
+//       { name: { contains: filters.q, mode: 'insensitive' } },
+//       { description: { contains: filters.q, mode: 'insensitive' } },
+//       { city: { contains: filters.q, mode: 'insensitive' } },
+//       { venue: { contains: filters.q, mode: 'insensitive' } },
+//     ];
+//   }
+//   if (filters.city) where.city = { equals: filters.city, mode: 'insensitive' } as any;
+//   if (filters.organizerId) where.organizerId = filters.organizerId;
+//   if (filters.status) where.status = filters.status;
+//   if (filters.category) {
+//     where.category = Array.isArray(filters.category)
+//       ? { in: filters.category }
+//       : (filters.category as any);
+//   }
+//   if (filters.dateFrom || filters.dateTo) {
+//     where.startDate = {
+//       gte: filters.dateFrom,
+//       lte: filters.dateTo,
+//     } as any;
+//   }
+//   return where;
+// }
 
 async function loadCategoryDetails(eventId: string, category: typeof EVENT_CATEGORIES[number]) {
   switch (category) {
@@ -106,37 +146,121 @@ async function getCategoryDetails(eventId: string, category: typeof EVENT_CATEGO
   return loadCategoryDetails(eventId, category);
 }
 
+async function generateCreateInfos(input: CreateEventInput) {
+  const slug = await generateUniqueSlug(`${input.name}`);
+
+  const createInfoMeili = {
+      name: input.name,
+      category: input.category,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      venue: input.venue,
+      address: input.address,
+      city: input.city,
+      description: input.description,
+    }
+
+    const createInfoPrisma = {
+      ...createInfoMeili,
+      slug,
+      banner: input.banner,
+      socialMedia: (input.socialMedia ?? {}) as any,
+      capacity: input.capacity,
+      ticketTypes: (input.ticketTypes ?? []) as any,
+      status: 'DRAFT',
+      organizerId: input.organizerId,
+    };
+
+  return [createInfoMeili, createInfoPrisma];
+}
+
+async function generateUpdateInfos(input: UpdateEventInput) {
+
+  const updateInfoMeili = {
+      name: input.name ?? undefined,
+      startDate: input.startDate ?? undefined,
+      endDate: input.endDate ?? undefined,
+      venue: input.venue ?? undefined,
+      address: input.address ?? undefined,
+      city: input.city ?? undefined,
+      description: input.description ?? undefined,
+    }
+
+    const updateInfoPrisma = {
+      ...updateInfoMeili,
+      banner: input.banner ?? undefined,
+      socialMedia: input.socialMedia as any,
+      capacity: input.capacity ?? undefined,
+      ticketTypes: input.ticketTypes as any,
+      status: input.status ?? undefined,
+    };
+
+  return [updateInfoMeili, updateInfoPrisma];
+}
+
+
 export class EventService {
   static async list(filters: ListEventsQuery) {
     const { page, limit } = filters;
-    const where = buildEventWhere(filters);
-    const [total, data] = await prisma.$transaction([
-      prisma.event.count({ where }),
-      prisma.event.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { startDate: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          category: true,
-          startDate: true,
-          endDate: true,
-          venue: true,
-          address: true,
-          city: true,
-          banner: true,
-          description: true,
-          status: true,
-          organizerId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      }),
-    ]);
-    return { page, limit, total, data };
+    const [total, ids] = await getEventIdsWithFilters(filters);
+
+    const data = await prisma.event.findMany({
+      where: { id: { in: ids as string[] } },
+      take: limit,
+      select: {
+      id: true,
+      name: true,
+      slug: true,
+      category: true,
+      startDate: true,
+      endDate: true,
+      venue: true,
+      address: true,
+      city: true,
+      banner: true,
+      description: true,
+      status: true,
+      organizerId: true,
+      createdAt: true,
+      updatedAt: true,
+      },
+    });
+
+    // Reorder to match Meilisearch order
+    const dataById = new Map(data.map(d => [d.id, d]))
+    const ordered = (ids as string[]).map(id => dataById.get(id));
+
+    // NOT: Burada transaction kullanılarak 2 tane query yapılıyo. Bunun yerine tek bir query
+    // yapılıp sonra limit kadar data alınabilir.
+
+    // const [total, data] = await prisma.$transaction([
+    //   prisma.event.count({ where }),
+    //   prisma.event.findMany({
+    //     where,
+    //     skip: (page - 1) * limit,
+    //     take: limit,
+    //     orderBy: { startDate: 'asc' },
+    //     select: {
+    //       id: true,
+    //       name: true,
+    //       slug: true,
+    //       category: true,
+    //       startDate: true,
+    //       endDate: true,
+    //       venue: true,
+    //       address: true,
+    //       city: true,
+    //       banner: true,
+    //       description: true,
+    //       status: true,
+    //       organizerId: true,
+    //       createdAt: true,
+    //       updatedAt: true,
+    //     },
+    //   }),
+    // ]);
+
+    return { page, limit, total, data: ordered };
   }
 
   static async findById(id: string) {
@@ -167,28 +291,18 @@ export class EventService {
       e.status = 400; e.code = 'INVALID_DATE_RANGE';
       throw e;
     }
-    const slug = await generateUniqueSlug(`${input.name}`);
+
+    const [createInfoMeili, createInfoPrisma] = await generateCreateInfos(input);
+
     const created = await prisma.event.create({
-      data: {
-        name: input.name,
-        slug,
-        category: input.category,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        venue: input.venue,
-        address: input.address,
-        city: input.city,
-        banner: input.banner,
-        socialMedia: (input.socialMedia ?? {}) as any,
-        description: input.description,
-        capacity: input.capacity,
-        ticketTypes: (input.ticketTypes ?? []) as any,
-        organizerId: input.organizerId,
-        status: 'DRAFT',
-      },
+      data: createInfoPrisma as any, // ts ile uğraşmamak için
     });
     await upsertCategoryDetails(created.id, created.category, input.details as any);
     const details = await loadCategoryDetails(created.id, created.category);
+
+    // Add the event to the meilisearch index
+    eventIndex.addDocuments([{id: created.id, ...createInfoMeili}]);
+
     // Notify chat layer that the event room is ready
     try { await notifyEventCreated(created.id); } catch {}
     return { ...created, details } as const;
@@ -224,36 +338,37 @@ export class EventService {
         }
       }
     }
+
+    const [updateInfoMeili, updateInfoPrisma] = await generateUpdateInfos(input);
+
     const updated = await prisma.event.update({
       where: { id },
-      data: {
-        name: input.name ?? undefined,
-        startDate: input.startDate ?? undefined,
-        endDate: input.endDate ?? undefined,
-        venue: input.venue ?? undefined,
-        address: input.address ?? undefined,
-        city: input.city ?? undefined,
-        banner: input.banner ?? undefined,
-        socialMedia: input.socialMedia as any,
-        description: input.description ?? undefined,
-        capacity: input.capacity ?? undefined,
-        ticketTypes: input.ticketTypes as any,
-        status: input.status ?? undefined,
-      },
+      data: updateInfoPrisma as any, // ts ile uğraşmamak için
     });
+
+    // Update the event in the meilisearch index
+    eventIndex.updateDocuments([{id, ...updateInfoMeili}]);
+
     if (input.details) await upsertCategoryDetails(id, updated.category, input.details as any);
     const details = await loadCategoryDetails(id, updated.category);
     return { ...updated, details } as const;
   }
 
   static async softDelete(id: string) {
+
+    // Delete from search index
+    await eventIndex.deleteDocument(id);
+
     await prisma.event.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   static async publish(id: string) {
     const event = await prisma.event.update({ where: { id }, data: { status: 'ACTIVE' } });
     const details = await loadCategoryDetails(id, event.category);
-    
+
+    // Update the event in the meilisearch index
+    await eventIndex.updateDocuments([{id, status: 'ACTIVE'}]);
+
     // Notify chat system that event is published and chat room should be available
     try { 
       await notifyEventPublished(id); 
@@ -265,6 +380,10 @@ export class EventService {
   }
 
   static async unpublish(id: string) {
+
+    // Update the event in the meilisearch index
+    await eventIndex.updateDocuments([{id, status: 'DRAFT'}]);
+
     const event = await prisma.event.update({ where: { id }, data: { status: 'DRAFT' } });
     const details = await loadCategoryDetails(id, event.category);
     return { ...event, details };
@@ -386,6 +505,7 @@ export class EventService {
 }
 
 export function sanitizeEvent(e: any) {
+  if (!e) return null;
   // Ensure JSON fields are properly parsed
   let socialMedia = e.socialMedia ?? {};
   if (typeof socialMedia === 'string') {

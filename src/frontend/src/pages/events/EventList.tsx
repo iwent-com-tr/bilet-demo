@@ -114,6 +114,7 @@ const EventList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
+    q: '',
     category: '',
     city: '',
     dateFrom: '',
@@ -155,6 +156,12 @@ const EventList: React.FC = () => {
     setPage(1);
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setFilters(prev => ({ ...prev, q: value }));
+    setPage(1);
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {
       day: 'numeric',
@@ -186,6 +193,15 @@ const EventList: React.FC = () => {
         <PageHeader title="Etkinlikler" />
       </div>
       <div className="event-list__container">
+        {/* Search Bar */}
+          <input
+            type="text"
+            value={filters.q}
+            onChange={handleSearchChange}
+            placeholder="Ara..."
+            className="event-list__search-input"
+          />
+
         {/* Filters */}
         <div className="event-list__filters">
           <div className="event-list__filters-header">
