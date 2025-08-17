@@ -7,6 +7,410 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                      String                       @id @default(uuid())
+  firstName               String
+  lastName                String
+  email                   String                       @unique
+  password                String
+  birthYear               Int
+  phone                   String                       @unique
+  phoneVerified           Boolean                      @default(false)
+  avatar                  String?
+  city                    String
+  lastLogin               DateTime?
+  userType                UserType                     @default(USER)
+  points                  Int                          @default(0)
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
+  deletedAt               DateTime?
+  blocksTo                Block[]                      @relation("Blocked")
+  blocksFrom              Block[]                      @relation("Blocker")
+  favorites               Favorite[]
+  friendshipsFrom         Friendship[]                 @relation("UserFrom")
+  friendshipsTo           Friendship[]                 @relation("UserTo")
+  receivedMessages        PrivateMessage[]             @relation("Receiver")
+  sentMessages            PrivateMessage[]             @relation("Sender")
+  tickets                 Ticket[]
+  notificationPreferences UserNotificationPreference[]
+  settings                UserSetting[]
+  socialAccounts          UserSocialAccount[]
+
+  @@index([email])
+}
+
+model Organizer {
+  id            String    @id @default(uuid())
+  firstName     String
+  lastName      String
+  company       String
+  phone         String
+  phoneVerified Boolean   @default(false)
+  avatar        String?
+  email         String    @unique
+  password      String
+  taxNumber     String?
+  taxOffice     String?
+  address       String?
+  bankAccount   String?
+  lastLogin     DateTime?
+  approved      Boolean   @default(false)
+  devices       Json      @default("[]")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  events        Event[]
+
+  @@index([email])
+}
+
+model Event {
+  id                 String              @id @default(uuid())
+  name               String
+  slug               String              @unique
+  category           EventCategory
+  startDate          DateTime
+  endDate            DateTime
+  venue              String
+  address            String
+  city               String
+  banner             String?
+  socialMedia        Json                @default("{}")
+  description        String?
+  capacity           Int?
+  ticketTypes        Json                @default("[]")
+  status             EventStatus         @default(DRAFT)
+  organizerId        String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  chatMessages       ChatMessage[]
+  concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
+  conferenceDetails  ConferenceDetails?  @relation("EventToConferenceDetails")
+  educationDetails   EducationDetails?   @relation("EventToEducationDetails")
+  organizer          Organizer           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  favorites          Favorite[]
+  festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
+  performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
+  sportDetails       SportDetails?       @relation("EventToSportDetails")
+  tickets            Ticket[]
+  universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
+  workshopDetails    WorkshopDetails?    @relation("EventToWorkshopDetails")
+
+  @@index([slug])
+  @@index([organizerId])
+  @@index([status])
+}
+
+model ConcertDetails {
+  id         String   @id @default(uuid())
+  eventId    String   @unique
+  artistList Json     @default("[]")
+  stageSetup String?
+  duration   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  event      Event    @relation("EventToConcertDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model FestivalDetails {
+  id         String   @id @default(uuid())
+  eventId    String   @unique
+  lineup     Json     @default("[]")
+  sponsors   Json     @default("[]")
+  activities String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  event      Event    @relation("EventToFestivalDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model UniversityDetails {
+  id              String   @id @default(uuid())
+  eventId         String   @unique
+  campus          String?
+  department      String?
+  studentDiscount Boolean  @default(false)
+  facultyList     Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  event           Event    @relation("EventToUniversityDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model WorkshopDetails {
+  id             String   @id @default(uuid())
+  eventId        String   @unique
+  instructorList Json     @default("[]")
+  materials      Json     @default("[]")
+  skillLevel     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  event          Event    @relation("EventToWorkshopDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model ConferenceDetails {
+  id             String   @id @default(uuid())
+  eventId        String   @unique
+  speakerList    Json     @default("[]")
+  agenda         Json     @default("[]")
+  topics         String[]
+  hasCertificate Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  event          Event    @relation("EventToConferenceDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model SportDetails {
+  id            String   @id @default(uuid())
+  eventId       String   @unique
+  teams         Json     @default("[]")
+  league        String?
+  scoreTracking Boolean  @default(false)
+  rules         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  event         Event    @relation("EventToSportDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model PerformanceDetails {
+  id            String   @id @default(uuid())
+  eventId       String   @unique
+  performers    Json     @default("[]")
+  scriptSummary String?
+  duration      String?
+  genre         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  event         Event    @relation("EventToPerformanceDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model EducationDetails {
+  id            String   @id @default(uuid())
+  eventId       String   @unique
+  curriculum    Json     @default("[]")
+  instructors   Json     @default("[]")
+  prerequisites String[]
+  certification Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  event         Event    @relation("EventToEducationDetails", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model Ticket {
+  id            String       @id @default(uuid())
+  eventId       String
+  userId        String
+  ticketType    String
+  price         Decimal      @db.Decimal(10, 2)
+  qrCode        String?      @unique
+  status        TicketStatus @default(ACTIVE)
+  entryTime     DateTime?
+  gate          String?
+  deviceId      String?
+  referenceCode String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([qrCode])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+model ChatMessage {
+  id         String            @id @default(uuid())
+  eventId    String
+  senderId   String
+  senderType SenderType
+  message    String
+  status     ChatMessageStatus @default(ACTIVE)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model Friendship {
+  id         String           @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  fromUser   User             @relation("UserFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User             @relation("UserTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+model PrivateMessage {
+  id         String               @id @default(uuid())
+  senderId   String
+  receiverId String
+  message    String
+  status     PrivateMessageStatus @default(SENT)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  receiver   User                 @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User                 @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model SettingSection {
+  id            String        @id @default(uuid())
+  key           String        @unique
+  titleTR       String
+  titleEN       String
+  descriptionTR String?
+  descriptionEN String?
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         SettingItem[]
+}
+
+model SettingItem {
+  id            String           @id @default(uuid())
+  sectionId     String
+  key           String           @unique
+  titleTR       String
+  titleEN       String
+  descriptionTR String?
+  descriptionEN String?
+  inputType     SettingInputType
+  options       Json             @default("[]")
+  defaultValue  Json             @default("null")
+  order         Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  section       SettingSection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  userSettings  UserSetting[]
+
+  @@index([sectionId])
+}
+
+model UserSetting {
+  id        String      @id @default(uuid())
+  userId    String
+  itemId    String
+  value     Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  item      SettingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
+}
+
+model UserNotificationPreference {
+  id        String               @id @default(uuid())
+  userId    String
+  category  NotificationCategory
+  enabled   Boolean              @default(true)
+  inApp     Boolean              @default(true)
+  email     Boolean              @default(false)
+  sms       Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+model UserSocialAccount {
+  id           String    @id @default(uuid())
+  userId       String
+  provider     String
+  handle       String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  scopes       String?
+  connected    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+enum Language {
+  TR
+  EN
+}
+
+enum SettingInputType {
+  TOGGLE
+  SELECT
+  MULTISELECT
+}
+
+enum NotificationCategory {
+  EVENT_TIME_CHANGE
+  EVENT_VENUE_CHANGE
+  TICKET_PURCHASED
+  TICKET_QR
+  FRIEND_JOINED_EVENT
+  FOLLOWED_VENUE_UPDATE
+  FOLLOWED_ARTIST_UPDATE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
 enum EventCategory {
   CONCERT
   FESTIVAL
@@ -40,272 +444,10 @@ enum ChatMessageStatus {
   ACTIVE
   DELETED
 }
+
 enum UserType {
   USER
   ADMIN
-}
-model User {
-  id               String           @id @default(uuid())
-  firstName        String
-  lastName         String
-  email            String           @unique
-  password         String
-  birthYear        Int
-  phone            String           @unique
-  phoneVerified    Boolean          @default(false)
-  avatar           String?
-  city             String
-  lastLogin        DateTime?
-  userType         UserType         @default(USER)
-  points           Int              @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  tickets          Ticket[]
-  friendshipsFrom  Friendship[]     @relation("UserFrom")
-  friendshipsTo    Friendship[]     @relation("UserTo")
-  sentMessages     PrivateMessage[] @relation("Sender")
-  receivedMessages PrivateMessage[] @relation("Receiver")
-  blocksFrom       Block[]          @relation("Blocker")
-  blocksTo         Block[]          @relation("Blocked")
-  favorites        Favorite[]
-  deletedAt        DateTime?
-
-  @@index([email])
-}
-
-model Organizer {
-  id            String    @id @default(uuid())
-  firstName     String
-  lastName      String
-  company       String
-  phone         String
-  phoneVerified Boolean   @default(false)
-  avatar        String?
-  email         String    @unique
-  password      String
-  taxNumber     String?
-  taxOffice     String?
-  address       String?
-  bankAccount   String?
-  lastLogin     DateTime?
-  approved      Boolean   @default(false) // Indicates if the organizer is approved by admins
-  devices       Json      @default("[]")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  events        Event[]
-  deletedAt     DateTime?
-
-  @@index([email])
-}
-
-model Event {
-  id                 String              @id @default(uuid())
-  name               String
-  slug               String              @unique
-  category           EventCategory
-  startDate          DateTime
-  endDate            DateTime
-  venue              String
-  address            String
-  city               String
-  banner             String?
-  socialMedia        Json                @default("{}")
-  description        String?
-  capacity           Int?
-  ticketTypes        Json                @default("[]")
-  status             EventStatus         @default(DRAFT)
-  organizerId        String
-  organizer          Organizer           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  tickets            Ticket[]
-  chatMessages       ChatMessage[]
-  favorites          Favorite[]
-  concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
-  festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
-  universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
-  workshopDetails    WorkshopDetails?    @relation("EventToWorkshopDetails")
-  conferenceDetails  ConferenceDetails?  @relation("EventToConferenceDetails")
-  sportDetails       SportDetails?       @relation("EventToSportDetails")
-  performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
-  educationDetails   EducationDetails?   @relation("EventToEducationDetails")
-  deletedAt          DateTime?
-
-  @@index([slug])
-  @@index([organizerId])
-  @@index([status])
-}
-
-model ConcertDetails {
-  id         String   @id @default(uuid())
-  eventId    String   @unique
-  event      Event    @relation("EventToConcertDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  artistList Json     @default("[]")
-  stageSetup String?
-  duration   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model FestivalDetails {
-  id         String   @id @default(uuid())
-  eventId    String   @unique
-  event      Event    @relation("EventToFestivalDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  lineup     Json     @default("[]") // e.g., [{artist: "Artist1", time: "18:00"}]
-  sponsors   Json     @default("[]")
-  activities String[] // Array of activity descriptions
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model UniversityDetails {
-  id              String   @id @default(uuid())
-  eventId         String   @unique
-  event           Event    @relation("EventToUniversityDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  campus          String?
-  department      String?
-  studentDiscount Boolean  @default(false)
-  facultyList     Json     @default("[]") // e.g., [{name: "Prof. X", role: "Speaker"}]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model WorkshopDetails {
-  id             String   @id @default(uuid())
-  eventId        String   @unique
-  event          Event    @relation("EventToWorkshopDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  instructorList Json     @default("[]")
-  materials      Json     @default("[]") // e.g., [{item: "Laptop", required: true}]
-  skillLevel     String? // e.g., "Beginner", "Intermediate"
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model ConferenceDetails {
-  id             String   @id @default(uuid())
-  eventId        String   @unique
-  event          Event    @relation("EventToConferenceDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  speakerList    Json     @default("[]")
-  agenda         Json     @default("[]")
-  topics         String[]
-  hasCertificate Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model SportDetails {
-  id            String   @id @default(uuid())
-  eventId       String   @unique
-  event         Event    @relation("EventToSportDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  teams         Json     @default("[]") // e.g., [{name: "Team A", players: [...]}]
-  league        String?
-  scoreTracking Boolean  @default(false)
-  rules         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model PerformanceDetails {
-  id            String   @id @default(uuid())
-  eventId       String   @unique
-  event         Event    @relation("EventToPerformanceDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  performers    Json     @default("[]")
-  scriptSummary String?
-  duration      String?
-  genre         String? // e.g., "Theater", "Dance"
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model EducationDetails {
-  id            String   @id @default(uuid())
-  eventId       String   @unique
-  event         Event    @relation("EventToEducationDetails", fields: [eventId], references: [id], onDelete: Cascade)
-  curriculum    Json     @default("[]") // e.g., [{module: "Intro", duration: "1h"}]
-  instructors   Json     @default("[]")
-  prerequisites String[]
-  certification Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([eventId])
-}
-
-model Ticket {
-  id            String       @id @default(uuid())
-  eventId       String
-  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ticketType    String
-  price         Decimal      @db.Decimal(10, 2)
-  qrCode        String?      @unique
-  status        TicketStatus @default(ACTIVE)
-  entryTime     DateTime?
-  gate          String?
-  deviceId      String?
-  referenceCode String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-
-  @@index([eventId])
-  @@index([userId])
-  @@index([qrCode])
-}
-
-model Favorite {
-  id        String   @id @default(uuid())
-  userId    String
-  eventId   String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, eventId])
-  @@index([userId])
-  @@index([eventId])
-}
-
-model ChatMessage {
-  id         String            @id @default(uuid())
-  eventId    String
-  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  senderId   String
-  senderType SenderType
-  message    String
-  status     ChatMessageStatus @default(ACTIVE)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-
-  @@index([eventId])
-}
-
-model Friendship {
-  id         String           @id @default(uuid())
-  fromUserId String
-  toUserId   String
-  status     FriendshipStatus @default(PENDING) // e.g., PENDING, ACCEPTED, REJECTED
-  createdAt  DateTime         @default(now())
-  fromUser   User             @relation("UserFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser     User             @relation("UserTo", fields: [toUserId], references: [id], onDelete: Cascade)
-
-  @@unique([fromUserId, toUserId])
-  @@index([fromUserId])
-  @@index([toUserId])
 }
 
 enum FriendshipStatus {
@@ -314,36 +456,8 @@ enum FriendshipStatus {
   REJECTED
 }
 
-model PrivateMessage {
-  id         String               @id @default(uuid())
-  senderId   String
-  receiverId String
-  message    String
-  status     PrivateMessageStatus @default(SENT) // e.g., SENT, READ, DELETED
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
-  sender     User                 @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User                 @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  @@index([senderId])
-  @@index([receiverId])
-}
-
 enum PrivateMessageStatus {
   SENT
   READ
   DELETED
-}
-
-model Block {
-  id        String   @id @default(uuid())
-  blockerId String
-  blockedId String
-  createdAt DateTime @default(now())
-  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
-
-  @@unique([blockerId, blockedId])
-  @@index([blockerId])
-  @@index([blockedId])
 }
