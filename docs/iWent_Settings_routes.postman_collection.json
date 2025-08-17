@@ -1,0 +1,456 @@
+{
+  "info": {
+    "name": "iWent Settings",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Definitions",
+      "item": [
+        {
+          "name": "Get All Definitions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/definitions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "definitions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Section by Key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/definitions/sections/:sectionKey",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "definitions",
+                "sections",
+                ":sectionKey"
+              ],
+              "variable": [
+                {
+                  "key": "sectionKey",
+                  "value": "privacy"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Me",
+      "item": [
+        {
+          "name": "Get My Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patch My Settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"updates\": [\n    {\n      \"itemKey\": \"language\",\n      \"value\": \"EN\"\n    },\n    {\n      \"itemKey\": \"search_visibility\",\n      \"value\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Notification Prefs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/me/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Put My Notification Pref",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"inApp\": true,\n  \"email\": true,\n  \"sms\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings/me/notifications/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me",
+                "notifications",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "TICKET_PURCHASED"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List My Social Accounts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/me/social",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me",
+                "social"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Connect Social Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"handle\": \"@ali\",\n  \"accessToken\": \"***\",\n  \"refreshToken\": \"***\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings/me/social/:provider/connect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me",
+                "social",
+                ":provider",
+                "connect"
+              ],
+              "variable": [
+                {
+                  "key": "provider",
+                  "value": "instagram"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Disconnect Social Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/me/social/:provider/disconnect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "me",
+                "social",
+                ":provider",
+                "disconnect"
+              ],
+              "variable": [
+                {
+                  "key": "provider",
+                  "value": "instagram"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get User Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAuthToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/users/:userId/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "users",
+                ":userId",
+                "settings"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "some-user-id"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patch User Settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAuthToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"updates\": [\n    {\n      \"itemKey\": \"language\",\n      \"value\": \"EN\"\n    }
+  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings/users/:userId/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "users",
+                ":userId",
+                "settings"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "some-user-id"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Notification Prefs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAuthToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/users/:userId/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "users",
+                ":userId",
+                "notifications"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "some-user-id"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Put User Notification Pref",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAuthToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"inApp\": true,\n  \"email\": true,\n  \"sms\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings/users/:userId/notifications/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "users",
+                ":userId",
+                "notifications",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "some-user-id"
+                },
+                {
+                  "key": "category",
+                  "value": "TICKET_PURCHASED"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "adminAuthToken",
+      "value": ""
+    }
+  ]
+}

@@ -58,7 +58,7 @@ export async function getEventsByOrganizer(req: Request, res: Response, next: Ne
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
-    const input = CreateEventDTO.partial({ banner: true }).parse(req.body);
+    const input = CreateEventDTO.parse(req.body);
     const requesterId = (req as any).user?.id as string | undefined;
     const isAdmin = await resolveIsAdmin(requesterId);
     const isOrganizer = await resolveIsOrganizer(requesterId);
