@@ -68,7 +68,7 @@ initMeili();
 
 // Populate if ran with --populate
 if (args.includes('--populate')) {
-  populateEvents(EVENT_POPULATE_COUNT);
+  await populateEvents(EVENT_POPULATE_COUNT);
   console.log(`Database populated with ${EVENT_POPULATE_COUNT} random events.`);
   process.exit(0);
 }

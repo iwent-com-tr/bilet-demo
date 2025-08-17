@@ -37,17 +37,17 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
       `status=${filters.status || 'ACTIVE'}`
   ];
 
-  // if (filters.dateFrom && filters.dateTo) {
-  //   filter.push(`startDate >= ${filters.dateFrom} AND startDate <= ${filters.dateTo}`);
-  // }
+  if (filters.dateFrom && filters.dateTo) {
+    filter.push(`startDate >= ${filters.dateFrom} AND startDate <= ${filters.dateTo}`);
+  }
 
-  // if (filters.city) {
-  //   filter.push(`city=${filters.city}`);
-  // }
+  if (filters.city) {
+    filter.push(`city=${filters.city}`);
+  }
 
-  // if (filters.category) {
-  //   filter.push(Array.isArray(filters.category) ? filters.category.map((c) => `category=${c} OR `).slice(0, -4) : `category=${filters.category}`);
-  // }
+  if (filters.category) {
+    filter.push(Array.isArray(filters.category) ? filters.category.map((c) => `category=${c} OR `).slice(0, -4) : `category=${filters.category}`);
+  }
 
 
   const searchDetails = {
