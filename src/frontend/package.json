@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Iwent bilet satış platformu frontend",
   "scripts": {
-    "start": "dotenv -e .env -- sh -ac 'PORT=${REACT_APP_PORT:-3000} react-scripts start'",
+    "start": "cross-env PORT=3001 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -31,6 +31,7 @@
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",
+    "cross-env": "^10.0.0",
     "dotenv-cli": "^7.4.1",
     "postcss": "^8.4.33",
     "react-scripts": "5.0.1",
