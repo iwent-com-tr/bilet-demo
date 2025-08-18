@@ -158,15 +158,15 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
                   className={`
                     relative aspect-square p-1 text-xs sm:text-sm rounded-lg transition-all duration-200 touch-manipulation min-h-[40px] sm:min-h-[44px]
                     ${isCurrentMonth 
-                      ? 'text-white hover:bg-gray-700 active:bg-gray-600' 
-                      : 'text-gray-600 hover:bg-gray-800'
+                      ? 'bg-white text-black hover:bg-gray-100 active:bg-gray-200' 
+                      : 'bg-gray-300 text-gray-500 hover:bg-gray-200'
                     }
                     ${isSelected 
                       ? 'bg-[#05EF7E] text-black border-2 border-[#05EF7E]' 
                       : ''
                     }
                     ${isToday && !isSelected 
-                      ? 'bg-gray-800 border border-[#05EF7E]' 
+                      ? 'bg-white border-2 border-[#05EF7E] text-black' 
                       : ''
                     }
                     ${hasEvents && isCurrentMonth
