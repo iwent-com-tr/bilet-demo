@@ -4,6 +4,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import PageHeader from '../../components/layouts/PageHeader';
 import './EventList.css';
+import searchIcon from '../../assets/search-icon.png';
+import { citiesData } from 'constants/cities';
 
 interface Event {
   id: string;
@@ -25,91 +27,6 @@ interface ApiResponse {
   limit: number;
 }
 
-// Cities data - same structure as backendN
-const citiesData = [
-  { name: "adana", plate: "01" },
-  { name: "adıyaman", plate: "02" },
-  { name: "afyonkarahisar", plate: "03" },
-  { name: "ağrı", plate: "04" },
-  { name: "amasya", plate: "05" },
-  { name: "ankara", plate: "06" },
-  { name: "antalya", plate: "07" },
-  { name: "artvin", plate: "08" },
-  { name: "aydın", plate: "09" },
-  { name: "balıkesir", plate: "10" },
-  { name: "bilecik", plate: "11" },
-  { name: "bingöl", plate: "12" },
-  { name: "bitlis", plate: "13" },
-  { name: "bolu", plate: "14" },
-  { name: "burdur", plate: "15" },
-  { name: "bursa", plate: "16" },
-  { name: "çanakkale", plate: "17" },
-  { name: "çankırı", plate: "18" },
-  { name: "çorum", plate: "19" },
-  { name: "denizli", plate: "20" },
-  { name: "diyarbakır", plate: "21" },
-  { name: "edirne", plate: "22" },
-  { name: "elazığ", plate: "23" },
-  { name: "erzincan", plate: "24" },
-  { name: "erzurum", plate: "25" },
-  { name: "eskişehir", plate: "26" },
-  { name: "gaziantep", plate: "27" },
-  { name: "giresun", plate: "28" },
-  { name: "gümüşhane", plate: "29" },
-  { name: "hakkari", plate: "30" },
-  { name: "hatay", plate: "31" },
-  { name: "ısparta", plate: "32" },
-  { name: "mersin", plate: "33" },
-  { name: "istanbul", plate: "34" },
-  { name: "izmir", plate: "35" },
-  { name: "kars", plate: "36" },
-  { name: "kastamonu", plate: "37" },
-  { name: "kayseri", plate: "38" },
-  { name: "kırklareli", plate: "39" },
-  { name: "kırşehir", plate: "40" },
-  { name: "kocaeli", plate: "41" },
-  { name: "konya", plate: "42" },
-  { name: "kütahya", plate: "43" },
-  { name: "malatya", plate: "44" },
-  { name: "manisa", plate: "45" },
-  { name: "kahramanmaraş", plate: "46" },
-  { name: "mardin", plate: "47" },
-  { name: "muğla", plate: "48" },
-  { name: "muş", plate: "49" },
-  { name: "nevşehir", plate: "50" },
-  { name: "niğde", plate: "51" },
-  { name: "ordu", plate: "52" },
-  { name: "rize", plate: "53" },
-  { name: "sakarya", plate: "54" },
-  { name: "samsun", plate: "55" },
-  { name: "siirt", plate: "56" },
-  { name: "sinop", plate: "57" },
-  { name: "sivas", plate: "58" },
-  { name: "tekirdağ", plate: "59" },
-  { name: "tokat", plate: "60" },
-  { name: "trabzon", plate: "61" },
-  { name: "tunceli", plate: "62" },
-  { name: "şanlıurfa", plate: "63" },
-  { name: "uşak", plate: "64" },
-  { name: "van", plate: "65" },
-  { name: "yozgat", plate: "66" },
-  { name: "zonguldak", plate: "67" },
-  { name: "aksaray", plate: "68" },
-  { name: "bayburt", plate: "69" },
-  { name: "karaman", plate: "70" },
-  { name: "kırıkkale", plate: "71" },
-  { name: "batman", plate: "72" },
-  { name: "şırnak", plate: "73" },
-  { name: "bartın", plate: "74" },
-  { name: "ardahan", plate: "75" },
-  { name: "ığdır", plate: "76" },
-  { name: "yalova", plate: "77" },
-  { name: "karabük", plate: "78" },
-  { name: "kilis", plate: "79" },
-  { name: "osmaniye", plate: "80" },
-  { name: "düzce", plate: "81" }
-];
-
 const EventList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +40,7 @@ const EventList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+  const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
 
   // Sort cities alphabetically by name
   const sortedCities = [...citiesData].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
@@ -194,14 +112,20 @@ const EventList: React.FC = () => {
       </div>
       <div className="event-list__container">
         {/* Search Bar */}
+        <div className={"event-list__search-bar" + (isSearchBarFocused ? ' event-list__search-bar-focused' : '')}>
+          <div className="event-list__search-label-wrapper">
+          <img src={searchIcon} alt="Search" className="event-list__search-icon" />
+          </div>
           <input
             type="text"
             value={filters.q}
             onChange={handleSearchChange}
+            onFocus={() => setIsSearchBarFocused(true)}
+            onBlur={() => setIsSearchBarFocused(false)}
             placeholder="Ara..."
             className="event-list__search-input"
           />
-
+        </div>
         {/* Filters */}
         <div className="event-list__filters">
           <div className="event-list__filters-header">

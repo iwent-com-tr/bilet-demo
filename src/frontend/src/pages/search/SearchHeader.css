@@ -1,0 +1,246 @@
+:root{
+  /* theme / tuning variables */
+  --surface: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.1);
+  --radius: 8px;
+  --header-padding: 24px;
+  --filter-size: 50px;               /* filter square size */
+  --accent: rgba(255,255,255,0.12);  /* hover/active subtle background */
+  --pill-padding-y: 8px;
+  --pill-padding-x: 14px;
+  --pill-padding-x-wide: 32px;       /* wider pill padding for visible scroll */
+  --gap: 12px;
+  --max-content-width: 1100px;
+  --active-green: rgba(5, 239, 126, 1);
+
+  /* responsive pill min/max using clamp(min, preferred, max) */
+  --pill-min: clamp(120px, 18vw, 220px);
+}
+
+/* predictable sizing + global transition */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+/* -------------------------
+   HEADER + MAIN LAYOUT
+   ------------------------- */
+
+.search-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;   /* stack: head above categories */
+  align-items: center;
+  padding: var(--header-padding) 0;
+  margin-top: 24px;
+  gap: 16px;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+.search-header.blocked {
+  transform: translate(0, 100vh);
+  opacity: 0;                        
+}
+
+/* limit content width so head and categories align visually */
+.search-header__head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;     /* stop stretch */
+  justify-content: center;
+  width: 100%;
+  max-width: var(--max-content-width);
+  gap: 16px;
+  margin-left: 8px;
+}
+
+/* -------------------------
+   SEARCH BAR
+   ------------------------- */
+
+.search-header__search-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 80%;
+  max-width: 800px;
+  flex: 1 1 auto;
+  min-width: 0; /* critical so input can shrink */
+}
+
+.search-header__search-bar.is-focused {
+  border-color: var(--active-green);
+}
+
+.search-header__search-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.search-header__search-input {
+  flex: 1 1 auto;
+  min-width: 0;    /* prevents input pushing parent wider */
+  border: none;
+  background: transparent;
+  padding: 12px 8px;
+  outline: none;
+  font: inherit;
+  color: inherit;
+}
+
+.search-header__search-input:focus {
+    outline: none;
+    border: none;
+    box-shadow: none;
+}
+
+/* -------------------------
+   FILTER SQUARE
+   ------------------------- */
+
+.search-header__filter-wrapper {
+  width: var(--filter-size);
+  aspect-ratio: 1 / 1;
+  flex: 0 0 var(--filter-size);   /* strict square of --filter-size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  margin-right: 12px;
+}
+
+.search-header__filter-wrapper.is-active {
+  background: var(--active-green);
+}
+
+.search-header__filter-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+
+
+/* icons inside buttons/search icon sizing */
+.search-header__filter-button img,
+.search-header__search-icon-wrapper img {
+  display: block;
+  max-width: 60%;
+  max-height: 60%;
+  object-fit: contain;
+}
+
+/* -------------------------
+   CATEGORY ROW / PILL BUTTONS
+   ------------------------- */
+
+.search-header__category-container {
+  width: 100%;
+  max-width: var(--max-content-width);
+  display: flex;
+  gap: var(--gap);
+  padding: 6px 12px;
+  justify-content: flex-start;  /* left aligned on smaller screens */
+  overflow-x: auto;              /* horizontal scroll on narrow screens */
+  -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap;             /* keep pills in one line */
+  align-items: center;
+  background: transparent;
+  scroll-snap-type: x proximity; /* optional: smoother snapping */
+}
+
+/* hide scrollbar visually but keep it functional on most browsers (optional) */
+.search-header__category-container::-webkit-scrollbar {
+  height: 8px;
+}
+.search-header__category-container::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+}
+
+/* pill buttons — wider so scrolling is obvious */
+.search-header__category-button {
+  flex: 0 0 auto;                  /* don't grow or shrink; width controlled by min-width */
+  min-width: var(--pill-min);
+  padding: var(--pill-padding-y) var(--pill-padding-x-wide);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  text-align: center;
+  border-radius: 10px;            /* pill */
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 40px;
+  scroll-snap-align: start;        /* snap each pill to start */
+}
+
+/* hover/focus — theme-consistent */
+.search-header__category-button:hover {
+  background: var(--accent);
+  border-color: var(--border);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+/* active/selected state (apply .is-active in React) */
+.search-header__category-button.is-active {
+  background-color: var(--active-green);
+  color: black;
+}
+
+/* accessibility: focus-visible indicator */
+.search-header__category-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+}
+
+/* -------------------------
+   RESPONSIVE ADJUSTMENTS
+   ------------------------- */
+
+@media (min-width: 1200px) {
+  .search-header__category-container {
+    justify-content: center; /* center the pills on big screens */
+  }
+}
+
+/* If you want the header head row to remain horizontally constrained on tiny screens */
+@media (max-width: 420px) {
+  .search-header__search-input {
+    padding: 10px 6px;
+  }
+}
+
+/* -------------------------
+   PERFORMANCE NOTE (brief)
+   ------------------------- */
+/* 
+  We apply a gentle transition globally for UI polish. If you notice jank
+  when many items are animating, replace the global transition with a
+  targeted list: e.g. transition: background-color .2s, color .2s, transform .2s, opacity .2s;
+*/
