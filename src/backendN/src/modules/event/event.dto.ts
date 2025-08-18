@@ -53,7 +53,9 @@ export const CreateEventDTO = z.object({
     .number()
     .int({ message: 'Kapasite tam sayı olmalıdır.' })
     .positive({ message: 'Kapasite pozitif olmalıdır.' })
-    .optional(),
+    .nullable()
+    .optional()
+    .transform(val => val === null ? undefined : val),
   ticketTypes: z.array(z.object({
     type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }),
     price: z.number().min(0, { message: 'Fiyat 0 veya daha büyük olmalıdır.' }),
@@ -96,7 +98,9 @@ export const UpdateEventDTO = z.object({
     .number()
     .int({ message: 'Kapasite tam sayı olmalıdır.' })
     .positive({ message: 'Kapasite pozitif olmalıdır.' })
-    .optional(),
+    .nullable()
+    .optional()
+    .transform(val => val === null ? undefined : val),
   ticketTypes: z.array(z.object({
     type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }),
     price: z.number().min(0, { message: 'Fiyat 0 veya daha büyük olmalıdır.' }),

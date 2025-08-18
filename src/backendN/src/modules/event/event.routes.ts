@@ -35,6 +35,10 @@ r.put('/:id/details', authGuard.required, ctrl.updateDetails);
 // Stats: protected GET for organizer and admin
 r.get('/:id/stats', authGuard.required, ctrl.getEventStats);
 
+// Calendar endpoints - public access
+r.get('/calendar/events', ctrl.getCalendarEvents);
+r.get('/calendar/date/:date', ctrl.getEventsByDate);
+
 export default r;
 
 

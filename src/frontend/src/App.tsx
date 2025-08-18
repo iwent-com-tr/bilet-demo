@@ -31,6 +31,7 @@ import EventChat from './pages/events/EventChat';
 import ParticipantInfo from './pages/events/ParticipantInfo';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
+import CalendarPage from './pages/Calendar';
 // Context
 import { AuthProvider } from './context/AuthContext';
 
@@ -45,6 +46,7 @@ const App: React.FC = () => {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:slug" element={<EventDetail />} />
             <Route path="/events/:slug/event-ticket-categories" element={<EventTicketCategories />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
