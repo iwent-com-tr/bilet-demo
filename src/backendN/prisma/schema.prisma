@@ -88,7 +88,7 @@ model Organizer {
   address       String?
   bankAccount   String?
   lastLogin     DateTime?
-  approved      Boolean   @default(false) // Indicates if the organizer is approved by admins
+  approved      Boolean   @default(true) // Indicates if the organizer is approved by admins
   devices       Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
