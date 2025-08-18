@@ -230,7 +230,7 @@ export async function getEventsByDate(req: Request, res: Response, next: NextFun
 
     const events = await prisma.event.findMany({
       where: {
-        status: 'ACTIVE',
+        status: { in: ['ACTIVE', 'DRAFT'] },
         deletedAt: null,
         OR: [
           // Events that start on this date
@@ -308,7 +308,7 @@ export async function getCalendarEvents(req: Request, res: Response, next: NextF
 
     const events = await prisma.event.findMany({
       where: {
-        status: 'ACTIVE',
+        status: { in: ['ACTIVE', 'DRAFT'] },
         deletedAt: null,
         OR: [
           // Events that start in this month
@@ -336,6 +336,7 @@ export async function getCalendarEvents(req: Request, res: Response, next: NextF
         venue: true,
         city: true,
         category: true,
+        status: true,
         banner: true
       },
       orderBy: {

@@ -13,6 +13,7 @@ interface CalendarEvent {
   venue: string;
   city: string;
   category: string;
+  status?: string;
   banner?: string;
   isStartDate?: boolean;
   isEndDate?: boolean;

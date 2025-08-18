@@ -13,6 +13,7 @@ interface CalendarEvent {
   venue: string;
   city: string;
   category: string;
+  status?: string;
   banner?: string;
   isStartDate?: boolean;
   isEndDate?: boolean;
@@ -118,6 +119,11 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
                   <div className="flex-1">
                     <h4 className="text-sm sm:text-base font-semibold text-white line-clamp-2 leading-tight">
                       {event.name}
+                      {event.status === 'DRAFT' && (
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Taslak
+                        </span>
+                      )}
                     </h4>
                     
                     {/* Category Badge */}
