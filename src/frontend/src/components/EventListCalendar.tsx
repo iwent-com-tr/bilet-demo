@@ -62,40 +62,40 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
 
   if (events.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-gray-900 rounded-lg shadow-lg border border-gray-800 p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">
           {format(date, 'd MMMM yyyy, EEEE', { locale: tr })}
         </h3>
         <div className="text-center py-8">
-          <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-2 text-sm text-gray-500">Bu tarihte etkinlik bulunmuyor</p>
+          <CalendarIcon className="mx-auto h-12 w-12 text-gray-600" />
+          <p className="mt-2 text-sm text-gray-400">Bu tarihte etkinlik bulunmuyor</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="bg-primary-600 text-white p-4">
-        <h3 className="text-lg font-semibold">
+    <div className="bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
+      <div className="bg-[#05EF7E] text-black p-4">
+        <h3 className="text-lg font-bold">
           {format(date, 'd MMMM yyyy, EEEE', { locale: tr })}
         </h3>
-        <p className="text-primary-100 text-sm">
+        <p className="text-black opacity-80 text-sm font-medium">
           {events.length} etkinlik
         </p>
       </div>
 
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-gray-800">
         {events.map((event) => (
           <div
             key={event.id}
             onClick={() => handleEventClick(event.slug)}
-            className="p-3 sm:p-4 hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors duration-200 touch-manipulation"
+            className="p-3 sm:p-4 hover:bg-gray-800 active:bg-gray-700 cursor-pointer transition-colors duration-200 touch-manipulation"
           >
             <div className="flex items-start space-x-3 sm:space-x-4">
               {/* Event Banner */}
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-lg overflow-hidden">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-800 rounded-lg overflow-hidden">
                   {event.banner ? (
                     <img
                       src={event.banner}
@@ -103,8 +103,8 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
-                      <span className="text-white font-bold text-sm sm:text-lg">
+                    <div className="w-full h-full bg-gradient-to-br from-[#05EF7E] to-green-400 flex items-center justify-center">
+                      <span className="text-black font-bold text-sm sm:text-lg">
                         {event.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
@@ -116,12 +116,12 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 leading-tight">
+                    <h4 className="text-sm sm:text-base font-semibold text-white line-clamp-2 leading-tight">
                       {event.name}
                     </h4>
                     
                     {/* Category Badge */}
-                    <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 rounded-full text-xs font-medium mt-1 ${getCategoryColor(event.category)}`}>
+                    <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 rounded-full text-xs font-bold mt-1 bg-[#05EF7E] text-black">
                       {getCategoryName(event.category)}
                     </span>
                   </div>
@@ -129,7 +129,7 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
 
                 {/* Event Info */}
                 <div className="mt-2 space-y-1">
-                  <div className="flex items-center text-xs text-gray-500">
+                  <div className="flex items-center text-xs text-[#05EF7E]">
                     <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     <span>
                       {format(new Date(event.startDate), 'HH:mm')}
@@ -139,7 +139,7 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
                     </span>
                   </div>
                   
-                  <div className="flex items-center text-xs text-gray-500">
+                  <div className="flex items-center text-xs text-[#05EF7E]">
                     <MapPinIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     <span className="truncate">
                       {event.venue}, {event.city}
@@ -150,7 +150,7 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
                 {/* Multi-day indicator */}
                 {new Date(event.startDate).toDateString() !== new Date(event.endDate).toDateString() && (
                   <div className="mt-2">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-gray-800 text-[#05EF7E] border border-gray-700">
                       {event.isStartDate ? 'Başlangıç' : event.isEndDate ? 'Bitiş' : 'Devam ediyor'}
                     </span>
                   </div>
@@ -159,7 +159,7 @@ const EventListCalendar: React.FC<EventListCalendarProps> = ({ date, events }) =
 
               {/* Arrow */}
               <div className="flex-shrink-0">
-                <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5 text-[#05EF7E]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>

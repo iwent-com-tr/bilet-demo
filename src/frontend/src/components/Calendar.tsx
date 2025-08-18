@@ -100,13 +100,13 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
   });
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
       {/* Calendar Header */}
-      <div className="bg-primary-600 text-white p-3 sm:p-4">
+      <div className="bg-[#05EF7E] text-black p-3 sm:p-4">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <button
             onClick={goToPreviousMonth}
-            className="p-2 hover:bg-primary-700 rounded-lg transition-colors touch-manipulation"
+            className="p-2 hover:bg-green-400 rounded-lg transition-colors touch-manipulation"
             aria-label="Önceki ay"
           >
             <ChevronLeftIcon className="h-5 w-5" />
@@ -118,7 +118,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
           
           <button
             onClick={goToNextMonth}
-            className="p-2 hover:bg-primary-700 rounded-lg transition-colors touch-manipulation"
+            className="p-2 hover:bg-green-400 rounded-lg transition-colors touch-manipulation"
             aria-label="Sonraki ay"
           >
             <ChevronRightIcon className="h-5 w-5" />
@@ -128,7 +128,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
         {/* Day Names */}
         <div className="grid grid-cols-7 gap-1">
           {dayNames.map((day) => (
-            <div key={day} className="text-center text-xs sm:text-sm font-medium py-1 sm:py-2">
+            <div key={day} className="text-center text-xs sm:text-sm font-bold py-1 sm:py-2 text-black">
               {day}
             </div>
           ))}
@@ -139,7 +139,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
       <div className="p-2 sm:p-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#05EF7E]"></div>
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-1">
@@ -158,15 +158,15 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
                   className={`
                     relative aspect-square p-1 text-xs sm:text-sm rounded-lg transition-all duration-200 touch-manipulation min-h-[40px] sm:min-h-[44px]
                     ${isCurrentMonth 
-                      ? 'text-gray-900 hover:bg-gray-100 active:bg-gray-200' 
-                      : 'text-gray-400 hover:bg-gray-50'
+                      ? 'text-white hover:bg-gray-700 active:bg-gray-600' 
+                      : 'text-gray-600 hover:bg-gray-800'
                     }
                     ${isSelected 
-                      ? 'bg-primary-100 border-2 border-primary-500' 
+                      ? 'bg-[#05EF7E] text-black border-2 border-[#05EF7E]' 
                       : ''
                     }
                     ${isToday && !isSelected 
-                      ? 'bg-primary-50 border border-primary-300' 
+                      ? 'bg-gray-800 border border-[#05EF7E]' 
                       : ''
                     }
                     ${hasEvents && isCurrentMonth
@@ -192,7 +192,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
                         }
                       `} />
                       {events.length > 1 && (
-                        <span className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 text-xs bg-primary-600 text-white rounded-full w-3 h-3 sm:w-4 sm:h-4 flex items-center justify-center text-[10px] sm:text-xs">
+                        <span className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 text-xs bg-[#05EF7E] text-black rounded-full w-3 h-3 sm:w-4 sm:h-4 flex items-center justify-center text-[10px] sm:text-xs font-bold">
                           {events.length > 9 ? '9+' : events.length}
                         </span>
                       )}
