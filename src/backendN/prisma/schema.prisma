@@ -305,6 +305,7 @@ model Block {
 model SettingSection {
   id            String        @id @default(uuid())
   key           String        @unique
+  icon          String        @default("")
   titleTR       String
   titleEN       String
   descriptionTR String?

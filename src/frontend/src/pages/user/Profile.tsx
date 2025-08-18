@@ -341,7 +341,10 @@ const Profile: React.FC = () => {
 
   return (
     <div className="profile-page">
-      {isMobile && <PageHeader title="Profilim" />}
+      {isMobile && <PageHeader title="Profilim" menuItems={[{
+        label: 'Ayarlar',
+        onClick: () => navigate('/user/settings'),
+      }]} />}
       <div className="profile-mobile-content">
         {showSettings ? (
           renderSettingsForm()
@@ -403,4 +406,4 @@ const Profile: React.FC = () => {
   );
 };
 
-export default Profile; 
+export default Profile;

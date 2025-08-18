@@ -30,6 +30,33 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.page-header__menu-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-header__menu-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-header__menu-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .page-header__title {
   color: #fff;
   font-size: 20px;
@@ -41,9 +68,43 @@
   font-family: 'Space Grotesk', sans-serif;
 }
 
+.page-header__menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.page-header__dropdown {
+  display: block;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: #333;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  border-radius: 8px;
+  padding: 8px 0;
+}
+
+.page-header__dropdown-item {
+  color: white;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.page-header__dropdown-item:hover {
+  background-color: #444;
+}
+
 /* Desktop'ta gizle */
 @media (min-width: 768px) {
   .page-header {
     display: none;
   }
-} 
+}
