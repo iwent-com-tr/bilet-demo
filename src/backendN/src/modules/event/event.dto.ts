@@ -23,9 +23,8 @@ export const ListEventsQueryDTO = z.object({
     .optional()
     .refine(val => !val || val.length >= 1, { message: 'Şehir adı en az 1 karakter olmalıdır.' }),
   category: z.string()
-    .transform(val => val === '' ? undefined : val)
-    .optional()
-    .refine(val => !val || EVENT_CATEGORIES.includes(val as any), { message: 'Geçersiz kategori seçimi.' }),
+    .refine(val => val === '' || val?.split(',').every(str => EVENT_CATEGORIES.includes(str as any)), { message: 'Geçersiz kategori seçimi.' })
+    .optional(),
   dateFrom: z.string()
     .transform(val => val === '' ? undefined : val)
     .optional()
