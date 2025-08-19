@@ -31,7 +31,7 @@ const Settings: React.FC = () => {
     const fetchSettings = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('http://localhost:3000/api/v1/settings/definitions');
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/settings/definitions`);
         let data = response.data;
 
         if (typeof data === 'string') {
