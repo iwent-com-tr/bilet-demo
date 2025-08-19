@@ -23,9 +23,8 @@ export const ListEventsQueryDTO = z.object({
     .optional()
     .refine(val => !val || val.length >= 1, { message: 'Şehir adı en az 1 karakter olmalıdır.' }),
   category: z.string()
-    .transform(val => val === '' ? undefined : val)
-    .optional()
-    .refine(val => !val || EVENT_CATEGORIES.includes(val as any), { message: 'Geçersiz kategori seçimi.' }),
+    .refine(val => val === '' || val?.split(',').every(str => EVENT_CATEGORIES.includes(str as any)), { message: 'Geçersiz kategori seçimi.' })
+    .optional(),
   dateFrom: z.string()
     .transform(val => val === '' ? undefined : val)
     .optional()
@@ -53,7 +52,9 @@ export const CreateEventDTO = z.object({
     .number()
     .int({ message: 'Kapasite tam sayı olmalıdır.' })
     .positive({ message: 'Kapasite pozitif olmalıdır.' })
-    .optional(),
+    .nullable()
+    .optional()
+    .transform(val => val === null ? undefined : val),
   ticketTypes: z.array(z.object({
     type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }),
     price: z.number().min(0, { message: 'Fiyat 0 veya daha büyük olmalıdır.' }),
@@ -96,7 +97,9 @@ export const UpdateEventDTO = z.object({
     .number()
     .int({ message: 'Kapasite tam sayı olmalıdır.' })
     .positive({ message: 'Kapasite pozitif olmalıdır.' })
-    .optional(),
+    .nullable()
+    .optional()
+    .transform(val => val === null ? undefined : val),
   ticketTypes: z.array(z.object({
     type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }),
     price: z.number().min(0, { message: 'Fiyat 0 veya daha büyük olmalıdır.' }),

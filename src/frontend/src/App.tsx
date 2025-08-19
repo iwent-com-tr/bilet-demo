@@ -32,8 +32,10 @@ import ParticipantInfo from './pages/events/ParticipantInfo';
 import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
+import CalendarPage from './pages/Calendar';
 // Context
 import { AuthProvider } from './context/AuthContext';
+import Search from 'pages/search/Search';
 
 const App: React.FC = () => {
   return (
@@ -46,9 +48,12 @@ const App: React.FC = () => {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:slug" element={<EventDetail />} />
             <Route path="/events/:slug/event-ticket-categories" element={<EventTicketCategories />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
+            <Route path="/search" element={<Search />} />
+            <Route path='/search/:query' element={<Search />} />
           </Route>
 
           {/* User Routes */}

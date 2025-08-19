@@ -46,7 +46,7 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
   }
 
   if (filters.category) {
-    filter.push(Array.isArray(filters.category) ? filters.category.map((c) => `category=${c} OR `).slice(0, -4) : `category=${filters.category}`);
+    filter.push(filters.category.split(',').map((c: string) => `category=${c}`).join(' OR '));
   }
 
 

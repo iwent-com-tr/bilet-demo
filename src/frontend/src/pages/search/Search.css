@@ -1,0 +1,19 @@
+
+
+.search__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-bottom: 48px;
+}
+
+.search__grid {
+    margin: 0px 16px;
+}
+
+@media (max-width: 768px) {
+
+    .search__grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
