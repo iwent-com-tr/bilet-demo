@@ -29,6 +29,7 @@ import PurchaseSuccess from './pages/events/PurchaseSuccess';
 import EventTicketCategories from './pages/events/EventTicketCategories';
 import EventChat from './pages/events/EventChat';
 import ParticipantInfo from './pages/events/ParticipantInfo';
+import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 import CalendarPage from './pages/Calendar';
@@ -65,6 +66,11 @@ const App: React.FC = () => {
             <Route path="/verify-phone" element={
               <ProtectedRoute requiredRole="user">
                 <PhoneVerify />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/settings" element={
+              <ProtectedRoute requiredRole="user">
+                <Settings />
               </ProtectedRoute>
             } />
             <Route path="/my-tickets" element={
@@ -159,4 +165,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App; 
+export default App;

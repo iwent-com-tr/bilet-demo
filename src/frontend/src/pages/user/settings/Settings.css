@@ -1,0 +1,56 @@
+.settings-page {
+  background-color: #1a1a1a;
+  min-height: 100vh;
+  color: white;
+}
+
+.settings-container {
+  padding: 16px;
+}
+
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background-color: #262626;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.settings-item__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-item__title {
+  font-size: 16px;
+}
+
+.settings-item__control {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-item__button {
+  background-color: #333;
+  border: 1px solid #444;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.settings-item__button.active {
+  background-color: #00b894;
+  border-color: #00b894;
+}
+
+.settings-item__arrow {
+  font-size: 20px;
+}
