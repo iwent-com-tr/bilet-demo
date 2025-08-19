@@ -6,8 +6,8 @@
   "scripts": {
     "populate": "tsx src/index.ts --populate",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "build": "tsc && tsc-esm-fix dist --ext .js",
+    "start": "node --env-file=.env --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./json-loader.mjs\", pathToFileURL(\"./\"));' dist/src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -24,6 +24,7 @@
     "@types/node": "^24.3.0",
     "@types/qrcode": "^1.5.5",
     "ts-node": "^10.9.2",
+    "tsc-esm-fix": "^3.1.2",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
   },
