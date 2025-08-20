@@ -3,6 +3,7 @@ import Calendar from '../components/Calendar';
 import EventListCalendar from '../components/EventListCalendar';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import MobileNavbar from '../components/layouts/MobileNavbar';
 
 interface CalendarEvent {
   id: string;
@@ -106,6 +107,7 @@ const CalendarPage: React.FC = () => {
           </div>
         </div>
       </div>
+      <MobileNavbar />
     </div>
   );
 };
