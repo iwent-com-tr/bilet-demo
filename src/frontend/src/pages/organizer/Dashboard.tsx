@@ -97,9 +97,13 @@ const OrganizerDashboard: React.FC = () => {
       
       // New API returns data directly in the data array
       if (response.data && response.data.data) {
-        setEvents(response.data.data);
-        if (response.data.data.length > 0) {
-          setSelectedEvent(response.data.data[0].id);
+        // Filter out any null or invalid events before setting state
+        const validEvents = response.data.data.filter((event: any) => 
+          event && event.id && typeof event === 'object'
+        );
+        setEvents(validEvents);
+        if (validEvents.length > 0) {
+          setSelectedEvent(validEvents[0].id);
         }
       } else {
         setEvents([]);
@@ -174,13 +178,13 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const calculateTicketUsagePercentage = () => {
-    if (!stats || stats.totalTickets === 0) return 0;
-    return stats.usageStats.usagePercentage;
+    if (!stats || stats.totalTickets === 0 || !stats.usageStats) return 0;
+    return stats.usageStats.usagePercentage || 0;
   };
 
   const getSelectedEventName = () => {
-    const event = events.find(e => e.id === selectedEvent);
-    return event ? event.name : '';
+    const event = events.find(e => e && e.id === selectedEvent);
+    return event && event.name ? event.name : '';
   };
 
   const downloadReport = async () => {
@@ -301,7 +305,9 @@ const OrganizerDashboard: React.FC = () => {
                 onChange={e => setSelectedEvent(e.target.value)}
                 className="organizer-dashboard__select"
               >
-                {events.map(event => (
+                {events
+                  .filter(event => event && event.id && event.name)
+                  .map(event => (
                   <option key={event.id} value={event.id}>
                     {event.name} - {formatDate(event.startDate)}
                   </option>
@@ -323,7 +329,7 @@ const OrganizerDashboard: React.FC = () => {
                   <div className="organizer-dashboard__quick-stat-icon">🎫</div>
                   <div className="organizer-dashboard__quick-stat-content">
                     <p className="organizer-dashboard__quick-stat-label">Kalan Bilet</p>
-                    <p className="organizer-dashboard__quick-stat-value">{stats.usageStats.remainingTickets}</p>
+                    <p className="organizer-dashboard__quick-stat-value">{stats.usageStats?.remainingTickets || 0}</p>
                   </div>
                 </div>
                 <div className="organizer-dashboard__quick-stat">
@@ -426,13 +432,15 @@ const OrganizerDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="organizer-dashboard__table-body">
-                      {stats.ticketTypeBreakdown.map((ticketType) => (
+                      {stats.ticketTypeBreakdown
+                        .filter(ticketType => ticketType && ticketType.type)
+                        .map((ticketType) => (
                         <tr key={ticketType.type}>
                           <td className="organizer-dashboard__ticket-type">{ticketType.type}</td>
-                          <td className="organizer-dashboard__ticket-sold">{ticketType.count}</td>
-                          <td className="organizer-dashboard__ticket-used">{ticketType.used}</td>
+                          <td className="organizer-dashboard__ticket-sold">{ticketType.count || 0}</td>
+                          <td className="organizer-dashboard__ticket-used">{ticketType.used || 0}</td>
                           <td className="organizer-dashboard__ticket-revenue">
-                            {formatCurrency(ticketType.revenue)}
+                            {formatCurrency(ticketType.revenue || 0)}
                           </td>
                         </tr>
                       ))}
