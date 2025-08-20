@@ -4,177 +4,186 @@ Iwent, organizatörlerin etkinlik oluşturup bilet satışı yapabileceği, kull
 
 ## Teknolojiler
 
-- **Backend**:
-  - Node.js (v22.13.1)
-  - Express.js (Hafif ve esnek API framework'ü)
-  - PostgreSQL (Veritabanı)
-  - Sequelize (ORM)
-  - JSON Web Token (JWT) (Kimlik doğrulama)
-  - Nodemailer (QR kodlu bilet gönderimi için e-posta)
-  - Socket.IO (Gerçek zamanlı chat özelliği)
-- **Frontend**:
-  - React.js (Modern ve bileşen tabanlı UI)
-  - Tailwind CSS (Hızlı ve tutarlı stil oluşturma)
-  - Axios (API istekleri)
-  - React Router (Sayfa yönlendirme)
-- **Diğer**:
-  - QRCode.js (QR kod üretimi)
-  - Redis (Session yönetimi ve önbellekleme)
-  - Winston (Loglama)
-  - Jest (Test framework'ü)
-  - ESLint & Prettier (Kod düzeni ve kalite)
+### Backend (Node.js + TypeScript)
+- **Framework**: Express.js 5.x
+- **Veritabanı**: PostgreSQL + Prisma ORM
+- **Kimlik Doğrulama**: JWT (Access + Refresh Token)
+- **Gerçek Zamanlı**: Socket.IO
+- **Arama Motoru**: MeiliSearch
+- **E-posta**: SendGrid
+- **SMS/Telefon**: Twilio Verify API
+- **Güvenlik**: 
+  - Helmet (HTTP header güvenliği)
+  - CORS
+  - Rate Limiting
+  - Zod (Input validation)
+- **Dosya Yönetimi**: Multer
+- **Raporlama**: ExcelJS
+
+### Frontend (React + TypeScript)
+- **Framework**: React 18.x
+- **Stil**: Tailwind CSS
+- **Routing**: React Router v6
+- **Form Yönetimi**: Formik + Yup
+- **HTTP İstekleri**: Axios
+- **Gerçek Zamanlı**: Socket.IO Client
+- **UI Bileşenleri**: 
+  - Heroicons
+  - React Toastify
+- **Tarih İşlemleri**: date-fns
+- **QR Kod**: qrcode.react
+
+### DevOps & Araçlar
+- **Konteynerizasyon**: Docker + Docker Compose
+- **Veritabanı Yönetimi**: pgAdmin
+- **API Dokümantasyonu**: Postman Collections
+- **Kod Kalitesi**: ESLint + TypeScript
+- **Paket Yönetimi**: npm
 
 ## Özellikler
 
 ### Kullanıcı Özellikleri
-- Kayıt ve giriş (JWT tabanlı)
-- Etkinlik arama ve filtreleme
-- Bilet alma (sepet mantığı, ödeme olmadan)
-- QR kodlu biletlerin e-posta ile gönderimi
-- Etkinliklere özel chat kanallarına otomatik katılım
-- Profil yönetimi (isim, soyisim, e-posta, telefon, şehir, doğum yılı)
+- ✅ JWT tabanlı kimlik doğrulama
+- ✅ Telefon numarası doğrulama (Twilio)
+- ✅ Etkinlik arama ve filtreleme (MeiliSearch)
+- ✅ Takvim görünümü ile etkinlik keşfi
+- ✅ Bilet satın alma (demo)
+- ✅ QR kodlu biletler
+- ✅ Etkinlik sohbet odaları
+- ✅ Profil yönetimi
+- ✅ Arkadaşlık sistemi
+- ✅ Özel mesajlaşma
+- ✅ Favori etkinlikler
 
 ### Organizatör Özellikleri
-- Etkinlik oluşturma (ücretli/ücretsiz, detaylar: ad, kategori, tarih, yer, adres, il, banner, sosyal medya linkleri)
-- Kontrol Paneli:
-  - Anlık katılımcı sayısı, toplam kazanç, doluluk oranı, bilet bazlı istatistikler
-  - Excel formatında etkinlik raporu (katılımcı bilgileri, bilet detayları, check-in, gişe, temsilciler)
-  - Geçmiş etkinlik raporları
-- Giriş Kontrolü:
-  - Cihaz ekleme/yönetme (telefon numarası ile)
-  - Bilet okuma (QR kod tarama, giriş saati ve gişe bilgisi kaydı)
-- Hesap Yönetimi:
-  - Yetkili bilgileri, ödeme bilgileri, fatura bilgileri (bireysel/kurumsal)
-  - Şifre değiştirme, sözleşme yönetimi
-- Guest List ve özel QR kod oluşturma
-- Chat kanalı moderasyonu
-- Gişe ve temsilci sistemi (bilet tanımlama, referans linki ile satış)
+- ✅ Etkinlik yönetimi (CRUD)
+- ✅ 8 farklı etkinlik kategorisi:
+  - Konser
+  - Festival
+  - Üniversite
+  - Atölye
+  - Konferans
+  - Spor
+  - Performans
+  - Eğitim
+- ✅ Kategori bazlı özel alanlar
+- ✅ İstatistik paneli
+- ✅ Excel raporları
+- ✅ QR kod okuyucu entegrasyonu
+- ✅ Cihaz yönetimi
+- ✅ Chat moderasyonu
 
 ## Proje Yapısı
 
-```
+\`\`\`
 src/
-├── backend/
-│   ├── config/           # Yapılandırma dosyaları
-│   │   ├── database.js   # PostgreSQL bağlantısı
-│   │   ├── redis.js      # Redis bağlantısı
-│   │   └── email.js      # Nodemailer yapılandırması
-│   ├── middleware/       # Middleware'ler
-│   │   ├── auth.js       # JWT kimlik doğrulama
-│   │   └── rateLimiter.js # Rate limiting
-│   ├── models/           # Veritabanı modelleri
-│   │   ├── user.js       # Kullanıcı modeli
-│   │   ├── organizer.js  # Organizatör modeli
-│   │   ├── event.js      # Etkinlik modeli
-│   │   ├── ticket.js     # Bilet modeli
-│   │   └── chat.js       # Chat modeli
-│   ├── routes/           # API rotaları
-│   │   ├── auth.js       # Kayıt/giriş
-│   │   ├── event.js      # Etkinlik işlemleri
-│   │   ├── ticket.js     # Bilet işlemleri
-│   │   ├── chat.js       # Chat işlemleri
-│   │   └── organizer.js  # Organizatör işlemleri
-│   ├── sockets/          # Socket.IO işlemleri
-│   │   └── chat.js       # Chat kanalları
-│   ├── util/             # Yardımcı fonksiyonlar
-│   │   ├── qrCode.js     # QR kod üretimi
-│   │   └── report.js     # Rapor oluşturma
-│   └── app.js            # Ana backend uygulaması
-├── frontend/
+├── backendN/                # Node.js + TypeScript Backend
+│   ├── prisma/             # Veritabanı şeması ve migrations
 │   ├── src/
-│   │   ├── components/   # Yeniden kullanılabilir React bileşenleri
-│   │   ├── pages/        # Sayfalar (anasayfa, etkinlik, profil, vs.)
-│   │   ├── hooks/        # Özel React hook'ları
-│   │   ├── styles/       # Tailwind CSS yapılandırması
-│   │   └── App.js        # Ana React uygulaması
-├── public/               # Statik dosyalar
-└── tests/                # Test dosyaları
-```
+│   │   ├── chat/          # Socket.IO entegrasyonu
+│   │   ├── lib/           # Yardımcı kütüphaneler
+│   │   │   ├── crypto.ts  # Şifreleme
+│   │   │   ├── jwt.ts     # Token yönetimi
+│   │   │   ├── meili.ts   # Arama motoru
+│   │   │   ├── email.ts   # E-posta gönderimi
+│   │   │   ├── twilio.ts  # SMS doğrulama
+│   │   │   └── qr.ts      # QR kod üretimi
+│   │   ├── middlewares/   # Express middlewares
+│   │   └── modules/       # Özellik modülleri
+│   │       ├── auth/      # Kimlik doğrulama
+│   │       ├── event/     # Etkinlik yönetimi
+│   │       ├── tickets/   # Bilet işlemleri
+│   │       └── users/     # Kullanıcı yönetimi
+│   └── uploads/           # Yüklenen dosyalar
+│
+└── frontend/              # React + TypeScript Frontend
+    ├── public/           # Statik dosyalar
+    └── src/
+        ├── components/   # Yeniden kullanılabilir bileşenler
+        ├── context/     # React context'leri
+        ├── pages/       # Sayfa bileşenleri
+        ├── styles/      # CSS stilleri
+        └── types/       # TypeScript tipleri
+\`\`\`
+
+## Veritabanı Şeması
+
+### Ana Tablolar
+- **User**: Kullanıcı bilgileri + puan sistemi
+- **Organizer**: Organizatör hesapları
+- **Event**: Etkinlik ana bilgileri
+- **Ticket**: Bilet kayıtları + QR kodlar
+- **ChatMessage**: Etkinlik chat mesajları
+- **Friendship**: Arkadaşlık sistemi
+- **PrivateMessage**: Özel mesajlaşma
+- **Block**: Kullanıcı engelleme
+- **Favorite**: Favori etkinlikler
+
+### Etkinlik Alt Tabloları
+Her etkinlik kategorisi için özel detay tabloları:
+- ConcertDetails
+- FestivalDetails
+- UniversityDetails
+- WorkshopDetails
+- ConferenceDetails
+- SportDetails
+- PerformanceDetails
+- EducationDetails
 
 ## Kurulum
 
-1. **Gereksinimleri Yükleyin**:
-```bash
-# Node.js ve npm
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
+1. **Docker ile Kurulum**:
+\`\`\`bash
+# PostgreSQL ve pgAdmin başlatma
+cd src/backendN
+docker-compose up -d
 
-# PostgreSQL
-sudo apt-get install postgresql postgresql-contrib
+# MeiliSearch başlatma
+docker run -d -p 7700:7700 getmeili/meilisearch:latest
+\`\`\`
 
-# Redis
-sudo apt-get install redis-server
-```
-
-2. **Projeyi Klonlayın**:
-```bash
-git clone [repo-url]
-cd iwent
-```
-
-3. **Bağımlılıkları Yükleyin**:
-```bash
-# Backend bağımlılıkları
-cd src/backend
+2. **Backend Kurulumu**:
+\`\`\`bash
+cd src/backendN
 npm install
-
-# Frontend bağımlılıkları
-cd ../frontend
-npm install
-```
-
-4. **Çevre Değişkenlerini Ayarlayın**:
-```bash
-# Backend için
-cd src/backend
-cp .env.example .env
-# .env dosyasını düzenleyin (DB_URL, JWT_SECRET, EMAIL_CONFIG vb.)
-
-# Frontend için
-cd src/frontend
-cp .env.example .env
-# .env dosyasını düzenleyin (API_URL vb.)
-```
-
-5. **Veritabanını Oluşturun**:
-```bash
-createdb iwent
-psql iwent < init.sql
-```
-
-6. **Uygulamayı Başlatın**:
-```bash
-# Backend (geliştirme)
-cd src/backend
+npx prisma generate
+npx prisma migrate dev
 npm run dev
+\`\`\`
 
-# Frontend (geliştirme)
+3. **Frontend Kurulumu**:
+\`\`\`bash
 cd src/frontend
+npm install
 npm start
-```
+\`\`\`
 
-## Güvenlik Kontrolleri
+## Güvenlik Özellikleri
 
-- [x] JWT Kimlik Doğrulama
-- [x] Rate Limiting
-- [x] XSS ve CSRF Koruması
-- [x] Input Validation
-- [x] SQL Injection Koruması
-- [x] Güvenli Session Yönetimi
-- [x] E-posta Güvenliği (Nodemailer için yapılandırma)
+- ✅ JWT (Access + Refresh token)
+- ✅ Telefon doğrulama
+- ✅ Rate limiting
+- ✅ Input validation (Zod)
+- ✅ SQL injection koruması (Prisma)
+- ✅ XSS koruması (Helmet)
+- ✅ CORS yapılandırması
 
-## Bilinen Sorunlar
+## Mobil Uyumluluk
 
-- Chat kanalı ölçeklendirme (demo için sınırlı kullanıcı)
-- QR kod tarama cihazlarının test edilmesi gerekiyor
+- ✅ Responsive tasarım
+- ✅ Touch-optimized arayüz
+- ✅ PWA desteği
+- ✅ Mobil navigasyon
 
 ## Yapılacaklar
 
-- [ ] Ödeme altyapısı ekleme
+- [ ] Ödeme altyapısı entegrasyonu
 - [ ] WebSocket performans optimizasyonu
 - [ ] Test coverage artırımı
 - [ ] Çoklu dil desteği
-- [ ] Mobil uygulama entegrasyonu
+- [ ] Mobil uygulama geliştirme
+- [ ] Bildirim sistemi
+- [ ] Sosyal medya entegrasyonu
 
 ## Lisans
 
