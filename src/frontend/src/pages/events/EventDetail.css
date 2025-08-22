@@ -258,7 +258,8 @@
 }
 
 .event-detail__mobile-artist-name,
-.event-detail__mobile-organizer-name {
+.event-detail__mobile-organizer-name,
+.event-detail__mobile-artist-time {
   color: white;
   font-size: 14px;
   font-weight: 600;

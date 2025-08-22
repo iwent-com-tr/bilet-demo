@@ -18,6 +18,9 @@ const Navbar: React.FC = () => {
 
           {/* Navigation */}
           <div className="navbar__links">
+            <Link to="/search" className="navbar__link">
+              Keşfet
+            </Link>
             <Link to="/events" className="navbar__link">
               Etkinlikler
             </Link>

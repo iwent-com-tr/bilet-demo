@@ -2,8 +2,14 @@ import { prisma } from '../../lib/prisma';
 import { hashPassword } from '../../lib/crypto';
 import { ExcelReportGenerator } from '../../lib/excelReport';
 import type { AdminCreateOrganizerInput, OrganizerAdminUpdateInput, OrganizerSelfUpdateInput } from './organizer.dto';
+import { SearchService } from '../search/search.service';
 
 export class OrganizerService {
+  static async listPublic(data: { page: number; limit: number; q?: string }) {
+    const val = await SearchService.searchOrganizer(data);
+    return val;
+  }
+
   static async list(params: { page: number; limit: number; q?: string }) {
     const { page, limit, q } = params;
     const where: any = { deletedAt: null };
@@ -312,27 +318,6 @@ export class OrganizerService {
 
     return { workbook, fileName };
   }
-}
-
-export function sanitizeOrganizer(o: any) {
-  return {
-    id: o.id,
-    firstName: o.firstName,
-    lastName: o.lastName,
-    company: o.company,
-    phone: o.phone,
-    phoneVerified: o.phoneVerified,
-    avatar: o.avatar,
-    email: o.email,
-    approved: o.approved,
-    lastLogin: o.lastLogin,
-    createdAt: o.createdAt,
-    updatedAt: o.updatedAt,
-    taxNumber: (o as any).taxNumber,
-    taxOffice: (o as any).taxOffice,
-    address: (o as any).address,
-    bankAccount: (o as any).bankAccount,
-  };
 }
 
 

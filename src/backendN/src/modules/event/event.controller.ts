@@ -1,26 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { CreateEventDTO, ListEventsQueryDTO, UpdateEventDTO, DetailsSchemasByCategory } from './event.dto';
-import { EventService, sanitizeEvent } from './event.service';
+import { EventService } from './event.service';
 import path from 'path';
-import { resolveBannerPublicUrl } from './event.upload';
-
-async function resolveIsAdmin(userId?: string): Promise<boolean> {
-  if (!userId) return false;
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  return !!user && user.userType === 'ADMIN';
-}
-
-async function resolveIsOrganizer(userId?: string): Promise<boolean> {
-  if (!userId) return false;
-  const organizer = await prisma.organizer.findUnique({ where: { id: userId } });
-  return !!organizer;
-}
+import { resolveBannerPublicUrl } from '../publicServices/multer.service';
+import { SearchService } from '../search/search.service';
+import { resolveIsAdmin, resolveIsOrganizer } from '../publicServices/resolveRoles.service';
+import { sanitizeEvent } from '../publicServices/sanitizer.service';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListEventsQueryDTO.parse(req.query);
-    const result = await EventService.list(query);
+    // const result = await EventService.list(query);
+    const result = await SearchService.searchEvent(query as any); // For testing purposes
     res.json({ ...result, data: result.data.map(sanitizeEvent).filter(Boolean) });
   } catch (e) { next(e); }
 }
@@ -35,6 +27,7 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const event = await EventService.findBySlug(req.params.slug);
+    console.log(`Event Response from getBySlug: ${JSON.stringify(event)}`);
     res.json(event);
   } catch (e) { next(e); }
 }
@@ -97,25 +90,6 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
-export async function uploadBanner(req: Request, res: Response, next: NextFunction) {
-  try {
-    const requesterId = (req as any).user?.id as string | undefined;
-    const isAdmin = await resolveIsAdmin(requesterId);
-    const isOrganizer = await resolveIsOrganizer(requesterId);
-
-    if (!isAdmin && !isOrganizer) {
-      return res.status(403).json({ error: 'forbidden', code: 'FORBIDDEN' });
-    }
-
-    const file = (req as any).file as Express.Multer.File | undefined;
-    if (!file) {
-      return res.status(400).json({ error: 'no file provided', code: 'FILE_REQUIRED' });
-    }
-
-    const bannerUrl = resolveBannerPublicUrl(file.filename);
-    res.json({ bannerUrl });
-  } catch (e) { next(e); }
-}
 
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try {

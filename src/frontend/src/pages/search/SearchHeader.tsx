@@ -3,31 +3,29 @@ import searchIcon from "../../assets/search-icon.png"
 import filterIconWhite from "../../assets/filter-icon.png"
 import filterIconBlack from "../../assets/filter-icon-negro.png"
 import { useState, useContext, useRef, useEffect } from "react"
-import { SearchContext, FilterContext } from "./Search"
+import { SearchContext, FilterContext, IndexContext } from "./Search"
 
 const SearchHeader: React.FC = () => {
     const [isFilterScreenOn, setIsFilterScreenOn] = useContext(SearchContext);
     const [filters, setFilters] = useContext(FilterContext);
     const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
-    const [activeCategory, setActiveCategory] = useState<null | number>(null);
+    const [activeIndex, setActiveIndex] = useContext(IndexContext);
     const [isFilterOn, setIsFilterOn] = useState(false);
 
-    function manageActiveCategory(event: React.MouseEvent<HTMLButtonElement>) {
+    function manageActiveIndex(event: React.MouseEvent<HTMLButtonElement>) {
         const key = event.currentTarget.getAttribute("data-category");
-        if (key === null) return;
-
-        const keyNumber = parseInt(key);
-        if (keyNumber === activeCategory) {
-            setActiveCategory(null);
+        if (activeIndex === parseInt(key as string)) {
+            setActiveIndex(-1);
         } else {
-            setActiveCategory(keyNumber);
+            setActiveIndex(parseInt(key as string));
         }
     }
 
     useEffect(() => {
-        setIsFilterOn(!!(filters.q || filters.category.length || filters.city || filters.dateFrom || filters.dateTo));
+        setIsFilterOn(!!(filters.category.length || filters.city || filters.dateFrom || filters.dateTo));
         console.log(filters)
     }, [filters]);
+
 
     function filterClicked() {
         setIsFilterScreenOn(true);
@@ -64,27 +62,27 @@ const SearchHeader: React.FC = () => {
             <div className="search-header__category-container">
                 <button
                 data-category="0" 
-                onClick={manageActiveCategory}
-                className={"search-header__category-button" + (activeCategory === 0 ? " is-active" : "")}>
+                onClick={manageActiveIndex}
+                className={"search-header__category-button" + (activeIndex === 0 ? " is-active" : "")}>
                     Etkinlikler
                 </button>
                 <button
                 data-category="1" 
-                onClick={manageActiveCategory}
-                className={"search-header__category-button" + (activeCategory === 1 ? " is-active" : "")}>
+                onClick={manageActiveIndex}
+                className={"search-header__category-button" + (activeIndex === 1 ? " is-active" : "")}>
                     Sanatçılar
                 </button>
                 <button
                 data-category="2" 
-                onClick={manageActiveCategory}
-                className={"search-header__category-button" + (activeCategory === 2 ? " is-active" : "")}>
+                onClick={manageActiveIndex}
+                className={"search-header__category-button" + (activeIndex === 2 ? " is-active" : "")}>
                     Mekanlar
                 </button>
                 <button
                 data-category="3" 
-                onClick={manageActiveCategory}
-                className={"search-header__category-button" + (activeCategory === 3 ? " is-active" : "")}>
-                    Organizasyonlar
+                onClick={manageActiveIndex}
+                className={"search-header__category-button" + (activeIndex === 3 ? " is-active" : "")}>
+                    Organizatörler
                 </button>
             </div>
         </header>
