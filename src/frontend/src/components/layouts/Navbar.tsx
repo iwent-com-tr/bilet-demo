@@ -24,6 +24,9 @@ const Navbar: React.FC = () => {
             <Link to="/events" className="navbar__link">
               Etkinlikler
             </Link>
+            <Link to="/calendar" className="navbar__link">
+              Takvim
+            </Link>
             <Link to="/artists" className="navbar__link">
               Sanatçılar
             </Link>

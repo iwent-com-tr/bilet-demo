@@ -1,7 +1,7 @@
 {
   "short_name": "iWent",
   "name": "iWent - Dijital Bilet Satış Platformu",
-  "description": "iWent - Dijital Bilet Satış Platformu",
+  "description": "Etkinlikler için bilet satın alın, takvim görünümü ile etkinlikleri keşfedin",
   "icons": [
     {
       "src": "android-chrome-192x192.png",

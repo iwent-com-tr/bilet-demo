@@ -29,8 +29,10 @@ import PurchaseSuccess from './pages/events/PurchaseSuccess';
 import EventTicketCategories from './pages/events/EventTicketCategories';
 import EventChat from './pages/events/EventChat';
 import ParticipantInfo from './pages/events/ParticipantInfo';
+import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
+import CalendarPage from './pages/Calendar';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
@@ -46,6 +48,7 @@ const App: React.FC = () => {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:slug" element={<EventDetail />} />
             <Route path="/events/:slug/event-ticket-categories" element={<EventTicketCategories />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
@@ -63,6 +66,11 @@ const App: React.FC = () => {
             <Route path="/verify-phone" element={
               <ProtectedRoute requiredRole="user">
                 <PhoneVerify />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/settings" element={
+              <ProtectedRoute requiredRole="user">
+                <Settings />
               </ProtectedRoute>
             } />
             <Route path="/my-tickets" element={
@@ -157,4 +165,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App; 
+export default App;

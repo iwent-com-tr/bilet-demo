@@ -50,7 +50,7 @@ export async function getEventsByOrganizer(req: Request, res: Response, next: Ne
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
-    const input = CreateEventDTO.partial({ banner: true }).parse(req.body);
+    const input = CreateEventDTO.parse(req.body);
     const requesterId = (req as any).user?.id as string | undefined;
     const isAdmin = await resolveIsAdmin(requesterId);
     const isOrganizer = await resolveIsOrganizer(requesterId);
@@ -169,6 +169,188 @@ export async function getEventStats(req: Request, res: Response, next: NextFunct
     const stats = await EventService.getEventStats(eventId);
     res.json({ stats });
   } catch (e) { next(e); }
+}
+
+export async function getEventsByDate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { date } = req.params;
+    
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({ 
+        error: 'invalid date format', 
+        code: 'INVALID_DATE_FORMAT',
+        message: 'Date must be in YYYY-MM-DD format' 
+      });
+    }
+
+    const targetDate = new Date(date);
+    if (isNaN(targetDate.getTime())) {
+      return res.status(400).json({ 
+        error: 'invalid date', 
+        code: 'INVALID_DATE',
+        message: 'Invalid date provided' 
+      });
+    }
+
+    // Set date range for the entire day (00:00:00 to 23:59:59)
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const events = await prisma.event.findMany({
+      where: {
+        status: { in: ['ACTIVE', 'DRAFT'] },
+        deletedAt: null,
+        OR: [
+          // Events that start on this date
+          {
+            startDate: {
+              gte: startOfDay,
+              lte: endOfDay
+            }
+          },
+          // Events that are ongoing on this date (multi-day events)
+          {
+            AND: [
+              { startDate: { lte: endOfDay } },
+              { endDate: { gte: startOfDay } }
+            ]
+          }
+        ]
+      },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            company: true
+          }
+        }
+      },
+      orderBy: {
+        startDate: 'asc'
+      }
+    });
+
+    const sanitizedEvents = events.map(sanitizeEvent).filter(Boolean);
+    
+    res.json({ 
+      date,
+      events: sanitizedEvents,
+      count: sanitizedEvents.length
+    });
+  } catch (e) { 
+    next(e); 
+  }
+}
+
+export async function getCalendarEvents(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { year, month } = req.query;
+    
+    // Default to current year/month if not provided
+    const currentDate = new Date();
+    const targetYear = year ? parseInt(year as string) : currentDate.getFullYear();
+    const targetMonth = month ? parseInt(month as string) : currentDate.getMonth() + 1;
+
+    // Validate year and month
+    if (targetYear < 2020 || targetYear > 2030) {
+      return res.status(400).json({ 
+        error: 'invalid year', 
+        code: 'INVALID_YEAR',
+        message: 'Year must be between 2020 and 2030' 
+      });
+    }
+
+    if (targetMonth < 1 || targetMonth > 12) {
+      return res.status(400).json({ 
+        error: 'invalid month', 
+        code: 'INVALID_MONTH',
+        message: 'Month must be between 1 and 12' 
+      });
+    }
+
+    // Create date range for the entire month
+    const startOfMonth = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+    const events = await prisma.event.findMany({
+      where: {
+        status: { in: ['ACTIVE', 'DRAFT'] },
+        deletedAt: null,
+        OR: [
+          // Events that start in this month
+          {
+            startDate: {
+              gte: startOfMonth,
+              lte: endOfMonth
+            }
+          },
+          // Events that are ongoing during this month (multi-day events)
+          {
+            AND: [
+              { startDate: { lte: endOfMonth } },
+              { endDate: { gte: startOfMonth } }
+            ]
+          }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        startDate: true,
+        endDate: true,
+        venue: true,
+        city: true,
+        category: true,
+        status: true,
+        banner: true
+      },
+      orderBy: {
+        startDate: 'asc'
+      }
+    });
+
+    // Group events by date
+    const eventsByDate: { [key: string]: any[] } = {};
+    
+    events.forEach(event => {
+      const startDate = new Date(event.startDate);
+      const endDate = new Date(event.endDate);
+      
+      // Add event to all dates it spans
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate && currentDate <= endOfMonth) {
+        if (currentDate >= startOfMonth) {
+          const dateKey = currentDate.toISOString().split('T')[0];
+          if (!eventsByDate[dateKey]) {
+            eventsByDate[dateKey] = [];
+          }
+          eventsByDate[dateKey].push({
+            ...event,
+            isStartDate: currentDate.toDateString() === startDate.toDateString(),
+            isEndDate: currentDate.toDateString() === endDate.toDateString()
+          });
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+
+    res.json({
+      year: targetYear,
+      month: targetMonth,
+      eventsByDate,
+      totalEvents: events.length
+    });
+  } catch (e) {
+    next(e);
+  }
 }
 
 

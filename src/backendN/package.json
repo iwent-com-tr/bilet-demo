@@ -6,24 +6,29 @@
   "scripts": {
     "populate": "tsx src/index.ts --populate",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "build": "tsc && tsc-esm-fix dist --ext .js",
+    "start": "node --env-file=.env --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./json-loader.mjs\", pathToFileURL(\"./\"));' dist/src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.0.0",
-    "@types/node": "^24.2.1",
+    "@types/node": "^24.3.0",
     "@types/qrcode": "^1.5.5",
-    "tsx": "^4.20.3",
+    "tsc-esm-fix": "^3.1.2",
+    "tsx": "^4.20.4",
     "typescript": "^5.9.2"
   },
   "dependencies": {
@@ -46,6 +51,6 @@
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "twilio": "^5.8.0",
-    "zod": "^4.0.17"
+    "zod": "^3.23.8"
   }
 }

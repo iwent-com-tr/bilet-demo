@@ -18,9 +18,8 @@ import venueRoutes from './modules/venues/venues.routes';
 import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
-import { populateEvents } from './lib/utils/populators/eventPopulator';
 import { populateDB } from './lib/utils/populators/populator';
-
+import settingsRoutes from './modules/settings/settings.routes';
 dotenv.config();
 
 const args = process.argv.slice(2);
@@ -56,6 +55,7 @@ app.use(`${API_PREFIX}/friendships`, friendshipRoutes);
 app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
+app.use(`${API_PREFIX}/settings`, settingsRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));

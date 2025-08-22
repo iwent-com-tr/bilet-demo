@@ -62,7 +62,11 @@ const OrganizerEvents: React.FC = () => {
       
       // New API returns data directly in the data array
       if (response.data && response.data.data) {
-        setEvents(response.data.data);
+        // Filter out any null or invalid events before setting state
+        const validEvents = response.data.data.filter((event: any) => 
+          event && event.id && typeof event === 'object'
+        );
+        setEvents(validEvents);
       } else {
         setEvents([]);
       }
@@ -195,29 +199,31 @@ const OrganizerEvents: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map(event => (
+                  {events
+                    .filter(event => event && event.id) // Filter out null/undefined events
+                    .map(event => (
                     <tr key={event.id} className="organizer-events__table-row">
                       <td className="organizer-events__table-cell">
                         <div className="organizer-events__event-info">
-                          <p className="organizer-events__event-name">{event.name}</p>
-                          <p className="organizer-events__event-city">{event.city}</p>
+                          <p className="organizer-events__event-name">{event?.name || 'İsimsiz Etkinlik'}</p>
+                          <p className="organizer-events__event-city">{event?.city || 'Şehir belirtilmemiş'}</p>
                         </div>
                       </td>
                       <td className="organizer-events__table-cell">
-                        <span className="organizer-events__category">{getCategoryText(event.category)}</span>
+                        <span className="organizer-events__category">{getCategoryText(event?.category || 'UNKNOWN')}</span>
                       </td>
                       <td className="organizer-events__table-cell">
-                        <p className="organizer-events__event-date">{formatDate(event.startDate)}</p>
+                        <p className="organizer-events__event-date">{event?.startDate ? formatDate(event.startDate) : 'Tarih belirtilmemiş'}</p>
                       </td>
                       <td className="organizer-events__table-cell">
                         <div className="organizer-events__venue-info">
-                          <p className="organizer-events__venue-name">{event.venue}</p>
-                          <p className="organizer-events__venue-address">{event.address}</p>
+                          <p className="organizer-events__venue-name">{event?.venue || 'Mekan belirtilmemiş'}</p>
+                          <p className="organizer-events__venue-address">{event?.address || 'Adres belirtilmemiş'}</p>
                         </div>
                       </td>
                       <td className="organizer-events__table-cell">
-                        <span className={`organizer-events__status organizer-events__status--${getStatusClass(event.status)}`}>
-                          {getStatusText(event.status)}
+                        <span className={`organizer-events__status organizer-events__status--${getStatusClass(event?.status || 'UNKNOWN')}`}>
+                          {getStatusText(event?.status || 'UNKNOWN')}
                         </span>
                       </td>
                       <td className="organizer-events__table-cell">

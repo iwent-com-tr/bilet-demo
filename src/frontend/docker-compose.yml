@@ -1,0 +1,32 @@
+services:
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: meilisearch
+    restart: unless-stopped
+    environment:
+      # Güvenlik için .env'ye koy, burada gösterim amaçlı yazıyoruz:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dev-meili-key}
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+    # Hosttan da erişmek istersen aç; sadece iç ağda kullanacaksan bu satırı silebilirsin.
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+
+  # örnek: uygulaman aynı compose'daysa böyle erişir
+  app:
+    build: .
+    environment:
+      # app konteynerinden erişim için host adı service adıyla aynıdır:
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_API_KEY: ${MEILI_MASTER_KEY:-dev-meili-key}
+    depends_on:
+      - meilisearch
+
+  # örnek: Postgres vs. başka servislerin burada olabilir
+  # postgres:
+  #   ...
+
+volumes:
+  meili_data:
