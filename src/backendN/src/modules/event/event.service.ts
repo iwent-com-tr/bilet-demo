@@ -8,6 +8,7 @@ import { eventIndex } from '../../lib/meili';
 import { fi } from 'zod/v4/locales/index.cjs';
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
+import { SearchService } from '../search/search.service';
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventWhereInput */ {
 
@@ -126,68 +127,63 @@ async function getCategoryDetails(eventId: string, category: typeof EVENT_CATEGO
   return loadCategoryDetails(eventId, category);
 }
 
+async function generateCreateInfos(input: CreateEventInput) {
+  const slug = await generateUniqueEventSlug(`${input.name}`);
+
+  const createInfoMeili = {
+      name: input.name,
+      category: input.category,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      venue: input.venue,
+      address: input.address,
+      city: input.city,
+      description: input.description,
+    }
+
+    const createInfoPrisma = {
+      ...createInfoMeili,
+      slug,
+      banner: input.banner,
+      socialMedia: (input.socialMedia ?? {}) as any,
+      capacity: input.capacity,
+      ticketTypes: (input.ticketTypes ?? []) as any,
+      status: 'DRAFT',
+      organizerId: input.organizerId,
+    };
+
+  return [createInfoMeili, createInfoPrisma];
+}
+
+async function generateUpdateInfos(input: UpdateEventInput) {
+
+  const updateInfoMeili = {
+      name: input.name ?? undefined,
+      startDate: input.startDate ?? undefined,
+      endDate: input.endDate ?? undefined,
+      venue: input.venue ?? undefined,
+      address: input.address ?? undefined,
+      city: input.city ?? undefined,
+      description: input.description ?? undefined,
+    }
+
+    const updateInfoPrisma = {
+      ...updateInfoMeili,
+      banner: input.banner ?? undefined,
+      socialMedia: input.socialMedia as any,
+      capacity: input.capacity ?? undefined,
+      ticketTypes: input.ticketTypes as any,
+      status: input.status ?? undefined,
+    };
+
+  return [updateInfoMeili, updateInfoPrisma];
+}
+
+
 export class EventService {
   static async list(filters: ListEventsQuery) {
-    const { page, limit } = filters;
-    const [total, ids] = await getEventIdsWithFilters(filters);
-
-    const data = await prisma.event.findMany({
-      where: { id: { in: ids as string[] } },
-      take: limit,
-      select: {
-      id: true,
-      name: true,
-      slug: true,
-      category: true,
-      startDate: true,
-      endDate: true,
-      venue: true,
-      address: true,
-      city: true,
-      banner: true,
-      description: true,
-      status: true,
-      organizerId: true,
-      createdAt: true,
-      updatedAt: true,
-      },
-    });
-
-    // Reorder to match Meilisearch order
-    const dataById = new Map(data.map(d => [d.id, d]))
-    const ordered = (ids as string[]).map(id => dataById.get(id));
-
-    // NOT: Burada transaction kullanılarak 2 tane query yapılıyo. Bunun yerine tek bir query
-    // yapılıp sonra limit kadar data alınabilir.
-
-    // const [total, data] = await prisma.$transaction([
-    //   prisma.event.count({ where }),
-    //   prisma.event.findMany({
-    //     where,
-    //     skip: (page - 1) * limit,
-    //     take: limit,
-    //     orderBy: { startDate: 'asc' },
-    //     select: {
-    //       id: true,
-    //       name: true,
-    //       slug: true,
-    //       category: true,
-    //       startDate: true,
-    //       endDate: true,
-    //       venue: true,
-    //       address: true,
-    //       city: true,
-    //       banner: true,
-    //       description: true,
-    //       status: true,
-    //       organizerId: true,
-    //       createdAt: true,
-    //       updatedAt: true,
-    //     },
-    //   }),
-    // ]);
-
-    return { page, limit, total, data: ordered };
+    const ret = await SearchService.searchEvent(filters as any);
+    return ret;
   }
 
   static async findById(id: string) {
@@ -446,7 +442,6 @@ export class EventService {
     };
   }
 }
-
 
 
 
