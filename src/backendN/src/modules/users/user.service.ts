@@ -268,7 +268,7 @@ export class UserService {
   // Favorites service methods
   static async addFavorite(userId: string, eventId: string) {
     // Upsert to avoid duplicates
-    const fav = await prisma.favorite.upsert({
+    const fav = await prisma.favoriteEvent.upsert({
       where: { userId_eventId: { userId, eventId } },
       update: {},
       create: { userId, eventId }
@@ -277,12 +277,12 @@ export class UserService {
   }
 
   static async removeFavorite(userId: string, eventId: string) {
-    await prisma.favorite.delete({ where: { userId_eventId: { userId, eventId } } });
+    await prisma.favoriteEvent.delete({ where: { userId_eventId: { userId, eventId } } });
     return { ok: true };
   }
 
   static async listFavorites(userId: string) {
-    const rows = await prisma.favorite.findMany({
+    const rows = await prisma.favoriteEvent.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: { event: true }
