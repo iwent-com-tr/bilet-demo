@@ -33,6 +33,7 @@ import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 import CalendarPage from './pages/Calendar';
+import NotificationsDemo from 'pages/NotificationsDemo';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
@@ -52,6 +53,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
+            <Route path="/notifications-demo" element={<NotificationsDemo />} />
             <Route path="/search" element={<Search />} />
             <Route path='/search/:query' element={<Search />} />
           </Route>

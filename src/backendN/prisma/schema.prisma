@@ -35,6 +35,7 @@ model User {
   notificationPreferences UserNotificationPreference[]
   settings                UserSetting[]
   socialAccounts          UserSocialAccount[]
+  pushSubscriptions       PushSubscription[]
 
   @@index([email])
 }
@@ -383,6 +384,22 @@ model UserSocialAccount {
 
   @@unique([userId, provider])
   @@index([userId])
+}
+
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, enabled])
+  @@index([endpoint])
 }
 
 enum Language {

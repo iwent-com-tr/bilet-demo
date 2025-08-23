@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Push Notification System Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-healthy { background: #d4edda; color: #155724; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        .status-critical { background: #f8d7da; color: #721c24; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .alert {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+
+        .alert-info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .alert-warning { background: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        .alert-critical { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .alert-time {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 4px;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .chart-container {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 4px;
+            color: #6c757d;
+        }
+
+        .refresh-info {
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Push Notification System Dashboard</h1>
+            <div id="system-status">
+                <span class="status-indicator status-healthy">Loading...</span>
+            </div>
+            <div style="margin-top: 10px;">
+                <button class="btn" onclick="refreshData()">Refresh</button>
+                <button class="btn btn-success" onclick="performMaintenance()">Run Maintenance</button>
+                <button class="btn btn-danger" onclick="clearAlerts()">Clear Alerts</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">Loading dashboard data...</div>
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="dashboard-content" style="display: none;">
+            <!-- System Health -->
+            <div class="grid">
+                <div class="card">
+                    <h3>System Health</h3>
+                    <div id="system-health-metrics"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Queue Status</h3>
+                    <div id="queue-metrics"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Subscriptions</h3>
+                    <div id="subscription-metrics"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Performance (24h)</h3>
+                    <div id="performance-metrics"></div>
+                </div>
+            </div>
+
+            <!-- Error Statistics -->
+            <div class="grid">
+                <div class="card">
+                    <h3>Error Statistics</h3>
+                    <div id="error-stats"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Recent Performance</h3>
+                    <div id="recent-performance"></div>
+                </div>
+            </div>
+
+            <!-- Alerts -->
+            <div class="card">
+                <h3>Recent Alerts</h3>
+                <div id="recent-alerts"></div>
+            </div>
+
+            <!-- Charts Placeholder -->
+            <div class="grid">
+                <div class="card">
+                    <h3>Success Rate Trend</h3>
+                    <div class="chart-container">
+                        Chart visualization would go here<br>
+                        <small>(Requires charting library like Chart.js)</small>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Processing Time Trend</h3>
+                    <div class="chart-container">
+                        Chart visualization would go here<br>
+                        <small>(Requires charting library like Chart.js)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="refresh-info">
+            Last updated: <span id="last-updated">Never</span> | 
+            Auto-refresh: <span id="auto-refresh-status">Disabled</span>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval;
+        let dashboardData = null;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            startAutoRefresh();
+        });
+
+        async function refreshData() {
+            try {
+                showLoading(true);
+                hideError();
+
+                const response = await fetch('/api/push/health/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                dashboardData = await response.json();
+                
+                if (dashboardData.status === 'success') {
+                    updateDashboard(dashboardData.data);
+                    showLoading(false);
+                    updateLastUpdated();
+                } else {
+                    throw new Error(dashboardData.message || 'Failed to load dashboard data');
+                }
+            } catch (error) {
+                console.error('Failed to refresh dashboard:', error);
+                showError(`Failed to load dashboard: ${error.message}`);
+                showLoading(false);
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update system status
+            updateSystemStatus(data.systemHealth);
+            
+            // Update metrics
+            updateSystemHealthMetrics(data.systemHealth);
+            updateQueueMetrics(data.queueHealth);
+            updateSubscriptionMetrics(data.subscriptions);
+            updatePerformanceMetrics(data.metrics.daily);
+            updateErrorStats(data.errorStats);
+            updateRecentPerformance(data.metrics.performance);
+            updateRecentAlerts(data.recentAlerts);
+        }
+
+        function updateSystemStatus(systemHealth) {
+            const statusElement = document.getElementById('system-status');
+            const status = systemHealth.overall;
+            
+            statusElement.innerHTML = `<span class="status-indicator status-${status}">${status.toUpperCase()}</span>`;
+        }
+
+        function updateSystemHealthMetrics(systemHealth) {
+            const container = document.getElementById('system-health-metrics');
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Overall Status</span>
+                    <span class="metric-value status-indicator status-${systemHealth.overall}">${systemHealth.overall}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Redis</span>
+                    <span class="metric-value status-indicator status-${systemHealth.components.redis}">${systemHealth.components.redis}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Queue</span>
+                    <span class="metric-value status-indicator status-${systemHealth.components.queue}">${systemHealth.components.queue}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Worker</span>
+                    <span class="metric-value status-indicator status-${systemHealth.components.worker}">${systemHealth.components.worker}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Database</span>
+                    <span class="metric-value status-indicator status-${systemHealth.components.database}">${systemHealth.components.database}</span>
+                </div>
+            `;
+        }
+
+        function updateQueueMetrics(queueHealth) {
+            const container = document.getElementById('queue-metrics');
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Waiting Jobs</span>
+                    <span class="metric-value">${queueHealth.waiting}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Jobs</span>
+                    <span class="metric-value">${queueHealth.active}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Completed Jobs</span>
+                    <span class="metric-value">${queueHealth.completed}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Failed Jobs</span>
+                    <span class="metric-value">${queueHealth.failed}</span>
+                </div>
+            `;
+        }
+
+        function updateSubscriptionMetrics(subscriptions) {
+            const container = document.getElementById('subscription-metrics');
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Total Subscriptions</span>
+                    <span class="metric-value">${subscriptions.total}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Subscriptions</span>
+                    <span class="metric-value">${subscriptions.active}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Disabled Subscriptions</span>
+                    <span class="metric-value">${subscriptions.disabled}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Rate</span>
+                    <span class="metric-value">${subscriptions.activePercentage}%</span>
+                </div>
+            `;
+        }
+
+        function updatePerformanceMetrics(metrics) {
+            const container = document.getElementById('performance-metrics');
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Total Notifications</span>
+                    <span class="metric-value">${metrics.totalNotificationsSent}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Success Rate</span>
+                    <span class="metric-value">${metrics.successRate.toFixed(2)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Processing Time</span>
+                    <span class="metric-value">${(metrics.averageProcessingTime / 1000).toFixed(2)}s</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Failed Notifications</span>
+                    <span class="metric-value">${metrics.failedNotifications}</span>
+                </div>
+            `;
+        }
+
+        function updateErrorStats(errorStats) {
+            const container = document.getElementById('error-stats');
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Total Errors</span>
+                    <span class="metric-value">${errorStats.totalErrors}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Invalid Endpoints</span>
+                    <span class="metric-value">${errorStats.invalidEndpointsFound}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Cleaned Up</span>
+                    <span class="metric-value">${errorStats.subscriptionsCleanedUp}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last Cleanup</span>
+                    <span class="metric-value">${errorStats.lastCleanupTime ? new Date(errorStats.lastCleanupTime).toLocaleString() : 'Never'}</span>
+                </div>
+            `;
+        }
+
+        function updateRecentPerformance(performance) {
+            const container = document.getElementById('recent-performance');
+            const summary = performance.summary;
+            
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Recent Jobs</span>
+                    <span class="metric-value">${summary.totalJobs}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Processing Time</span>
+                    <span class="metric-value">${(summary.averageProcessingTime / 1000).toFixed(2)}s</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Success Rate</span>
+                    <span class="metric-value">${summary.averageSuccessRate.toFixed(2)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Notifications</span>
+                    <span class="metric-value">${summary.totalNotificationsSent}</span>
+                </div>
+            `;
+        }
+
+        function updateRecentAlerts(alerts) {
+            const container = document.getElementById('recent-alerts');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<p style="color: #27ae60; text-align: center; padding: 20px;">No recent alerts</p>';
+                return;
+            }
+
+            const alertsHtml = alerts.map(alert => `
+                <div class="alert alert-${alert.severity}">
+                    <strong>${alert.type.replace('_', ' ').toUpperCase()}</strong>: ${alert.message}
+                    <div class="alert-time">${new Date(alert.timestamp).toLocaleString()}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = alertsHtml;
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('dashboard-content').style.display = show ? 'none' : 'block';
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function updateLastUpdated() {
+            document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            
+            autoRefreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
+            document.getElementById('auto-refresh-status').textContent = 'Every 30s';
+        }
+
+        async function performMaintenance() {
+            if (!confirm('Are you sure you want to run maintenance tasks? This may take a few moments.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/push/health/maintenance', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Maintenance completed successfully!');
+                    refreshData();
+                } else {
+                    alert(`Maintenance failed: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Maintenance failed: ${error.message}`);
+            }
+        }
+
+        async function clearAlerts() {
+            if (!confirm('Are you sure you want to clear all alerts?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/push/health/alerts/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Alerts cleared successfully!');
+                    refreshData();
+                } else {
+                    alert(`Failed to clear alerts: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Failed to clear alerts: ${error.message}`);
+            }
+        }
+
+        function getAuthToken() {
+            // In a real implementation, you would get the auth token from localStorage, cookies, or session
+            // For now, return a placeholder
+            return 'your-auth-token-here';
+        }
+    </script>
+</body>
+</html>
