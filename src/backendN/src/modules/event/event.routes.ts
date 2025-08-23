@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import * as ctrl from './event.controller';
 import { authGuard } from '../../middlewares/authGuard';
-import { uploadBanner } from './event.upload';
+import { uploadBanner, uploadBannerResponse } from '../publicServices/multer.service';
 
 const r = Router();
 
 // Public list and get
-r.get('/', ctrl.list);
+r.get('/', authGuard.optional, ctrl.list);
 r.get('/slug/:slug', ctrl.getBySlug);
 r.get('/:id', ctrl.getById);
 
@@ -14,7 +14,7 @@ r.get('/:id', ctrl.getById);
 r.get('/organizer/:organizerId', authGuard.required, ctrl.getEventsByOrganizer);
 
 // Banner upload endpoint — for standalone banner uploads
-r.post('/upload-banner', authGuard.required, uploadBanner.single('banner'), ctrl.uploadBanner);
+r.post('/upload-banner', authGuard.required, uploadBanner.single('banner'), uploadBannerResponse);
 
 // Create — Organizer or Admin only (checked inside controller)
 // Accept multipart with optional `banner` file

@@ -1,6 +1,8 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { NextFunction, Request, Response } from 'express';
+import { resolveIsAdmin, resolveIsOrganizer } from './resolveRoles.service';
 
 const BANNERS_DIR = path.join(process.cwd(), 'uploads', 'banners');
 
@@ -46,4 +48,23 @@ export function resolveBannerPublicUrl(filename: string): string {
   return `${base}${urlPath}`;
 }
 
+export async function uploadBannerResponse(req: Request, res: Response, next: NextFunction) {
+  try {
+    const requesterId = (req as any).user?.id as string | undefined;
+    const isAdmin = await resolveIsAdmin(requesterId);
+    const isOrganizer = await resolveIsOrganizer(requesterId);
+
+    if (!isAdmin && !isOrganizer) {
+      return res.status(403).json({ error: 'forbidden', code: 'FORBIDDEN' });
+    }
+
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) {
+      return res.status(400).json({ error: 'no file provided', code: 'FILE_REQUIRED' });
+    }
+
+    const bannerUrl = resolveBannerPublicUrl(file.filename);
+    res.json({ bannerUrl });
+  } catch (e) { next(e); }
+}
 

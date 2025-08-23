@@ -6,28 +6,9 @@ import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
 import { fi } from 'zod/v4/locales/index.cjs';
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-}
-
-async function generateUniqueSlug(base: string): Promise<string> {
-  const initial = slugify(base);
-  const existing = await prisma.event.findMany({
-    where: { slug: { startsWith: initial } },
-    select: { slug: true },
-  });
-  if (existing.length === 0) return initial;
-  const taken = new Set(existing.map((e: { slug: string }) => e.slug));
-  let i = 1;
-  while (taken.has(`${initial}-${i}`)) i += 1;
-  return `${initial}-${i}`;
-}
+import { generateUniqueEventSlug } from '../publicServices/slug.service';
+import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
+import { SearchService } from '../search/search.service';
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventWhereInput */ {
 
@@ -147,7 +128,7 @@ async function getCategoryDetails(eventId: string, category: typeof EVENT_CATEGO
 }
 
 async function generateCreateInfos(input: CreateEventInput) {
-  const slug = await generateUniqueSlug(`${input.name}`);
+  const slug = await generateUniqueEventSlug(`${input.name}`);
 
   const createInfoMeili = {
       name: input.name,
@@ -201,66 +182,8 @@ async function generateUpdateInfos(input: UpdateEventInput) {
 
 export class EventService {
   static async list(filters: ListEventsQuery) {
-    const { page, limit } = filters;
-    const [total, ids] = await getEventIdsWithFilters(filters);
-
-    const data = await prisma.event.findMany({
-      where: { id: { in: ids as string[] } },
-      take: limit,
-      select: {
-      id: true,
-      name: true,
-      slug: true,
-      category: true,
-      startDate: true,
-      endDate: true,
-      venue: true,
-      address: true,
-      city: true,
-      banner: true,
-      description: true,
-      status: true,
-      organizerId: true,
-      createdAt: true,
-      updatedAt: true,
-      },
-    });
-
-    // Reorder to match Meilisearch order
-    const dataById = new Map(data.map(d => [d.id, d]))
-    const ordered = (ids as string[]).map(id => dataById.get(id));
-
-    // NOT: Burada transaction kullanılarak 2 tane query yapılıyo. Bunun yerine tek bir query
-    // yapılıp sonra limit kadar data alınabilir.
-
-    // const [total, data] = await prisma.$transaction([
-    //   prisma.event.count({ where }),
-    //   prisma.event.findMany({
-    //     where,
-    //     skip: (page - 1) * limit,
-    //     take: limit,
-    //     orderBy: { startDate: 'asc' },
-    //     select: {
-    //       id: true,
-    //       name: true,
-    //       slug: true,
-    //       category: true,
-    //       startDate: true,
-    //       endDate: true,
-    //       venue: true,
-    //       address: true,
-    //       city: true,
-    //       banner: true,
-    //       description: true,
-    //       status: true,
-    //       organizerId: true,
-    //       createdAt: true,
-    //       updatedAt: true,
-    //     },
-    //   }),
-    // ]);
-
-    return { page, limit, total, data: ordered };
+    const ret = await SearchService.searchEvent(filters as any);
+    return ret;
   }
 
   static async findById(id: string) {
@@ -275,7 +198,17 @@ export class EventService {
   }
 
   static async findBySlug(slug: string) {
-    const event = await prisma.event.findFirst({ where: { slug, deletedAt: null } });
+    const event = await prisma.event.findFirst({
+      where: { slug, deletedAt: null },
+      include: {
+        artists: {
+          select: {
+            artistId: true,
+            time: true
+          }
+        }
+      }
+    });
     if (!event) {
       const e: any = new Error('event not found');
       e.status = 404; e.code = 'NOT_FOUND';
@@ -292,7 +225,7 @@ export class EventService {
       throw e;
     }
 
-    const [createInfoMeili, createInfoPrisma] = await generateCreateInfos(input);
+    const [createInfoMeili, createInfoPrisma] = await generateEventCreateInfos(input);
 
     const created = await prisma.event.create({
       data: createInfoPrisma as any, // ts ile uğraşmamak için
@@ -339,7 +272,13 @@ export class EventService {
       }
     }
 
-    const [updateInfoMeili, updateInfoPrisma] = await generateUpdateInfos(input);
+    const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
+
+    await prisma.eventArtist.deleteMany({
+      where: {
+        eventId: id,
+      }
+    })
 
     const updated = await prisma.event.update({
       where: { id },
@@ -504,48 +443,5 @@ export class EventService {
   }
 }
 
-export function sanitizeEvent(e: any) {
-  if (!e) return null;
-  // Ensure JSON fields are properly parsed
-  let socialMedia = e.socialMedia ?? {};
-  if (typeof socialMedia === 'string') {
-    try {
-      socialMedia = JSON.parse(socialMedia);
-    } catch (err) {
-      socialMedia = {};
-    }
-  }
-  
-  let ticketTypes = e.ticketTypes ?? [];
-  if (typeof ticketTypes === 'string') {
-    try {
-      ticketTypes = JSON.parse(ticketTypes);
-    } catch (err) {
-      ticketTypes = [];
-    }
-  }
-  
-  return {
-    id: e.id,
-    name: e.name,
-    slug: e.slug,
-    category: e.category,
-    startDate: e.startDate,
-    endDate: e.endDate,
-    venue: e.venue,
-    address: e.address,
-    city: e.city,
-    banner: e.banner,
-    socialMedia: socialMedia,
-    description: e.description,
-    capacity: e.capacity,
-    ticketTypes: Array.isArray(ticketTypes) ? ticketTypes : [],
-    status: e.status,
-    organizerId: e.organizerId,
-    createdAt: e.createdAt,
-    updatedAt: e.updatedAt,
-    details: e.details ?? undefined,
-  };
-}
 
 

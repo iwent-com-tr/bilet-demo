@@ -6,7 +6,7 @@ interface Event {
   category: string;
   startDate: Date;
   endDate: Date;
-  venue: string;
+  venue: string | null;
   city: string;
   status: string;
 }
@@ -116,7 +116,7 @@ export class ExcelReportGenerator {
       ['Kategori:', event.category],
       ['Tarih:', new Date(event.startDate).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })],
       ['Bitiş:', new Date(event.endDate).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })],
-      ['Mekan:', event.venue],
+      ['Mekan:', event.venue || 'Belirtilmemiş'],
       ['Şehir:', event.city],
       ['Organizatör:', `${organizer.firstName} ${organizer.lastName}`],
       ['Şirket:', organizer.company || 'Belirtilmemiş'],

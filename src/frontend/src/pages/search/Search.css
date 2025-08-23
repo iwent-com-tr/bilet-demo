@@ -1,19 +1,397 @@
+:root{
+  /* theme / tuning variables */
+  --surface: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.1);
+  --radius: 8px;
+  --header-padding: 24px;
+  --filter-size: 50px;               /* filter square size */
+  --accent: rgba(255,255,255,0.12);  /* hover/active subtle background */
+  --pill-padding-y: 8px;
+  --pill-padding-x: 14px;
+  --pill-padding-x-wide: 32px;       /* wider pill padding for visible scroll */
+  --gap: 12px;
+  --max-content-width: 1100px;
+  --active-green: rgba(5, 239, 126, 1);
 
+  /* responsive pill min/max using clamp(min, preferred, max) */
+  --pill-min: clamp(120px, 18vw, 220px);
 
+  /* Search-page scoped tokens (sensible defaults, can override elsewhere) */
+  --search-surface: var(--surface);
+  --search-border: var(--border);
+  --search-radius: 16px;
+  --search-accent: var(--active-green);
+  --search-avatar-size: clamp(88px, 18vw, 140px); /* default avatar size */
+}
+
+/* predictable sizing + global transition */
+/* *,
+*::before,
+*::after {
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+} */
+
+/* -------------------------
+   Base search grid + cards
+   ------------------------- */
 .search__grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 32px;
-    margin-bottom: 48px;
+    margin: 16px 16px 48px;
+    align-items: stretch; /* ensures cards fill row height */
 }
 
-.search__grid {
-    margin: 0px 16px;
+/* Each card on the search screen fills its cell and is a column flex */
+.search__card,
+.venue-list__card,
+.artist-list__card,
+.organizer-list__card {
+  height: 100%;
+  min-height: 0; /* important so flex children can shrink properly */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  text-decoration: none;
+  background: var(--search-surface);
+  border-radius: var(--search-radius);
+  border: 1px solid var(--search-border);
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  color: inherit;
 }
 
+/* hover polish */
+.search__card:hover,
+.venue-list__card:hover,
+.artist-list__card:hover,
+.organizer-list__card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(5,239,126,0.18);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.34);
+}
+
+/* -------------------------
+   Venue image (rectangular 16:9)
+   ------------------------- */
+.venue-list__image-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  flex-shrink: 0;               /* keep image area from collapsing */
+  border-radius: 12px 12px 0 0;
+  box-sizing: border-box;
+}
+
+.venue-list__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* fallback if no venue image element exists */
+.venue-list__image-container:empty {
+  min-height: 160px;
+  background: rgba(255,255,255,0.02);
+}
+
+/* -------------------------
+   Artist & Organizer avatar (true circular)
+   ------------------------- */
+.artist-list__image-container,
+.organizer-list__image-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 16px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
+
+/* force a true square and circular crop to avoid ellipse */
+.artist-list__image,
+.organizer-list__image {
+  width: var(--search-avatar-size);
+  height: var(--search-avatar-size);   /* explicit square to avoid ellipse */
+  aspect-ratio: 1 / 1;                 /* ensures browsers keep it 1:1 */
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  overflow: hidden;
+  background: rgba(255,255,255,0.03);
+  border: 2px solid rgba(255,255,255,0.06);
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Ensure other img elements inside cards don't accidentally stretch avatars:
+   Avoid a generic '.search__card img { width:100%; height:100% }' rule. */
+
+/* -------------------------
+   Card content (typography & spacing)
+   ------------------------- */
+.search__card .venue-list__content,
+.search__card .artist-list__content,
+.search__card .organizer-list__content,
+.venue-list__content,
+.artist-list__content,
+.organizer-list__content {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* pushes title/metadata to consistent places */
+  gap: 8px;
+  flex: 1 1 auto;                 /* expands so sibling cards have equal height */
+  box-sizing: border-box;
+}
+
+/* Titles (event-like: white, bold) */
+.venue-list__title,
+.artist-list__title,
+.organizer-list__title {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 6px 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+/* Metadata (accent green) */
+.venue-list__meta,
+.artist-list__meta,
+.organizer-list__meta,
+.venue-list__venue,
+.artist-list__venue,
+.organizer-list__venue {
+  color: var(--search-accent);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Subtext / description (muted) */
+.venue-list__desc,
+.artist-list__desc,
+.organizer-list__desc {
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* Buttons / load-more inside search area (styling consistent with surface) */
+.load-more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 15%;
+  height: 48px;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 48px;
+  justify-self: center;
+  transition: all ease-in-out 0.2s;
+}
+
+.load-more:hover {
+  background-color: var(--accent);
+  border: 1px solid var(--active-green);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+/* -------------------------
+   Search title styling (keeps original look)
+   ------------------------- */
+.search__title {
+    display: flex;
+    color: var(--active-green);
+    padding: 8px;
+    width: 100%;
+    margin-bottom: 12px;
+    margin-right: 0px;
+    margin-left: 0px;
+    margin-top: 16px;
+    font-size: 36px;
+}
+
+/* -------------------------
+   Venue grid (mirrors search__grid layout)
+   ------------------------- */
+.venue-list__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin: 16px 16px 48px;
+    align-items: stretch; /* makes all items same height */
+}
+
+.artist-list__card {
+  background-color: #181818;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;               /* keep image area from collapsing */
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 320px;
+}
+
+/* Provide a safe-image rule for any generic img inside a card (display:block) */
+.search__card img {
+  display: block;
+  max-width: 100%;
+  height: auto; /* important: don't force uniform height for all images */
+}
+
+.artist-list__image-container {
+  width: 90%;             /* fixed height to match width */
+  border-radius: 50%;        /* makes it circular */
+  overflow: hidden;
+  flex-shrink: 0;
+  margin: 0 auto;            /* center it in the grid cell */
+}
+
+.artist-list__image {
+  width: 100%;
+  height: 100%;
+}
+
+.artist-list__grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* 5 elements per row */
+  gap: 24px;
+  justify-items: center;      /* center the fixed-size images/cards */
+  margin: 16px 16px 48px;
+  align-items: stretch; /* makes all items same height */
+}
+
+.artist-list__bio,
+.artist-list__genres {
+    color: var(--active-green);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.artist-list__genres {
+    font-weight: 300;
+}
+
+.artist-list__title {
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+
+.organizer-list__company {
+    color: var(--active-green);
+}
+
+/* -------------------------
+   Responsive behavior (mobile)
+   ------------------------- */
 @media (max-width: 768px) {
 
-    .search__grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+  .search__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .search__card {
+    min-height: 300px;
+    margin: 0px;
+  }
+
+  .load-more {
+    width: 100%;
+    border: none;
+    background-color: black;
+    color: rgb(136, 136, 136);
+  }
+
+  .load-more:hover {
+    background-color: black;
+    color: rgb(136, 136, 136);
+    border: none;
+    transform: none;
+    outline: none;
+  }
+
+  .artist-list__grid-container.search__grid-container {
+    margin: 0;
+  }
+
+  .artist-list__grid.search__grid {
+    margin-top: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;   /* ❌ this makes all rows same tall */
+  gap: 0.0rem;
+}
+
+
+  .artist-list__card {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;   /* instead of center */
+  justify-content: flex-start;
+  background-color: black;
+  border-radius: 12px;
+  border: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.artist-list__card.search__card {
+  height: auto;
+  min-height: auto;
+}
+
+
+
+  .artist-list__image-container {
+  width: 60px;
+  height: auto;       /* let content decide */
+}
+
+  .artist-list__bio {
+    display: none;
+  }
+
+  .artist-list__image {
+    display: block;
+    aspect-ratio: 1 / 1;
+    height: auto;
+  }
+
+  .artist-list__title {
+    margin-top: 18px;
+    font-size: 15px;
+    line-height: 0.2;
+  }
+
+  .artist-list__genres {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .search__title {
+    display: none;
+  }
+
+
+/* -------------------------
+   Optional fallback for older browsers w/o aspect-ratio
+   Uncomment if you must support very old browsers:
+.venue-list__image-container { position: relative; padding-top: 56.25%; }
+.venue-list__image { position: absolute; top:0; left:0; width:100%; height:100%; }
+------------------------- */
 }

@@ -12,15 +12,21 @@ import organizerRoutes from './modules/organizer/organizer.routes';
 import eventRoutes from './modules/event/event.routes';
 import ticketRoutes from './modules/tickets/ticket.routes';
 import friendshipRoutes from './modules/friendship/friendship.routes';
+import searchRoutes from './modules/search/search.routes';
+import artistRoutes from './modules/artists/artists.routes';
+import venueRoutes from './modules/venues/venues.routes';
 import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
-import { populateEvents } from './lib/event-populator';
+import { populateDB } from './lib/utils/populators/populator';
 import settingsRoutes from './modules/settings/settings.routes';
 dotenv.config();
 
 const args = process.argv.slice(2);
-const EVENT_POPULATE_COUNT = parseInt(process.env.POPULATOR_EVENT_COUNT ?? '100');
+
+const EVENT_POPULATE_COUNT = parseInt(process.env.POPULATOR_EVENT_COUNT ?? '10');
+const ARTIST_POPULATE_COUNT = parseInt(process.env.POPULATOR_ARTIST_COUNT ?? '50');
+const VENUE_POPULATE_COUNT = parseInt(process.env.POPULATOR_VENUE_COUNT ?? '50');
 
 const app = express();
 const API_PREFIX = process.env.API_PREFIX || '/api/v1';
@@ -46,6 +52,9 @@ app.use(`${API_PREFIX}/organizers`, organizerRoutes);
 app.use(`${API_PREFIX}/events`, eventRoutes);
 app.use(`${API_PREFIX}/tickets`, ticketRoutes);
 app.use(`${API_PREFIX}/friendships`, friendshipRoutes);
+app.use(`${API_PREFIX}/search`, searchRoutes);
+app.use(`${API_PREFIX}/artists`, artistRoutes);
+app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
 
 // Server status check
@@ -69,8 +78,8 @@ initMeili();
 
 // Populate if ran with --populate
 if (args.includes('--populate')) {
-  await populateEvents(EVENT_POPULATE_COUNT);
-  console.log(`Database populated with ${EVENT_POPULATE_COUNT} random events.`);
+  await populateDB(ARTIST_POPULATE_COUNT, VENUE_POPULATE_COUNT, EVENT_POPULATE_COUNT);
+  console.log(`Database populated with ${EVENT_POPULATE_COUNT} random events, ${ARTIST_POPULATE_COUNT} random artists, and ${VENUE_POPULATE_COUNT} random venues.`);
   process.exit(0);
 }
 
