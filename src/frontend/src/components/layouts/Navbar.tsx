@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import './Navbar.css';
 
 const Navbar: React.FC = () => {
-  const { isAuthenticated, isOrganizer, user, logout } = useAuth();
+  const { isAuthenticated, isOrganizer, isAdmin, user, logout } = useAuth();
 
   return (
     <header className="navbar">
@@ -57,6 +57,14 @@ const Navbar: React.FC = () => {
                     >
                       Profil
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="navbar__dropdown-item"
+                      >
+                        Admin Paneli
+                      </Link>
+                    )}
                     {!isOrganizer && (
                       <Link
                         to="/my-tickets"

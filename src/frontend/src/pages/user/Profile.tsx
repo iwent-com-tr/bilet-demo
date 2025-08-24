@@ -8,7 +8,7 @@ import FavoriteEvents from '../../components/FavoriteEvents';
 import RecommendedEvents from '../../components/RecommendedEvents';
 import MobileNavbar from '../../components/layouts/MobileNavbar';
 import PageHeader from '../../components/layouts/PageHeader';
-import avatar from '../../assets/profile/avatar.png';
+// import avatar from '../../assets/profile/avatar.png';
 import './Profile.css';
 
 interface CityItem {
@@ -25,7 +25,8 @@ const Profile: React.FC = () => {
   const [stats, setStats] = useState<{ events: number; points: number; friends: number }>({ events: 0, points: 0, friends: 0 });
   const [favorites, setFavorites] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string>(avatar);
+  const defaultAvatarSrc = '/android-chrome-192x192.png';
+  const [selectedImage, setSelectedImage] = useState<string>(defaultAvatarSrc);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [serverError, setServerError] = useState<string | null>(null);
   const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
@@ -181,7 +182,7 @@ const Profile: React.FC = () => {
           email: values.email,
           phone: phoneVerified ? undefined : (values.telefon ? toE164WithTurkeyPrefix(values.telefon) : undefined),
           city: values.sehir,
-          avatar: selectedImage !== avatar ? selectedImage : undefined,
+          avatar: selectedImage !== defaultAvatarSrc ? selectedImage : undefined,
         };
 
         await axios.patch(`${base}/users/me`, payload, { headers });
@@ -285,7 +286,7 @@ const Profile: React.FC = () => {
             disabled={phoneVerified}
           />
           {!phoneVerified && (
-            <button type="button" className="phone-verify-button" onClick={() => navigate('/verify-phone')}>
+            <button type="button" className="phone-verify-button" onClick={() => navigate('/verify-phone')}> 
               Doğrula
             </button>
           )}

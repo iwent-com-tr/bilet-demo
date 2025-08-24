@@ -14,7 +14,20 @@ const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [awareOfScreen, setAwareOfScreen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-
+  
+  // Check if in production environment
+  const currentEnv = process.env.REACT_APP_ENV || 'development';
+  const isProduction = currentEnv === 'production';
+  const isDevelopment = currentEnv === 'development';
+  
+  // Debug: Log environment info (remove in production)
+  console.log('Environment Debug:', {
+    REACT_APP_ENV: process.env.REACT_APP_ENV,
+    currentEnv,
+    isProduction,
+    isDevelopment,
+    awareOfScreen
+  });
   // Unsplash images for the grid
   const gridImages = [
     'https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // Concert crowd
@@ -69,9 +82,9 @@ const Login: React.FC = () => {
           localStorage.removeItem('login:userType');
         }
         if (values.userType === 'ORGANIZER') {
-          navigate('/ORGANIZER');
+          navigate('/organizer');
         } else if (values.userType === 'ADMIN') {
-          navigate('/ADMIN');
+          navigate('/admin');
         } else {
           navigate('/');
         }
@@ -111,7 +124,15 @@ const Login: React.FC = () => {
       const storeduserType = (localStorage.getItem('login:userType') as 'USER' | 'ORGANIZER' | 'ADMIN') || 'USER';
       formik.setValues({ identifier: storedId, sifre: '', userType: storeduserType });
     }
-  }, []);
+    
+    // In development, automatically set awareness to true
+    // In production, keep it false (user must check)
+    if (isDevelopment) {
+      setAwareOfScreen(true);
+    } else {
+      setAwareOfScreen(false);
+    }
+  }, [isDevelopment, formik.setValues]);
 
   return (
     <div className="login">
@@ -133,6 +154,25 @@ const Login: React.FC = () => {
       <div className="login__container">
 
         <h2 className="login__title">{isAdmin ? 'Yönetici Girişi' : isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap'}</h2>
+        
+        {/* Environment Debug Badge - Remove in production */}
+        {(isDevelopment || isProduction) && (
+          <div style={{
+            background: isDevelopment ? 'rgba(5, 239, 126, 0.1)' : 'rgba(255, 165, 0, 0.1)',
+            border: isDevelopment ? '1px solid #05EF7E' : '1px solid #FFA500',
+            color: isDevelopment ? '#05EF7E' : '#FFA500',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            textAlign: 'center',
+            marginBottom: '16px'
+          }}>
+            {isDevelopment ? '🚀 Development Mode - Login Enabled' : '🔒 Production Mode - Checkbox Required'}
+            <br />
+            <small>ENV: {process.env.REACT_APP_ENV} | AwareOfScreen: {awareOfScreen.toString()}</small>
+          </div>
+        )}
+        
         {serverError && (
           <div className="login__server-error" role="alert" aria-live="polite">
             {serverError}
@@ -164,6 +204,8 @@ const Login: React.FC = () => {
               />
               Organizatör
             </label>
+           {/* Hide admin option in production */}
+           {!isProduction && (
             <label className="login__user-type-label">
               <input
                 type="radio"
@@ -175,6 +217,8 @@ const Login: React.FC = () => {
               />
               Yönetici
             </label>
+           )}
+            
           </div>
 
           {/* Identifier */}
@@ -244,21 +288,24 @@ const Login: React.FC = () => {
               />
               Beni Hatırla
             </label>
-            <label className="login__checkbox-label">
-              <input
-                type="checkbox"
-                checked={awareOfScreen}
-                onChange={(e) => setAwareOfScreen(e.target.checked)}
-                className="login__checkbox"
-              />
-              Ekrana baktığımın farkındayım
-            </label>
+            {/* Show awareness checkbox only in production */}
+            {isProduction && (
+              <label className="login__checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={awareOfScreen}
+                  onChange={(e) => setAwareOfScreen(e.target.checked)}
+                  className="login__checkbox"
+                />
+                Ekrana baktığımın farkındayım
+              </label>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || !awareOfScreen}
+            disabled={loading || (isProduction && !awareOfScreen)}
             className="login__submit-button"
           >
             {loading ? 'Giriş yapılıyor...' : (isAdmin ? 'Yönetici Girişi' : isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap')}

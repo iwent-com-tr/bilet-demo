@@ -36,6 +36,8 @@ import CalendarPage from './pages/Calendar';
 import UserList from './pages/admin/UserList';
 import UserDetail from './pages/admin/UserDetail';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import OrganizerList from './pages/admin/OrganizerList';
+import OrganizerDetail from './pages/admin/OrganizerDetail';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
@@ -150,7 +152,7 @@ const App: React.FC = () => {
 
           {/* Admin Routes */}
           <Route element={<MainLayout />}>
-            
+
             <Route path="/admin" element={
               <ProtectedRoute requiredRole="ADMIN">
                 <AdminDashboard />
@@ -164,6 +166,16 @@ const App: React.FC = () => {
             <Route path="/admin/users/:id" element={
               <ProtectedRoute requiredRole="ADMIN">
                 <UserDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/organizers" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <OrganizerList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/organizers/:id" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <OrganizerDetail />
               </ProtectedRoute>
             } />
           </Route>

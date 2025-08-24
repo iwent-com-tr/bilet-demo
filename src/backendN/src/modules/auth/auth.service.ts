@@ -8,12 +8,15 @@ import { any } from 'zod';
 // UserType enum values matching the Prisma schema
 const UserType = {
   USER: 'USER',
-  ADMIN: 'ADMIN'
+  ADMIN: 'ADMIN',
+  ORGANIZER: 'ORGANIZER',
+  SUPPORT: 'SUPPORT',
+  READONLY: 'READONLY'
 } as const;
 
 export class AuthService {
   static async register(userData: RegisterInput) {
-    const { email, password, firstName, lastName, birthYear, phone, city, userType, avatar } = userData;
+    const { email, password, firstName, lastName, birthYear, adminRole, phone, city, userType, avatar } = userData;
     
     const exists = await prisma.user.findUnique({ where: { email } });
     const existsOrganizer = await prisma.organizer.findUnique({ where: { email } });
@@ -45,6 +48,19 @@ export class AuthService {
       throw err;
     }
     
+    // Determine the correct adminRole based on userType
+    let finalAdminRole: 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY';
+    if (userType === 'USER') {
+      // If userType is USER, adminRole must always be USER regardless of the request
+      finalAdminRole = 'USER';
+    } else if (userType === 'ADMIN') {
+      // If userType is ADMIN, adminRole can be customizable (default to USER if not provided)
+      finalAdminRole = (adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY') || 'USER';
+    } else {
+      // Default case (should not happen with proper validation)
+      finalAdminRole = 'USER';
+    }
+    
     const passwordHash = await hashPassword(password);
     const user = await prisma.user.create({
       data: {
@@ -56,6 +72,7 @@ export class AuthService {
         phone,
         city,
         userType: userType || UserType.USER,
+        adminRole: finalAdminRole,
         avatar,
         phoneVerified: false,
         points: 0
@@ -226,6 +243,7 @@ export class AuthService {
         avatar: true,
         city: true,
         userType: true,
+        adminRole: true,
         points: true,
         lastLogin: true,
         createdAt: true,

@@ -209,6 +209,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user:firstName');
     localStorage.removeItem('user:lastName');
     localStorage.removeItem('user:type');
+    localStorage.removeItem('user:adminRole')
+    localStorage.removeItem('login:userType');
+    localStorage.removeItem('login:identifier');
+    localStorage.removeItem('login:remember');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };

@@ -1,0 +1,21 @@
+{
+  "name": "bilet-demo",
+  "version": "1.0.0",
+  "description": "iWent bilet satış platformu - ticket sales platform",
+  "scripts": {
+    "start": "./start-servers.sh",
+    "start:https": "./start-servers-https.sh",
+    "dev": "./start-servers.sh",
+    "dev:https": "./start-servers-https.sh",
+    "backend": "cd src/backendN && npm run dev",
+    "backend:https": "cd src/backendN && npm run dev:https",
+    "frontend": "cd src/frontend && npm start", 
+    "frontend:https": "cd src/frontend && npm run start:https",
+    "install:all": "cd src/backendN && npm install && cd ../frontend && npm install",
+    "build:all": "cd src/backendN && npm run build && cd ../frontend && npm run build"
+  },
+  "keywords": ["bilet", "ticket", "platform", "iwent"],
+  "author": "bilet-demo team",
+  "license": "MIT",
+  "private": true
+}

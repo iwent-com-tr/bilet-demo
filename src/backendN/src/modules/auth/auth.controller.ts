@@ -6,43 +6,69 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 
 function humanizeError(e: any) {
+  // Handle Zod validation errors specifically
+  if (e.name === 'ZodError' || e.issues) {
+    const firstIssue = e.issues?.[0];
+    const message = firstIssue?.message || 'Geçersiz veri girişi';
+    const path = firstIssue?.path?.join('.') || 'unknown';
+    
+    const newError: any = new Error(`${path}: ${message}`);
+    newError.status = 400;
+    newError.code = 'VALIDATION_ERROR';
+    newError.validationIssues = e.issues;
+    return newError;
+  }
+  
   const code = e?.code;
+  let humanMessage: string;
+  
   switch (code) {
     case 'CREDENTIALS_INVALID':
-      e.message = 'E-posta veya şifre hatalı'; break;
+      humanMessage = 'E-posta veya şifre hatalı'; break;
     case 'ACCOUNT_NOT_APPROVED':
-      e.message = 'Organizatör hesabı henüz onaylanmamış'; break;
+      humanMessage = 'Organizatör hesabı henüz onaylanmamış'; break;
     case 'PHONE_TAKEN':
-      e.message = 'Telefon numarası zaten kullanımda';
+      humanMessage = 'Telefon numarası zaten kullanımda'; break;
     case 'EMAIL_TAKEN':
-      e.message = 'E-posta adresi zaten kullanımda'; break;
+      humanMessage = 'E-posta adresi zaten kullanımda'; break;
     case 'PASSWORD_TOO_SHORT':
-      e.message = 'Şifre en az 8 karakter olmalıdır'; break;
+      humanMessage = 'Şifre en az 8 karakter olmalıdır'; break;
     case 'PASSWORD_NO_UPPERCASE':
-      e.message = 'Şifre en az bir büyük harf içermelidir'; break;
+      humanMessage = 'Şifre en az bir büyük harf içermelidir'; break;
     case 'PASSWORD_NO_SPECIAL_CHAR':
-      e.message = 'Şifre en az bir özel karakter içermelidir'; break;
+      humanMessage = 'Şifre en az bir özel karakter içermelidir'; break;
     case 'USER_NOT_FOUND':
-      e.message = 'Kullanıcı bulunamadı'; break;
+      humanMessage = 'Kullanıcı bulunamadı'; break;
     case 'TOKEN_INVALID':
-      e.message = 'Geçersiz veya süresi dolmuş oturum'; break;
+      humanMessage = 'Geçersiz veya süresi dolmuş oturum'; break;
     case 'TOKEN_MISSING':
-      e.message = 'Oturum yenileme için token gerekli'; break;
+      humanMessage = 'Oturum yenileme için token gerekli'; break;
     case 'PHONE_NOT_VERIFIED':
-      e.message = 'Telefon numarası doğrulanmamış'; break;
+      humanMessage = 'Telefon numarası doğrulanmamış'; break;
     case 'EMAIL_NOT_FOUND':
-      e.message = 'Bu e-posta ile kayıtlı kullanıcı bulunamadı'; break;
+      humanMessage = 'Bu e-posta ile kayıtlı kullanıcı bulunamadı'; break;
     case 'WRONG_ACCOUNT_TYPE_ORGANIZER':
-      e.message = 'Bu e-posta bir organizatör hesabına kayıtlı. Lütfen Organizator Girişi yapın.'; break;
+      humanMessage = 'Bu e-posta bir organizatör hesabına kayıtlı. Lütfen Organizator Girişi yapın.'; break;
     case 'WRONG_ACCOUNT_TYPE_USER':
-      e.message = 'Bu e-posta bir kullanıcı hesabına kayıtlı. Lütfen Kullanıcı Girişi yapın.'; break;
+      humanMessage = 'Bu e-posta bir kullanıcı hesabına kayıtlı. Lütfen Kullanıcı Girişi yapın.'; break;
     case 'INVALID_EMAIL':
-      e.message = 'Geçersiz e-posta adresi'; break;
+      humanMessage = 'Geçersiz e-posta adresi'; break;
     default:
-      e.message = 'Bilinmeyen bir hata oluştu';
+      humanMessage = e.message || 'Bilinmeyen bir hata oluştu';
       break;
   }
-  return e;
+  
+  // Create a new error object to avoid read-only message property issues
+  const newError: any = new Error(humanMessage);
+  newError.status = e.status || 500;
+  newError.code = e.code || 'UNKNOWN_ERROR';
+  
+  // Copy other properties that might be useful for debugging
+  if (e.stack) newError.stack = e.stack;
+  if (e.name) newError.originalName = e.name;
+  if (e.issues) newError.validationIssues = e.issues; // For Zod validation errors
+  
+  return newError;
 }
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
@@ -184,6 +210,7 @@ const sanitizeUser = (u: any) => ({
   avatar: u.avatar,
   city: u.city,
   userType: u.userType,
+  adminRole: u.adminRole,
   points: u.points,
   lastLogin: u.lastLogin,
   createdAt: u.createdAt,

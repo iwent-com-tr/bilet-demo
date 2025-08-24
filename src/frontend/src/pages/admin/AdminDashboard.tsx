@@ -33,6 +33,14 @@ const AdminDashboard: React.FC = () => {
             <p>Manage users, roles, and permissions</p>
           </Link>
           
+          <Link 
+            to="/admin/organizers" 
+            className="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-lg transition-colors text-center"
+          >
+            <h3 className="text-xl font-semibold mb-2">Organizer Management</h3>
+            <p>Manage organizers, approvals, and events</p>
+          </Link>
+          
           <div className="bg-gray-600 text-gray-300 p-6 rounded-lg text-center">
             <h3 className="text-xl font-semibold mb-2">Event Management</h3>
             <p>Coming soon</p>

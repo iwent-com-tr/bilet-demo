@@ -56,9 +56,20 @@ export const CreateEventDTO = z.object({
     .optional()
     .transform(val => val === null ? undefined : val),
   ticketTypes: z.array(z.object({
-    type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }),
+    type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }).optional(),
+    name: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }).optional(),
     price: z.number().min(0, { message: 'Fiyat 0 veya daha büyük olmalıdır.' }),
-    capacity: z.number().int().positive({ message: 'Bilet kapasitesi pozitif tam sayı olmalıdır.' })
+    capacity: z.number().int().positive({ message: 'Bilet kapasitesi pozitif tam sayı olmalıdır.' }).optional(),
+    quota: z.number().int().positive({ message: 'Bilet kapasitesi pozitif tam sayı olmalıdır.' }).optional(),
+    currency: z.string().optional()
+  }).transform((data) => ({
+    type: data.type || data.name || '',
+    price: data.price,
+    capacity: data.capacity || data.quota || 0
+  })).refine((data) => data.type.length > 0, {
+    message: 'Bilet türü adı zorunludur (type veya name alanı).'
+  }).refine((data) => data.capacity > 0, {
+    message: 'Bilet kapasitesi pozitif tam sayı olmalıdır (capacity veya quota alanı).'
   })).default([]).optional(),
   // Category specific details, will be routed to the corresponding detail table
   details: z.record(z.string(), z.any()).optional(),
@@ -101,9 +112,20 @@ export const UpdateEventDTO = z.object({
     .optional()
     .transform(val => val === null ? undefined : val),
   ticketTypes: z.array(z.object({
-    type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }),
+    type: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }).optional(),
+    name: z.string().min(1, { message: 'Bilet türü adı zorunludur.' }).optional(),
     price: z.number().min(0, { message: 'Fiyat 0 veya daha büyük olmalıdır.' }),
-    capacity: z.number().int().positive({ message: 'Bilet kapasitesi pozitif tam sayı olmalıdır.' })
+    capacity: z.number().int().positive({ message: 'Bilet kapasitesi pozitif tam sayı olmalıdır.' }).optional(),
+    quota: z.number().int().positive({ message: 'Bilet kapasitesi pozitif tam sayı olmalıdır.' }).optional(),
+    currency: z.string().optional()
+  }).transform((data) => ({
+    type: data.type || data.name || '',
+    price: data.price,
+    capacity: data.capacity || data.quota || 0
+  })).refine((data) => data.type.length > 0, {
+    message: 'Bilet türü adı zorunludur (type veya name alanı).'
+  }).refine((data) => data.capacity > 0, {
+    message: 'Bilet kapasitesi pozitif tam sayı olmalıdır (capacity veya quota alanı).'
   })).optional(),
   // Optional details update — shallow merge at service level per category table
   details: z.record(z.string(), z.any()).optional(),

@@ -26,7 +26,7 @@ Navigate to the backend directory and generate certificates:
 cd src/backendN
 
 # Generate certificates for localhost and local network IP
-mkcert localhost 192.168.1.40 127.0.0.1 ::1
+mkcert localhost 192.168.1.46 127.0.0.1 ::1
 
 # This creates:
 # - localhost+3.pem (certificate file)
@@ -35,6 +35,10 @@ mkcert localhost 192.168.1.40 127.0.0.1 ::1
 # Rename files to match configuration
 mv localhost+3.pem server.crt
 mv localhost+3-key.pem server.key
+
+# Copy certificates to frontend directory
+cp server.crt ../frontend/
+cp server.key ../frontend/
 ```
 
 ## Usage
@@ -62,7 +66,7 @@ npm run dev:https
 
 1. Start backend with HTTPS: `npm run dev:https`
 2. Start frontend with HTTPS: `npm run start:https`
-3. On iOS device, navigate to `https://192.168.1.40:5173`
+3. On iOS device, navigate to `https://192.168.1.46:5173`
 4. Accept the certificate warning
 5. Test push notifications and PWA features
 

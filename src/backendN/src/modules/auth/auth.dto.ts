@@ -27,7 +27,7 @@ const citySchema = z.string().refine(
 
 // User types from Prisma schema
 export const UserTypeEnum = z.enum(['USER', 'ADMIN']);
-
+export const adminRoleEnum = z.enum(['ADMIN', 'SUPPORT', 'READONLY', 'USER']);
 // Kullanıcı (User) kayıt DTO'su — Prisma `User` modeline göre
 export const RegisterUserDTO = z.object({
   firstName: z
@@ -50,6 +50,7 @@ export const RegisterUserDTO = z.object({
     .regex(phoneRegex, { message: 'Telefon numarası geçersiz. Örn: +905551112233' }),
   city: citySchema,
   userType: UserTypeEnum.default('USER'),
+  adminRole: adminRoleEnum.default('USER'),
   avatar: z.string().optional()
 }).refine(
   (data) => {
