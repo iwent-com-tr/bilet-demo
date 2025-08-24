@@ -37,8 +37,10 @@ function humanizeError(e: any) {
       humanMessage = 'Şifre en az bir büyük harf içermelidir'; break;
     case 'PASSWORD_NO_SPECIAL_CHAR':
       humanMessage = 'Şifre en az bir özel karakter içermelidir'; break;
-    case 'USER_NOT_FOUND':
-      humanMessage = 'Kullanıcı bulunamadı'; break;
+    case 'ORGANIZER_NOT_FOUND':
+      humanMessage = 'Organizatör bulunamadı'; break;
+    case 'PROFILE_NOT_FOUND':
+      humanMessage = 'Profil bulunamadı'; break;
     case 'TOKEN_INVALID':
       humanMessage = 'Geçersiz veya süresi dolmuş oturum'; break;
     case 'TOKEN_MISSING':
@@ -168,8 +170,19 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
 export const me = async (req: any, res: Response, next: NextFunction) => {
   try {
-    const user = await AuthService.getUserById(req.user.id);
-    res.json({ user: sanitizeUser(user) });
+    const profile = await AuthService.getProfileById(req.user.id, req.user.role);
+    if (profile.type === 'user') {
+      res.json({ user: sanitizeUser(profile.data) });
+    } else {
+      res.json({ organizer: sanitizeOrganizer(profile.data) });
+    }
+  } catch (e) { next(humanizeError(e)); }
+};
+
+export const organizerMe = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const organizer = await AuthService.getOrganizerById(req.user.id);
+    res.json({ organizer: sanitizeOrganizer(organizer) });
   } catch (e) { next(humanizeError(e)); }
 };
 

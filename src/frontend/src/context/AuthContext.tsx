@@ -66,28 +66,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyToken = async (token: string) => {
     try {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const storedType = (localStorage.getItem('user:type') as 'USER' | 'ORGANIZER' | 'ADMIN' | null) || 'USER';
-      if (storedType === 'ORGANIZER') {
-        const organizerId = localStorage.getItem('user:id');
-        if (!organizerId) throw new Error('missing organizer id');
-        const res = await axios.get(`${API_BASE_URL}/organizers/${organizerId}`);
-        const apiOrganizer = res.data?.organizer;
-        if (apiOrganizer) {
-          const ui = mapApiUserToUiUser(apiOrganizer, 'ORGANIZER');
-          setUser(ui);
-          persistUser(ui);
-          return true;
-        }
-      }
-      // default: user
+      
+      // Use the unified /me endpoint that handles both users and organizers
       const response = await axios.get(`${API_BASE_URL}/auth/me`);
+      
+      // Handle both user and organizer responses
       const apiUser = response.data?.user;
+      const apiOrganizer = response.data?.organizer;
+      
       if (apiUser) {
         const ui = mapApiUserToUiUser(apiUser);
         setUser(ui);
         persistUser(ui);
+        return true;
+      } else if (apiOrganizer) {
+        const ui = mapApiUserToUiUser(apiOrganizer, 'ORGANIZER');
+        setUser(ui);
+        persistUser(ui);
+        return true;
       }
-      return true;
+      
+      return false;
     } catch (_error) {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');

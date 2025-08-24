@@ -1,7 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { hashPassword } from '../../lib/crypto';
 import { ExcelReportGenerator } from '../../lib/excelReport';
-import type { AdminCreateOrganizerInput, OrganizerAdminUpdateInput, OrganizerSelfUpdateInput } from './organizer.dto';
+import type { AdminCreateOrganizerInput, OrganizerAdminUpdateInput, OrganizerSelfUpdateInput, OrganizerEventsQuery } from './organizer.dto';
 
 export class OrganizerService {
   static async list(params: { page: number; limit: number; q?: string }) {
@@ -311,6 +311,92 @@ export class OrganizerService {
     const fileName = `${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_Rapor_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`;
 
     return { workbook, fileName };
+  }
+
+  static async getOrganizerEvents(organizerId: string, params: OrganizerEventsQuery) {
+    const { page, limit, q, category, city, status, dateFrom, dateTo } = params;
+    
+    // Build where clause for organizer's events
+    const where: any = { 
+      organizerId, 
+      deletedAt: null 
+    };
+    
+    // Apply filters
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { city: { contains: q, mode: 'insensitive' } },
+        { venue: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (city) {
+      where.city = { equals: city, mode: 'insensitive' };
+    }
+    
+    if (category) {
+      const categories = category.split(',');
+      where.category = categories.length === 1 ? categories[0] : { in: categories };
+    }
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    // Date filtering - handle individual dates and date ranges
+    if (dateFrom || dateTo) {
+      where.AND = where.AND || [];
+      
+      // If dateFrom is provided, event should start on or after this date
+      if (dateFrom) {
+        where.AND.push({
+          startDate: {
+            gte: new Date(dateFrom)
+          }
+        });
+      }
+      
+      // If dateTo is provided, event should start on or before this date
+      if (dateTo) {
+        where.AND.push({
+          startDate: {
+            lte: new Date(dateTo)
+          }
+        });
+      }
+    }
+    
+    // Get events with pagination
+    const [total, data] = await prisma.$transaction([
+      prisma.event.count({ where }),
+      prisma.event.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          category: true,
+          startDate: true,
+          endDate: true,
+          venue: true,
+          address: true,
+          city: true,
+          banner: true,
+          description: true,
+          status: true,
+          organizerId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
+    
+    return { page, limit, total, data };
   }
 }
 

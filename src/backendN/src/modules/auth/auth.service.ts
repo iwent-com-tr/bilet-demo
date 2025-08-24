@@ -120,16 +120,23 @@ export class AuthService {
         throw err;
       }
       
-      // Get user for updated token
-      const user = await prisma.user.findUnique({ where: { id: userId } });
+      // Try to get user first, then organizer
+      let user = await prisma.user.findUnique({ where: { id: userId } });
+      let userType: string = user?.userType || 'USER';
+      
       if (!user) {
-        const err: any = new Error('user not found');
-        err.status = 404; err.code = 'USER_NOT_FOUND';
-        throw err;
+        // Try organizer
+        const organizer = await prisma.organizer.findUnique({ where: { id: userId } });
+        if (!organizer) {
+          const err: any = new Error('profile not found');
+          err.status = 404; err.code = 'PROFILE_NOT_FOUND';
+          throw err;
+        }
+        userType = 'ORGANIZER';
       }
       
       const newRefreshToken = signRefresh({ sub: userId });
-      const accessToken = signAccess({ sub: userId, userType: user.userType });
+      const accessToken = signAccess({ sub: userId, userType: userType });
       
       return { accessToken, refreshToken: newRefreshToken };
     } catch (error) {

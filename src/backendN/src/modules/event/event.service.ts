@@ -31,6 +31,7 @@ async function generateUniqueSlug(base: string): Promise<string> {
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventWhereInput */ {
 
+  // First try MeiliSearch (this will work for new events with organizerId indexed)
   let queryResults: any = undefined;
 
   let filter: any[] = [
@@ -49,6 +50,9 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
     filter.push(filters.category.split(',').map((c: string) => `category=${c}`).join(' OR '));
   }
 
+  if (filters.organizerId) {
+    filter.push(`organizerId=${filters.organizerId}`);
+  }
 
   const searchDetails = {
       limit: filters.limit,
@@ -56,13 +60,71 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
       filter,
     };
 
-  if (filters.q){
-    queryResults = await eventIndex.search(filters.q, searchDetails)
-  } else {
-    queryResults = await eventIndex.getDocuments(searchDetails);
+  try {
+    if (filters.q){
+      queryResults = await eventIndex.search(filters.q, searchDetails)
+    } else {
+      queryResults = await eventIndex.getDocuments(searchDetails);
+    }
+    
+    // If we have results or no organizerId filter, return MeiliSearch results
+    if (!filters.organizerId || (queryResults.hits || queryResults.results).length > 0) {
+      return [ queryResults.estimatedTotalHits || queryResults.total, (queryResults.hits || queryResults.results).map((hit: any) => hit.id.toString()) ];
+    }
+  } catch (error) {
+    console.warn('MeiliSearch query failed, falling back to database:', error);
   }
 
-  return [ queryResults.estimatedTotalHits || queryResults.total, (queryResults.hits || queryResults.results).map((hit: any) => hit.id.toString()) ];
+  // Fallback to direct database query when MeiliSearch doesn't return results
+  // or when MeiliSearch fails (especially for organizerId filtering on old events)
+  if (filters.organizerId) {
+    const where: any = { 
+      deletedAt: null,
+      organizerId: filters.organizerId,
+      status: filters.status || 'ACTIVE'
+    };
+    
+    if (filters.city) {
+      where.city = { equals: filters.city, mode: 'insensitive' };
+    }
+    
+    if (filters.category) {
+      const categories = filters.category.split(',');
+      where.category = categories.length === 1 ? categories[0] : { in: categories };
+    }
+    
+    if (filters.dateFrom && filters.dateTo) {
+      where.startDate = {
+        gte: new Date(filters.dateFrom),
+        lte: new Date(filters.dateTo)
+      };
+    }
+    
+    if (filters.q) {
+      where.OR = [
+        { name: { contains: filters.q, mode: 'insensitive' } },
+        { description: { contains: filters.q, mode: 'insensitive' } },
+        { city: { contains: filters.q, mode: 'insensitive' } },
+        { venue: { contains: filters.q, mode: 'insensitive' } }
+      ];
+    }
+    
+    const [total, events] = await prisma.$transaction([
+      prisma.event.count({ where }),
+      prisma.event.findMany({
+        where,
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit,
+        select: { id: true },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
+    
+    return [total, events.map(e => e.id)];
+  }
+
+  // Return empty results if MeiliSearch failed and no organizerId fallback
+  return [0, []];
 }
 
 // deprecated
@@ -158,6 +220,7 @@ async function generateCreateInfos(input: CreateEventInput) {
       address: input.address,
       city: input.city,
       description: input.description,
+      organizerId: input.organizerId,
     }
 
     const createInfoPrisma = {
@@ -226,9 +289,9 @@ export class EventService {
       },
     });
 
-    // Reorder to match Meilisearch order
+    // Reorder to match Meilisearch order and filter out missing events
     const dataById = new Map(data.map(d => [d.id, d]))
-    const ordered = (ids as string[]).map(id => dataById.get(id));
+    const ordered = (ids as string[]).map(id => dataById.get(id)).filter(Boolean);
 
     // NOT: Burada transaction kullanılarak 2 tane query yapılıyo. Bunun yerine tek bir query
     // yapılıp sonra limit kadar data alınabilir.

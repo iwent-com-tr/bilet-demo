@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
+import MobileOrganizerButton from '../../components/MobileOrganizerButton';
 import showPasswordIcon from '../../assets/show-passowrd.svg';
 import './Login.css';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -117,12 +119,25 @@ const Login: React.FC = () => {
 
   // Prefill from localStorage when rememberMe was set previously
   useEffect(() => {
+    // Check URL parameters first
+    const typeParam = searchParams.get('type');
+    let initialUserType: 'USER' | 'ORGANIZER' | 'ADMIN' = 'USER';
+    
+    if (typeParam === 'organizer') {
+      initialUserType = 'ORGANIZER';
+    } else if (typeParam === 'admin' && !isProduction) {
+      initialUserType = 'ADMIN';
+    }
+    
     const remembered = localStorage.getItem('login:remember') === '1';
-    if (remembered) {
+    if (remembered && !typeParam) {
       setRememberMe(true);
       const storedId = localStorage.getItem('login:identifier') || '';
       const storeduserType = (localStorage.getItem('login:userType') as 'USER' | 'ORGANIZER' | 'ADMIN') || 'USER';
       formik.setValues({ identifier: storedId, sifre: '', userType: storeduserType });
+    } else {
+      // Set user type from URL parameter or default
+      formik.setFieldValue('userType', initialUserType);
     }
     
     // In development, automatically set awareness to true
@@ -132,7 +147,7 @@ const Login: React.FC = () => {
     } else {
       setAwareOfScreen(false);
     }
-  }, [isDevelopment, formik.setValues]);
+  }, [isDevelopment, formik.setValues, formik.setFieldValue, searchParams, isProduction]);
 
   return (
     <div className="login">
@@ -336,6 +351,9 @@ const Login: React.FC = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       </button>
+      
+      {/* Mobile Organizer Login Button */}
+      <MobileOrganizerButton />
     </div>
   );
 };

@@ -17,8 +17,204 @@
 .organizer-events__header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 36px;
+}
+
+.organizer-events__header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.organizer-events__subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin: 8px 0 0 0;
+}
+
+/* Filtering Styles */
+.organizer-events__filters {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 24px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(20px);
+}
+
+.organizer-events__filters-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.organizer-events__filters-row:last-child {
+  margin-bottom: 0;
+}
+
+.organizer-events__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.organizer-events__search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.organizer-events__search-loading {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.organizer-events__search-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(5, 239, 126, 0.3);
+  border-top: 2px solid #05EF7E;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.organizer-events__date-filtering {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.organizer-events__filter-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.organizer-events__filter-input,
+.organizer-events__filter-select {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.organizer-events__filter-input:focus,
+.organizer-events__filter-select:focus {
+  outline: none;
+  border-color: #05EF7E;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.organizer-events__filter-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.organizer-events__filter-select option {
+  background: #1a1a1a;
+  color: white;
+}
+
+.organizer-events__filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+.organizer-events__filter-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #05EF7E;
+}
+
+.organizer-events__filter-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+  gap: 16px;
+}
+
+.organizer-events__clear-filters {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.organizer-events__clear-filters:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Pagination Styles */
+.organizer-events__pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.organizer-events__pagination-button {
+  padding: 10px 20px;
+  background: rgba(5, 239, 126, 0.1);
+  border: 1px solid rgba(5, 239, 126, 0.3);
+  border-radius: 8px;
+  color: #05EF7E;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.organizer-events__pagination-button:hover:not(:disabled) {
+  background: rgba(5, 239, 126, 0.2);
+  border-color: rgba(5, 239, 126, 0.5);
+}
+
+.organizer-events__pagination-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.organizer-events__pagination-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.organizer-events__pagination-total {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .organizer-events__title {

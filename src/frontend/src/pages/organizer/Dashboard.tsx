@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +52,7 @@ interface Stats {
 const OrganizerDashboard: React.FC = () => {
   const { user, isAuthenticated, isOrganizer, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<string>('');
   const [stats, setStats] = useState<Stats | null>(null);
@@ -80,33 +81,70 @@ const OrganizerDashboard: React.FC = () => {
     }
   }, [selectedEvent]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      if (!token || !user?.id) {
+      
+      if (!token) {
+        console.log('No token, redirecting to login');
         navigate('/login');
         return;
       }
 
-      // Use the new endpoint with organizerId
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/events/organizer/${user.id}`, {
+      console.log('Fetching dashboard events for organizer:', user.id);
+      
+      // Use the new organizer events endpoint that gets ALL events (all statuses)
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/organizers/${user.id}/events?page=1&limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      // New API returns data directly in the data array
+      console.log('Dashboard API Response:', response.data);
+      
       if (response.data && response.data.data) {
-        setEvents(response.data.data);
-        if (response.data.data.length > 0) {
-          setSelectedEvent(response.data.data[0].id);
+        const fetchedEvents = response.data.data.filter((event: any) => {
+          if (!event || !event.id) {
+            console.warn('Invalid event found:', event);
+            return false;
+          }
+          return true;
+        });
+        
+        console.log('Valid dashboard events:', fetchedEvents.length);
+        setEvents(fetchedEvents);
+        
+        // Check if eventId is provided in URL parameters
+        const eventIdFromUrl = searchParams.get('eventId');
+        
+        if (eventIdFromUrl && fetchedEvents.find((event: Event) => event.id === eventIdFromUrl)) {
+          // If eventId is in URL and exists in events, select it
+          setSelectedEvent(eventIdFromUrl);
+          
+          // Clean up URL parameter after successful selection
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete('eventId');
+          const newUrl = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`;
+          window.history.replaceState({}, '', newUrl);
+        } else if (fetchedEvents.length > 0) {
+          // Otherwise, select the first event as default
+          setSelectedEvent(fetchedEvents[0].id);
         }
       } else {
+        console.log('No events data found in response');
         setEvents([]);
       }
-      setLoading(false);
     } catch (error: any) {
-      console.error('Etkinlik listeleme hatası:', error);
+      console.error('Dashboard events fetching error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         navigate('/login');
@@ -116,9 +154,12 @@ const OrganizerDashboard: React.FC = () => {
       } else {
         toast.error('Etkinlikler yüklenirken bir hata oluştu');
       }
+      
+      setEvents([]);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, navigate, searchParams]);
 
   const fetchEventStats = async () => {
     try {
