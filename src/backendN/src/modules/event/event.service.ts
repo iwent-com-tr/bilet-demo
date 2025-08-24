@@ -29,13 +29,14 @@ async function generateUniqueSlug(base: string): Promise<string> {
   return `${initial}-${i}`;
 }
 
-async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventWhereInput */ {
-
-  // First try MeiliSearch (this will work for new events with organizerId indexed)
+async function getEventIdsWithFilters(filters: ListEventsQuery) {
+  // Try MeiliSearch first, with database fallback for reliability
   let queryResults: any = undefined;
+  let shouldFallbackToDatabase = false;
 
+  // Build MeiliSearch filter
   let filter: any[] = [
-      `status=${filters.status || 'ACTIVE'}`
+    `status=${filters.status || 'ACTIVE'}`
   ];
 
   if (filters.dateFrom && filters.dateTo) {
@@ -55,34 +56,47 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
   }
 
   const searchDetails = {
-      limit: filters.limit,
-      offset: filters.limit * (filters.page - 1),
-      filter,
-    };
+    limit: filters.limit,
+    offset: filters.limit * (filters.page - 1),
+    filter,
+  };
 
+  // Try MeiliSearch with improved error handling
   try {
-    if (filters.q){
-      queryResults = await eventIndex.search(filters.q, searchDetails)
-    } else {
-      queryResults = await eventIndex.getDocuments(searchDetails);
-    }
+    // Always use search method since getDocuments doesn't support filtering
+    // Use empty query string when no search query is provided
+    const query = filters.q || '';
+    queryResults = await eventIndex.search(query, searchDetails);
     
-    // If we have results or no organizerId filter, return MeiliSearch results
-    if (!filters.organizerId || (queryResults.hits || queryResults.results).length > 0) {
-      return [ queryResults.estimatedTotalHits || queryResults.total, (queryResults.hits || queryResults.results).map((hit: any) => hit.id.toString()) ];
+    const hits = queryResults.hits || [];
+    const total = queryResults.estimatedTotalHits || 0;
+    
+    // Check if MeiliSearch returned valid and consistent results
+    if (hits.length > 0 || (total === 0 && hits.length === 0)) {
+      console.log(`MeiliSearch: Found ${total} total events, returning ${hits.length} hits`);
+      return [total, hits.map((hit: any) => hit.id.toString())];
+    } else if (total > 0 && hits.length === 0) {
+      // MeiliSearch says there are results but returns empty hits - fallback to database
+      console.log(`MeiliSearch inconsistency: total=${total} but hits=${hits.length}, falling back to database`);
+      shouldFallbackToDatabase = true;
     }
   } catch (error) {
     console.warn('MeiliSearch query failed, falling back to database:', error);
+    shouldFallbackToDatabase = true;
   }
 
-  // Fallback to direct database query when MeiliSearch doesn't return results
-  // or when MeiliSearch fails (especially for organizerId filtering on old events)
-  if (filters.organizerId) {
+  // Database fallback with the same filtering logic
+  if (shouldFallbackToDatabase) {
+    console.log('Using database fallback query');
+    
     const where: any = { 
-      deletedAt: null,
-      organizerId: filters.organizerId,
+      deletedAt: null, 
       status: filters.status || 'ACTIVE'
     };
+    
+    if (filters.organizerId) {
+      where.organizerId = filters.organizerId;
+    }
     
     if (filters.city) {
       where.city = { equals: filters.city, mode: 'insensitive' };
@@ -116,14 +130,15 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
         skip: (filters.page - 1) * filters.limit,
         take: filters.limit,
         select: { id: true },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { startDate: 'asc' }
       })
     ]);
     
+    console.log(`Database fallback: Found ${total} total events, returning ${events.length} events`);
     return [total, events.map(e => e.id)];
   }
 
-  // Return empty results if MeiliSearch failed and no organizerId fallback
+  // This should rarely be reached
   return [0, []];
 }
 
@@ -265,63 +280,41 @@ async function generateUpdateInfos(input: UpdateEventInput) {
 export class EventService {
   static async list(filters: ListEventsQuery) {
     const { page, limit } = filters;
+    
     const [total, ids] = await getEventIdsWithFilters(filters);
 
+    if (ids.length === 0) {
+      return { page, limit, total, data: [] };
+    }
+
     const data = await prisma.event.findMany({
-      where: { id: { in: ids as string[] } },
-      take: limit,
+      where: { 
+        id: { in: ids as string[] },
+        deletedAt: null
+      },
+      orderBy: { startDate: 'asc' },
       select: {
-      id: true,
-      name: true,
-      slug: true,
-      category: true,
-      startDate: true,
-      endDate: true,
-      venue: true,
-      address: true,
-      city: true,
-      banner: true,
-      description: true,
-      status: true,
-      organizerId: true,
-      createdAt: true,
-      updatedAt: true,
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        startDate: true,
+        endDate: true,
+        venue: true,
+        address: true,
+        city: true,
+        banner: true,
+        description: true,
+        status: true,
+        organizerId: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
-    // Reorder to match Meilisearch order and filter out missing events
-    const dataById = new Map(data.map(d => [d.id, d]))
+    // Reorder to match the order from the search/filter query
+    const dataById = new Map(data.map(d => [d.id, d]));
     const ordered = (ids as string[]).map(id => dataById.get(id)).filter(Boolean);
-
-    // NOT: Burada transaction kullanılarak 2 tane query yapılıyo. Bunun yerine tek bir query
-    // yapılıp sonra limit kadar data alınabilir.
-
-    // const [total, data] = await prisma.$transaction([
-    //   prisma.event.count({ where }),
-    //   prisma.event.findMany({
-    //     where,
-    //     skip: (page - 1) * limit,
-    //     take: limit,
-    //     orderBy: { startDate: 'asc' },
-    //     select: {
-    //       id: true,
-    //       name: true,
-    //       slug: true,
-    //       category: true,
-    //       startDate: true,
-    //       endDate: true,
-    //       venue: true,
-    //       address: true,
-    //       city: true,
-    //       banner: true,
-    //       description: true,
-    //       status: true,
-    //       organizerId: true,
-    //       createdAt: true,
-    //       updatedAt: true,
-    //     },
-    //   }),
-    // ]);
 
     return { page, limit, total, data: ordered };
   }

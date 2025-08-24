@@ -18,7 +18,7 @@ export const eventIndex = meili.index('events');
 async function setupIndexes() {
   await eventIndex.updateSettings({
     searchableAttributes: ['name', 'category', 'venue', 'address', 'city', 'description'],
-    filterableAttributes: ['category', 'startDate', 'endDate', 'city', 'status'],
+    filterableAttributes: ['category', 'startDate', 'endDate', 'city', 'status', 'organizerId'],
     displayedAttributes: ['id'], // sadece id returnleyip daha sonra databaseden event bulunacak
   });
 }
@@ -36,7 +36,8 @@ async function syncEventsToMeili() {
     address: x.address,
     city: x.city,
     description: x.description,
-    status: x.status,  
+    status: x.status,
+    organizerId: x.organizerId,
     };
   }));
 }
