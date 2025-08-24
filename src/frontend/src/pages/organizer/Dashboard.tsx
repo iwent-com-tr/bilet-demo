@@ -203,15 +203,30 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    try {
+      if (!date) return '-';
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return '-';
+      
+      return dateObj.toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '-';
+    }
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    try {
+      if (typeof amount !== 'number' || isNaN(amount)) return '₺0';
+      return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    } catch (error) {
+      console.error('Currency formatting error:', error);
+      return '₺0';
+    }
   };
 
   const calculateTicketUsagePercentage = () => {
@@ -221,7 +236,7 @@ const OrganizerDashboard: React.FC = () => {
 
   const getSelectedEventName = () => {
     const event = events.find(e => e.id === selectedEvent);
-    return event ? event.name : '';
+    return event ? String(event.name || 'İsimsiz Etkinlik') : '';
   };
 
   const downloadReport = async () => {
@@ -344,7 +359,7 @@ const OrganizerDashboard: React.FC = () => {
               >
                 {events.map(event => (
                   <option key={event.id} value={event.id}>
-                    {event.name} - {formatDate(event.startDate)}
+                    {String(event.name || 'İsimsiz Etkinlik')} - {event.startDate ? formatDate(String(event.startDate)) : '-'}
                   </option>
                 ))}
               </select>
@@ -500,6 +515,7 @@ const OrganizerDashboard: React.FC = () => {
             <div className="organizer-dashboard__actions">
               <Link
                 to={`/organizer/events/${selectedEvent}/edit`}
+                state={{ event: events.find(e => e.id === selectedEvent) }}
                 className="organizer-dashboard__action-button organizer-dashboard__action-button--primary"
               >
                 <span className="organizer-dashboard__action-icon">✏️</span>

@@ -311,17 +311,32 @@ const OrganizerEvents: React.FC = () => {
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric'
-    });
+    try {
+      if (!date) return '-';
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return '-';
+      
+      return dateObj.toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '-';
+    }
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    try {
+      if (typeof amount !== 'number' || isNaN(amount)) return '₺0';
+      return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    } catch (error) {
+      console.error('Currency formatting error:', error);
+      return '₺0';
+    }
   };
 
 
@@ -543,33 +558,34 @@ const OrganizerEvents: React.FC = () => {
                       <tr key={event.id} className="organizer-events__table-row">
                         <td className="organizer-events__table-cell">
                           <div className="organizer-events__event-info">
-                            <p className="organizer-events__event-name">{event?.name || 'İsimsiz Etkinlik'}</p>
-                            <p className="organizer-events__event-city">{event?.city || '-'}</p>
+                            <p className="organizer-events__event-name">{String(event?.name || 'İsimsiz Etkinlik')}</p>
+                            <p className="organizer-events__event-city">{String(event?.city || '-')}</p>
                           </div>
                         </td>
                         <td className="organizer-events__table-cell">
-                          <span className="organizer-events__category">{getCategoryText(event?.category || '')}</span>
+                          <span className="organizer-events__category">{getCategoryText(String(event?.category || ''))}</span>
                         </td>
                         <td className="organizer-events__table-cell">
-                          <p className="organizer-events__event-date">{event?.startDate ? formatDate(event.startDate) : '-'}</p>
+                          <p className="organizer-events__event-date">{event?.startDate ? formatDate(String(event.startDate)) : '-'}</p>
                         </td>
                         <td className="organizer-events__table-cell">
                           <div className="organizer-events__venue-info">
-                            <p className="organizer-events__venue-name">{event?.venue || '-'}</p>
-                            <p className="organizer-events__venue-address">{event?.address || '-'}</p>
+                            <p className="organizer-events__venue-name">{String(event?.venue || '-')}</p>
+                            <p className="organizer-events__venue-address">{String(event?.address || '-')}</p>
                           </div>
                         </td>
                         <td className="organizer-events__table-cell">
-                          <span className={`organizer-events__status organizer-events__status--${getStatusClass(event?.status || 'DRAFT')}`}>
-                            {getStatusText(event?.status || 'DRAFT')}
+                          <span className={`organizer-events__status organizer-events__status--${getStatusClass(String(event?.status || 'DRAFT'))}`}>
+                            {getStatusText(String(event?.status || 'DRAFT'))}
                           </span>
                         </td>
                         <td className="organizer-events__table-cell">
                           <div className="organizer-events__actions">
                             {/* Show edit action only for organizer's own events */}
-                            {user?.id === event.organizerId && (
+                            {user?.id === String(event.organizerId) && (
                               <Link
                                 to={`/organizer/events/${event.id}/edit`}
+                                state={{ event }}
                                 className="organizer-events__action-link"
                               >
                                 Düzenle
@@ -582,7 +598,7 @@ const OrganizerEvents: React.FC = () => {
                               💬 Sohbet
                             </Link>
                             {/* Show statistics action only for organizer's own events */}
-                            {user?.id === event.organizerId && (
+                            {user?.id === String(event.organizerId) && (
                               <Link
                                 to={`/organizer?eventId=${event.id}`}
                                 className="organizer-events__action-link organizer-events__action-link--secondary"
