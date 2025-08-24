@@ -12,6 +12,8 @@ function humanizeError(e: any) {
       e.message = 'E-posta veya şifre hatalı'; break;
     case 'ACCOUNT_NOT_APPROVED':
       e.message = 'Organizatör hesabı henüz onaylanmamış'; break;
+    case 'PHONE_TAKEN':
+      e.message = 'Telefon numarası zaten kullanımda';
     case 'EMAIL_TAKEN':
       e.message = 'E-posta adresi zaten kullanımda'; break;
     case 'PASSWORD_TOO_SHORT':

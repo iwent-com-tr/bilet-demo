@@ -7,7 +7,8 @@ interface User {
   soyisim: string;
   email: string;
   phone: string;
-  tip: 'user' | 'organizer';
+  userType: 'USER' | 'ORGANIZER' | 'ADMIN';
+  adminRole?: 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY';
 }
 
 interface AuthContextType {
@@ -19,6 +20,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isOrganizer: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,13 +40,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Ensure a single, consistent API base including "/api"
   const API_BASE_URL = process.env.REACT_APP_API_URL;
 
-  const mapApiUserToUiUser = (apiUser: any, tip: 'user' | 'organizer'): User => ({
+  const mapApiUserToUiUser = (apiUser: any, defaultUserType?: 'USER' | 'ORGANIZER'): User => ({
     id: apiUser.id,
     isim: apiUser.firstName || apiUser.isim || '',
     soyisim: apiUser.lastName || apiUser.soyisim || '',
     email: apiUser.email,
     phone: apiUser.phone,
-    tip
+    userType: apiUser.userType || defaultUserType || 'USER',
+    adminRole: apiUser.adminRole,
   });
 
   const persistUser = (uiUser: User, tokens?: { accessToken?: string; refreshToken?: string }) => {
@@ -53,7 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('user:email', uiUser.email);
       localStorage.setItem('user:firstName', uiUser.isim || '');
       localStorage.setItem('user:lastName', uiUser.soyisim || '');
-      localStorage.setItem('user:type', uiUser.tip);
+      localStorage.setItem('user:type', uiUser.userType);
+      if (uiUser.adminRole) localStorage.setItem('user:adminRole', uiUser.adminRole);
       if (tokens?.accessToken) localStorage.setItem('token', tokens.accessToken);
       if (tokens?.refreshToken) localStorage.setItem('refreshToken', tokens.refreshToken);
     } catch {}
@@ -62,14 +66,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyToken = async (token: string) => {
     try {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const storedType = (localStorage.getItem('user:type') as 'user' | 'organizer' | null) || 'user';
-      if (storedType === 'organizer') {
+      const storedType = (localStorage.getItem('user:type') as 'USER' | 'ORGANIZER' | 'ADMIN' | null) || 'USER';
+      if (storedType === 'ORGANIZER') {
         const organizerId = localStorage.getItem('user:id');
         if (!organizerId) throw new Error('missing organizer id');
         const res = await axios.get(`${API_BASE_URL}/organizers/${organizerId}`);
         const apiOrganizer = res.data?.organizer;
         if (apiOrganizer) {
-          const ui = mapApiUserToUiUser(apiOrganizer, 'organizer');
+          const ui = mapApiUserToUiUser(apiOrganizer, 'ORGANIZER');
           setUser(ui);
           persistUser(ui);
           return true;
@@ -79,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await axios.get(`${API_BASE_URL}/auth/me`);
       const apiUser = response.data?.user;
       if (apiUser) {
-        const ui = mapApiUserToUiUser(apiUser, 'user');
+        const ui = mapApiUserToUiUser(apiUser);
         setUser(ui);
         persistUser(ui);
       }
@@ -129,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (apiUser) {
-        const ui = mapApiUserToUiUser(apiUser, tip);
+        const ui = mapApiUserToUiUser(apiUser);
         setUser(ui);
         persistUser(ui, { accessToken, refreshToken });
       } else if (accessToken) {
@@ -157,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (apiUser) {
-        const ui = mapApiUserToUiUser(apiUser, 'user');
+        const ui = mapApiUserToUiUser(apiUser);
         setUser(ui);
         persistUser(ui, { accessToken, refreshToken });
       } else if (accessToken) {
@@ -188,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (apiOrganizer) {
-        const ui = mapApiUserToUiUser(apiOrganizer, 'organizer');
+        const ui = mapApiUserToUiUser(apiOrganizer, 'ORGANIZER');
         setUser(ui);
         persistUser(ui, { accessToken, refreshToken });
       }
@@ -217,7 +221,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     registerOrganizer,
     logout,
     isAuthenticated: !!user,
-    isOrganizer: user?.tip === 'organizer'
+    isOrganizer: user?.userType === 'ORGANIZER',
+    isAdmin: user?.userType === 'ADMIN' || user?.adminRole === 'ADMIN'
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

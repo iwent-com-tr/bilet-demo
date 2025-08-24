@@ -34,15 +34,15 @@ const Login: React.FC = () => {
     initialValues: {
       identifier: '',
       sifre: '',
-      tip: 'user'
+      userType: 'USER'
     },
     validationSchema: Yup.object({
       identifier: Yup.string()
         .required('E-posta adresi veya telefon numarası zorunludur')
         .test('email-or-phone', 'Geçerli bir e-posta veya telefon giriniz', function (val) {
-          const tip = (this.parent as any).tip;
+          const userType = (this.parent as any).userType;
           if (!val) return false;
-          if (tip === 'organizer') {
+          if (userType === 'ORGANIZER' || userType === 'ADMIN') {
             return /.+@.+\..+/.test(val);
           }
           return /.+@.+\..+/.test(val) || phoneRegex.test(val);
@@ -50,23 +50,31 @@ const Login: React.FC = () => {
       sifre: Yup.string()
         .min(6, 'Şifre en az 6 karakter olmalıdır')
         .required('Şifre zorunludur'),
-      tip: Yup.string().oneOf(['user', 'organizer']).required()
+      userType: Yup.string().oneOf(['USER', 'ORGANIZER', 'ADMIN']).required()
     }),
     onSubmit: async (values) => {
       try {
         setServerError(null);
         setLoading(true);
-        await login(values.identifier, values.sifre, values.tip as 'user' | 'organizer');
+        // Admin users use the regular user login endpoint since they're stored in the user table
+        const loginType = values.userType === 'ADMIN' ? 'user' : values.userType.toLowerCase() as 'user' | 'organizer';
+        await login(values.identifier, values.sifre, loginType);
         if (rememberMe) {
           localStorage.setItem('login:remember', '1');
           localStorage.setItem('login:identifier', values.identifier);
-          localStorage.setItem('login:tip', values.tip);
+          localStorage.setItem('login:userType', values.userType);
         } else {
           localStorage.removeItem('login:remember');
           localStorage.removeItem('login:identifier');
-          localStorage.removeItem('login:tip');
+          localStorage.removeItem('login:userType');
         }
-        navigate(values.tip === 'organizer' ? '/organizer' : '/');
+        if (values.userType === 'ORGANIZER') {
+          navigate('/ORGANIZER');
+        } else if (values.userType === 'ADMIN') {
+          navigate('/ADMIN');
+        } else {
+          navigate('/');
+        }
       } catch (error: any) {
         const raw = error?.response?.data;
         let msg: string | null = null;
@@ -91,7 +99,8 @@ const Login: React.FC = () => {
     }
   });
 
-  const isOrganizer = formik.values.tip === 'organizer';
+  const isOrganizer = formik.values.userType === 'ORGANIZER';
+  const isAdmin = formik.values.userType === 'ADMIN';
 
   // Prefill from localStorage when rememberMe was set previously
   useEffect(() => {
@@ -99,8 +108,8 @@ const Login: React.FC = () => {
     if (remembered) {
       setRememberMe(true);
       const storedId = localStorage.getItem('login:identifier') || '';
-      const storedTip = (localStorage.getItem('login:tip') as 'user' | 'organizer') || 'user';
-      formik.setValues({ identifier: storedId, sifre: '', tip: storedTip });
+      const storeduserType = (localStorage.getItem('login:userType') as 'USER' | 'ORGANIZER' | 'ADMIN') || 'USER';
+      formik.setValues({ identifier: storedId, sifre: '', userType: storeduserType });
     }
   }, []);
 
@@ -123,7 +132,7 @@ const Login: React.FC = () => {
 
       <div className="login__container">
 
-        <h2 className="login__title">{isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap'}</h2>
+        <h2 className="login__title">{isAdmin ? 'Yönetici Girişi' : isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap'}</h2>
         {serverError && (
           <div className="login__server-error" role="alert" aria-live="polite">
             {serverError}
@@ -136,9 +145,9 @@ const Login: React.FC = () => {
             <label className="login__user-type-label">
               <input
                 type="radio"
-                name="tip"
-                value="user"
-                checked={formik.values.tip === 'user'}
+                name="userType"
+                value="USER"
+                checked={formik.values.userType === 'USER'}
                 onChange={formik.handleChange}
                 className="login__user-type-input"
               />
@@ -147,20 +156,31 @@ const Login: React.FC = () => {
             <label className="login__user-type-label">
               <input
                 type="radio"
-                name="tip"
-                value="organizer"
-                checked={formik.values.tip === 'organizer'}
+                name="userType"
+                value="ORGANIZER"
+                checked={formik.values.userType === 'ORGANIZER'}
                 onChange={formik.handleChange}
                 className="login__user-type-input"
               />
               Organizatör
+            </label>
+            <label className="login__user-type-label">
+              <input
+                type="radio"
+                name="userType"
+                value="ADMIN"
+                checked={formik.values.userType === 'ADMIN'}
+                onChange={formik.handleChange}
+                className="login__user-type-input"
+              />
+              Yönetici
             </label>
           </div>
 
           {/* Identifier */}
           <div className="login__form-group">
             <label htmlFor="identifier" className="login__label">
-              {isOrganizer ? 'E-Posta adresi' : 'E-Posta adresi veya Telefon Numarası'}
+              {isOrganizer || isAdmin ? 'E-Posta adresi' : 'E-Posta adresi veya Telefon Numarası'}
             </label>
             <div className="login__input-container">
               <svg className="login__input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,7 +261,7 @@ const Login: React.FC = () => {
             disabled={loading || !awareOfScreen}
             className="login__submit-button"
           >
-            {loading ? 'Giriş yapılıyor...' : (isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap')}
+            {loading ? 'Giriş yapılıyor...' : (isAdmin ? 'Yönetici Girişi' : isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap')}
           </button>
 
           {/* Links */}
@@ -249,7 +269,7 @@ const Login: React.FC = () => {
             <p className="login__link-text">
               Henüz bir hesabın yok mu?{' '}
               <Link
-                to={formik.values.tip === 'organizer' ? '/register/organizer' : '/register'}
+                to={formik.values.userType === 'ORGANIZER' ? '/register/organizer' : formik.values.userType === 'ADMIN' ? '/register/admin' : '/register'}
                 className="login__link"
               >
                 Kayıt Ol

@@ -9,17 +9,25 @@ datasource db {
 
 model User {
   id                      String                       @id @default(uuid())
+  externalId              String                       @unique @default(cuid())
   firstName               String
   lastName                String
   email                   String                       @unique
+  emailVerified           Boolean                      @default(false)
   password                String
   birthYear               Int
   phone                   String                       @unique
   phoneVerified           Boolean                      @default(false)
   avatar                  String?
   city                    String
+  country                 String?
+  locale                  String?                      @default("tr-TR")
   lastLogin               DateTime?
+  lastSeenAt              DateTime?
   userType                UserType                     @default(USER)
+  adminRole               AdminRole                    @default(USER)
+  status                  UserStatus                   @default(ACTIVE)
+  marketingConsent        Boolean                      @default(false)
   points                  Int                          @default(0)
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
@@ -35,8 +43,16 @@ model User {
   notificationPreferences UserNotificationPreference[]
   settings                UserSetting[]
   socialAccounts          UserSocialAccount[]
+  pushSubscriptions       PushSubscription[]
+  segmentTags             UserSegmentTag[]
+  loginEvents             LoginEvent[]
+  auditLogsAsActor        AuditLog[]
 
   @@index([email])
+  @@index([externalId])
+  @@index([createdAt])
+  @@index([lastLogin])
+  @@index([adminRole, status])
 }
 
 model Organizer {
@@ -385,6 +401,63 @@ model UserSocialAccount {
   @@index([userId])
 }
 
+// Admin Panel Models
+model PushSubscription {
+  id              String     @id @default(cuid())
+  userId          String
+  channel         PushChannel
+  onesignalUserId String
+  onesignalSubId  String
+  tokenHash       String
+  browser         Browser
+  os              OS
+  deviceType      DeviceType
+  pwa             Boolean
+  subscribed      Boolean
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, browser, os, deviceType, pwa])
+}
+
+model UserSegmentTag {
+  id      String        @id @default(cuid())
+  userId  String
+  key     String
+  value   String
+  source  SegmentSource
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, key, value])
+}
+
+model LoginEvent {
+  id     String      @id @default(cuid())
+  userId String
+  ts     DateTime    @default(now())
+  ip     String? // Prisma doesn't have inet, use String
+  ua     String?
+  method LoginMethod
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, ts])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  entity    String
+  entityId  String
+  action    String
+  meta      Json?
+  ts        DateTime @default(now())
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
+
 enum Language {
   TR
   EN
@@ -461,4 +534,56 @@ enum PrivateMessageStatus {
   SENT
   READ
   DELETED
+}
+
+// Enums for Admin Panel
+enum AdminRole {
+  USER
+  ADMIN
+  SUPPORT
+  READONLY
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum PushChannel {
+  WEB_PUSH
+}
+
+enum Browser {
+  CHROME
+  SAFARI
+  FIREFOX
+  EDGE
+  OTHER
+}
+
+enum OS {
+  IOS
+  ANDROID
+  MACOS
+  WINDOWS
+  LINUX
+  OTHER
+}
+
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+}
+
+enum SegmentSource {
+  INTERNAL
+  ONESIGNAL
+}
+
+enum LoginMethod {
+  PASSWORD
+  OAUTH
+  MAGIC_LINK
 }

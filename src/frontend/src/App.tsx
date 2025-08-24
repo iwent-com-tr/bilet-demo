@@ -33,6 +33,9 @@ import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 import CalendarPage from './pages/Calendar';
+import UserList from './pages/admin/UserList';
+import UserDetail from './pages/admin/UserDetail';
+import AdminDashboard from './pages/admin/AdminDashboard';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
@@ -59,32 +62,32 @@ const App: React.FC = () => {
           {/* User Routes */}
           <Route element={<MainLayout />}>
             <Route path="/profile" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <Profile />
               </ProtectedRoute>
             } />
             <Route path="/verify-phone" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <PhoneVerify />
               </ProtectedRoute>
             } />
             <Route path="/user/settings" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <Settings />
               </ProtectedRoute>
             } />
             <Route path="/my-tickets" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <MyTickets />
               </ProtectedRoute>
             } />
             <Route path="/events/:slug/purchase" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <EventPurchase />
               </ProtectedRoute>
             } />
             <Route path="/events/:slug/participant-info" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <ParticipantInfo />
               </ProtectedRoute>
             } />
@@ -94,7 +97,7 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } />
             <Route path="/purchase-success" element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="USER">
                 <PurchaseSuccess />
               </ProtectedRoute>
             } />
@@ -103,46 +106,66 @@ const App: React.FC = () => {
           {/* Organizer Routes */}
           <Route element={<MainLayout />}>
             <Route path="/organizer" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerDashboard />
               </ProtectedRoute>
             } />
             <Route path="/organizer/events" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerEvents />
               </ProtectedRoute>
             } />
             <Route path="/organizer/events/create" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerEventCreate />
               </ProtectedRoute>
             } />
             <Route path="/organizer/events/:id/edit" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerEventEdit />
               </ProtectedRoute>
             } />
             <Route path="/organizer/profile" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerProfile />
               </ProtectedRoute>
             } />
             <Route path="/organizer/devices" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerDevices />
               </ProtectedRoute>
             } />
             <Route path="/organizer/events/create-success" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <OrganizerEventCreateSuccess />
               </ProtectedRoute>
             } />
             <Route path="/verify-phone-organizer" element={
-              <ProtectedRoute requiredRole="organizer">
+              <ProtectedRoute requiredRole="ORGANIZER">
                 <PhoneVerifyOrganizer />
               </ProtectedRoute>
             } />
 
+          </Route>
+
+          {/* Admin Routes */}
+          <Route element={<MainLayout />}>
+            
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <UserList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users/:id" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <UserDetail />
+              </ProtectedRoute>
+            } />
           </Route>
 
           {/* 404 */}

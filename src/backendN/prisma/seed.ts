@@ -1,6 +1,71 @@
-// prisma/seed-settings.ts (özet)
-import { PrismaClient } from '@prisma/client';
+// prisma/seed.ts
+import { PrismaClient, UserStatus, AdminRole, PushChannel, Browser, OS, DeviceType, SegmentSource, LoginMethod } from '@prisma/client';
+import { hashPassword } from '../src/lib/crypto';
+
 const prisma = new PrismaClient();
+
+async function seedUsers() {
+  console.log('Seeding users...');
+  const password = await hashPassword('Password123!');
+
+  for (let i = 0; i < 10; i++) {
+    const user = await prisma.user.create({
+      data: {
+        firstName: `User`,
+        lastName: `${i + 1}`,
+        email: `user${i + 1}@example.com`,
+        password: password,
+        birthYear: 1990 + i,
+        phone: `+9055555555${i.toString().padStart(2, '0')}`,
+        phoneVerified: true,
+        emailVerified: true,
+        city: 'Istanbul',
+        country: 'TR',
+        locale: 'tr-TR',
+        status: UserStatus.ACTIVE,
+        adminRole: i === 0 ? AdminRole.ADMIN : AdminRole.USER,
+        marketingConsent: i % 2 === 0,
+        lastLogin: new Date(),
+        lastSeenAt: new Date(),
+      },
+    });
+
+    // Seed related data
+    await prisma.pushSubscription.create({
+      data: {
+        userId: user.id,
+        channel: PushChannel.WEB_PUSH,
+        onesignalUserId: `os-user-${i}`,
+        onesignalSubId: `os-sub-${i}`,
+        tokenHash: `token-hash-${i}`,
+        browser: Browser.CHROME,
+        os: OS.MACOS,
+        deviceType: DeviceType.DESKTOP,
+        pwa: false,
+        subscribed: true,
+      },
+    });
+
+    await prisma.userSegmentTag.create({
+      data: {
+        userId: user.id,
+        key: 'test_user',
+        value: 'true',
+        source: SegmentSource.INTERNAL,
+      },
+    });
+
+    await prisma.loginEvent.create({
+      data: {
+        userId: user.id,
+        ip: '127.0.0.1',
+        ua: 'test-user-agent',
+        method: LoginMethod.PASSWORD,
+      },
+    });
+  }
+  console.log('Users seeded.');
+}
 
 async function main() {
   // Sections
@@ -182,9 +247,7 @@ async function main() {
     });
   }
 
-  // Bildirim kategorileri için tüm kullanıcılar adına varsayılan tercih:
-  // (migration sonrası ilk girişte set edebilirsin)
-  // örnek: hiçbir şey seed etmiyoruz; uygulama ilk login’de UserNotificationPreference upsert edecek.
+  await seedUsers();
 }
 
 main().finally(() => prisma.$disconnect());
