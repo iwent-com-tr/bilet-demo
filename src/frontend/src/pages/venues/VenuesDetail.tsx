@@ -109,6 +109,9 @@ const VenuesDetail: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <div className="follow-button-wrapper">
+                <button className="follow-button">Takip Et</button>
+            </div>
             <VenuesEventList eventIds={venue.current?.events} />
         <MobileNavbar />
         </div>

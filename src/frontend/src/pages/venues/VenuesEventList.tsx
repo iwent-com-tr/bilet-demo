@@ -13,7 +13,7 @@ const VenuesEventList: React.FC<{ eventIds: string[] }> = ({ eventIds }: { event
         const fetchEvents = async () => {
             try {
                 const response = await Promise.all(
-                    eventIds.map(async (eventId) => {
+                    eventIds.slice(0, 6 * eventsPage).map(async (eventId) => {
                         const event = await axios.get(`${process.env.REACT_APP_API_URL}/events/${eventId}`);
                         return event;
                     })
@@ -26,7 +26,7 @@ const VenuesEventList: React.FC<{ eventIds: string[] }> = ({ eventIds }: { event
             }
         };
         fetchEvents();
-    }, [eventIds]);
+    }, [eventIds, eventsPage]);
 
     const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {
@@ -44,8 +44,8 @@ const VenuesEventList: React.FC<{ eventIds: string[] }> = ({ eventIds }: { event
 
     return (
         <div className="event-list__grid-container search__grid-container">
-                        <h1 className="search__title">
-                            Etkinlikler
+                        <h1 className="search__title venue-event-list-title">
+                            Bu mekanda bulunan etkinlikler...
                         </h1>
                     <div className="event-list__grid search__grid">
                         {events.map((event: any) => (
