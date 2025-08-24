@@ -235,7 +235,7 @@ const OrganizerEvents: React.FC = () => {
                             💬 Sohbet
                           </Link>
                           <Link
-                            to={`/organizer/`}
+                            to={`/organizer/events/${event.id}/stats`}
                             className="organizer-events__action-link organizer-events__action-link--secondary"
                           >
                             📊 İstatistik
