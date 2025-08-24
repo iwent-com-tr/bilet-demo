@@ -80,13 +80,15 @@ export function sanitizeArtist(e: any) {
     name: e.name,
     slug: e.slug,
     banner: e.banner,
-    bio: e.bio,
+    bio: e.bio || '',
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
     approved: e.approved,
     favoriteCount: e.favoriteCount,
     deletedAt: e.deletedAt,
-    genres: e.genres,
+    genres: e.genres || [],
+    socialMedia: e.socialMedia || {},
+    events: e.events ? e.events.map((event: any) => event.id) : [],
   };
 }
 

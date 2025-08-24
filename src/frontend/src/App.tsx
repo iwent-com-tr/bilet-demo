@@ -37,6 +37,7 @@ import CalendarPage from './pages/Calendar';
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
 import VenuesDetail from 'pages/venues/VenuesDetail';
+import ArtistsDetail from 'pages/artists/ArtistDetails';
 
 const App: React.FC = () => {
   return (
@@ -56,6 +57,7 @@ const App: React.FC = () => {
             <Route path="/search" element={<Search />} />
             <Route path='/search/:query' element={<Search />} />
             <Route path="/venues/:slug" element={<VenuesDetail />} />
+            <Route path="/artists/:slug" element={<ArtistsDetail />} />
           </Route>
 
           {/* User Routes */}

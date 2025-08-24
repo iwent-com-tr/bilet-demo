@@ -16,7 +16,19 @@ export class ArtistsService {
       }
     
       static async findBySlug(slug: string) {
-        const artist = await prisma.artist.findFirst({ where: { slug, deletedAt: null } });
+        const artist = await prisma.artist.findFirst({ 
+          where: { 
+            slug, 
+            deletedAt: null 
+          },
+          include: {
+            events: {
+              select: {
+                eventId: true
+              }
+            }
+          } 
+        });
         if (!artist) {
           const e: any = new Error('artist not found');
           e.status = 404; e.code = 'NOT_FOUND';
