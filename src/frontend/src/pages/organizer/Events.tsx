@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import MobileLayout from '../../components/layouts/MobileLayout';
 import './Events.css';
 
 interface CityItem {
@@ -82,6 +83,7 @@ const OrganizerEvents: React.FC = () => {
   const [dateFromInput, setDateFromInput] = useState('');
   const [dateToInput, setDateToInput] = useState('');
   const [isDateFiltering, setIsDateFiltering] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Debounced search effect
   useEffect(() => {
@@ -388,261 +390,289 @@ const OrganizerEvents: React.FC = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="organizer-events">
-        <div className="organizer-events__loading">
-          <div className="organizer-events__spinner"></div>
+      <div className="organizer-events-wrapper">
+        <div className="organizer-events organizer-events--desktop">
+          <div className="organizer-events__loading">
+            <div className="organizer-events__spinner"></div>
+          </div>
         </div>
+        <MobileLayout title="Etkinliklerim">
+          <div className="organizer-events__loading">
+            <div className="organizer-events__spinner"></div>
+          </div>
+        </MobileLayout>
       </div>
     );
   }
 
-  return (
-    <div className="organizer-events">
-      <div className="organizer-events__container">
-        <div className="organizer-events__header">
-          <div>
-            <h1 className="organizer-events__title">→ Tüm Etkinlikler</h1>
-            <p className="organizer-events__subtitle">
-              {totalEvents} etkinlik bulundu (etkinliklerim)
-            </p>
-          </div>
-          <div className="organizer-events__header-actions">
-            <Link
-              to="/organizer/events/create"
-              className="organizer-events__create-button"
-            >
-              <svg 
-                className="organizer-events__create-icon" 
-                fill="currentColor" 
-                viewBox="0 0 20 20"
-              >
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Yeni Etkinlik
-            </Link>
-          </div>
+  const content = (
+    <div className="organizer-events__container">
+      <div className="organizer-events__header">
+        <div>
+          <h1 className="organizer-events__title">→ Tüm Etkinlikler</h1>
+          <p className="organizer-events__subtitle">
+            {totalEvents} etkinlik bulundu (etkinliklerim)
+          </p>
         </div>
+        <div className="organizer-events__header-actions">
+          <button className="organizer-events__filter-button" onClick={() => setIsFilterModalOpen(true)}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83333 10H14.1667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3.33333 5.83331H16.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M8.33333 14.1667H11.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Filtrele
+          </button>
+          <Link
+            to="/organizer/events/create"
+            className="organizer-events__create-button"
+          >
+            <svg 
+              className="organizer-events__create-icon" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            Yeni Etkinlik
+          </Link>
+        </div>
+      </div>
+      
 
-        {/* Filters Section */}
-        <div className="organizer-events__filters">
-          <div className="organizer-events__filters-row">
-            <div className="organizer-events__filter-group">
-              <label className="organizer-events__filter-label">Arama</label>
-              <div className="organizer-events__search-container">
-                <input
-                  type="text"
-                  placeholder="Etkinlik adı, mekan veya şehir ara..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="organizer-events__filter-input"
-                />
-                {isSearching && (
-                  <div className="organizer-events__search-loading">
-                    <div className="organizer-events__search-spinner"></div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="organizer-events__filter-group">
-              <label className="organizer-events__filter-label">Kategori</label>
-              <select
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="organizer-events__filter-select"
-              >
-                <option value="">Tüm Kategoriler</option>
-                {EVENT_CATEGORIES.map(cat => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="organizer-events__filter-group">
-              <label className="organizer-events__filter-label">Şehir</label>
-              <select
-                value={filters.city}
-                onChange={(e) => handleFilterChange('city', e.target.value)}
-                className="organizer-events__filter-select"
-              >
-                <option value="">Tüm Şehirler</option>
-                {sortedCities.map(city => (
-                  <option key={city.name} value={city.name}>
-                    {city.name.charAt(0).toUpperCase() + city.name.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="organizer-events__filter-group">
-              <label className="organizer-events__filter-label">Durum</label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="organizer-events__filter-select"
-              >
-                <option value="">Tüm Durumlar</option>
-                {EVENT_STATUSES.map(status => (
-                  <option key={status.value} value={status.value}>{status.label}</option>
-                ))}
-              </select>
+      {/* Filters Section */}
+      <div className={`organizer-events__filters ${isFilterModalOpen ? 'organizer-events__filters--modal' : ''}`}>
+        <div className="organizer-events__filters-overlay" onClick={() => setIsFilterModalOpen(false)}></div>
+        <div className="organizer-events__filters-content">
+          <div className="organizer-events__filters-header">
+            <h3>Filtreler</h3>
+            <button className="organizer-events__filters-close" onClick={() => setIsFilterModalOpen(false)}>×</button>
+          </div>
+        <div className="organizer-events__filters-row">
+          <div className="organizer-events__filter-group">
+            <label className="organizer-events__filter-label">Arama</label>
+            <div className="organizer-events__search-container">
+              <input
+                type="text"
+                placeholder="Etkinlik adı, mekan veya şehir ara..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="organizer-events__filter-input"
+              />
+              {isSearching && (
+                <div className="organizer-events__search-loading">
+                  <div className="organizer-events__search-spinner"></div>
+                </div>
+              )}
             </div>
           </div>
           
-          <div className="organizer-events__filters-row">
-            <div className="organizer-events__filter-group">
-              <label className="organizer-events__filter-label">Başlangıç Tarihi</label>
-              <input
-                type="date"
-                value={dateFromInput}
-                onChange={(e) => setDateFromInput(e.target.value)}
-                className="organizer-events__filter-input"
-              />
-            </div>
-            
-            <div className="organizer-events__filter-group">
-              <label className="organizer-events__filter-label">Bitiş Tarihi</label>
-              <input
-                type="date"
-                value={dateToInput}
-                onChange={(e) => setDateToInput(e.target.value)}
-                className="organizer-events__filter-input"
-              />
-            </div>
-            
-            <div className="organizer-events__filter-actions">
-              <button
-                onClick={handleClearFilters}
-                className="organizer-events__clear-filters"
-              >
-                Filtreleri Temizle
-              </button>
-              {isDateFiltering && (
-                <div className="organizer-events__date-filtering">
-                  <div className="organizer-events__search-spinner"></div>
-                  <span>Tarih filtreleniyor...</span>
-                </div>
-              )}
-            </div>
+          <div className="organizer-events__filter-group">
+            <label className="organizer-events__filter-label">Kategori</label>
+            <select
+              value={filters.category}
+              onChange={(e) => handleFilterChange('category', e.target.value)}
+              className="organizer-events__filter-select"
+            >
+              <option value="">Tüm Kategoriler</option>
+              {EVENT_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="organizer-events__filter-group">
+            <label className="organizer-events__filter-label">Şehir</label>
+            <select
+              value={filters.city}
+              onChange={(e) => handleFilterChange('city', e.target.value)}
+              className="organizer-events__filter-select"
+            >
+              <option value="">Tüm Şehirler</option>
+              {sortedCities.map(city => (
+                <option key={city.name} value={city.name}>
+                  {city.name.charAt(0).toUpperCase() + city.name.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="organizer-events__filter-group">
+            <label className="organizer-events__filter-label">Durum</label>
+            <select
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="organizer-events__filter-select"
+            >
+              <option value="">Tüm Durumlar</option>
+              {EVENT_STATUSES.map(status => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
           </div>
         </div>
-
-        <div className="organizer-events__content">
-          {!events || events.length === 0 ? (
-            <div className="organizer-events__empty">
-              <h3 className="organizer-events__empty-title">
-                {loading ? 'Etkinlikler yükleniyor...' : 'Henüz etkinliğiniz yok'}
-              </h3>
-              <p className="organizer-events__empty-description">
-                {loading ? 'Lütfen bekleyin...' : 'İlk etkinliğinizi oluşturmak için "Yeni Etkinlik" butonuna tıklayın.'}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="organizer-events__table-container">
-                <table className="organizer-events__table">
-                  <thead className="organizer-events__table-header">
-                    <tr>
-                      <th>Etkinlik</th>
-                      <th>Kategori</th>
-                      <th>Tarih</th>
-                      <th>Mekan</th>
-                      <th>Durum</th>
-                      <th>İşlemler</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {events
-                      .filter(event => event && event.id)
-                      .map(event => (
-                      <tr key={event.id} className="organizer-events__table-row">
-                        <td className="organizer-events__table-cell">
-                          <div className="organizer-events__event-info">
-                            <p className="organizer-events__event-name">{String(event?.name || 'İsimsiz Etkinlik')}</p>
-                            <p className="organizer-events__event-city">{String(event?.city || '-')}</p>
-                          </div>
-                        </td>
-                        <td className="organizer-events__table-cell">
-                          <span className="organizer-events__category">{getCategoryText(String(event?.category || ''))}</span>
-                        </td>
-                        <td className="organizer-events__table-cell">
-                          <p className="organizer-events__event-date">{event?.startDate ? formatDate(String(event.startDate)) : '-'}</p>
-                        </td>
-                        <td className="organizer-events__table-cell">
-                          <div className="organizer-events__venue-info">
-                            <p className="organizer-events__venue-name">{String(event?.venue || '-')}</p>
-                            <p className="organizer-events__venue-address">{String(event?.address || '-')}</p>
-                          </div>
-                        </td>
-                        <td className="organizer-events__table-cell">
-                          <span className={`organizer-events__status organizer-events__status--${getStatusClass(String(event?.status || 'DRAFT'))}`}>
-                            {getStatusText(String(event?.status || 'DRAFT'))}
-                          </span>
-                        </td>
-                        <td className="organizer-events__table-cell">
-                          <div className="organizer-events__actions">
-                            {/* Show edit action only for organizer's own events */}
-                            {user?.id === String(event.organizerId) && (
-                              <Link
-                                to={`/organizer/events/${event.id}/edit`}
-                                state={{ event }}
-                                className="organizer-events__action-link"
-                              >
-                                Düzenle
-                              </Link>
-                            )}
-                            <Link
-                              to={`/events/${event.id}/chat`}
-                              className="organizer-events__action-link organizer-events__action-link--chat"
-                            >
-                              💬 Sohbet
-                            </Link>
-                            {/* Show statistics action only for organizer's own events */}
-                            {user?.id === String(event.organizerId) && (
-                              <Link
-                                to={`/organizer?eventId=${event.id}`}
-                                className="organizer-events__action-link organizer-events__action-link--secondary"
-                              >
-                                📊 İstatistik
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        
+        <div className="organizer-events__filters-row">
+          <div className="organizer-events__filter-group">
+            <label className="organizer-events__filter-label">Başlangıç Tarihi</label>
+            <input
+              type="date"
+              value={dateFromInput}
+              onChange={(e) => setDateFromInput(e.target.value)}
+              className="organizer-events__filter-input"
+            />
+          </div>
+          
+          <div className="organizer-events__filter-group">
+            <label className="organizer-events__filter-label">Bitiş Tarihi</label>
+            <input
+              type="date"
+              value={dateToInput}
+              onChange={(e) => setDateToInput(e.target.value)}
+              className="organizer-events__filter-input"
+            />
+          </div>
+          
+          <div className="organizer-events__filter-actions">
+            <button
+              onClick={handleClearFilters}
+              className="organizer-events__clear-filters"
+            >
+              Filtreleri Temizle
+            </button>
+            {isDateFiltering && (
+              <div className="organizer-events__date-filtering">
+                <div className="organizer-events__search-spinner"></div>
+                <span>Tarih filtreleniyor...</span>
               </div>
-              
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="organizer-events__pagination">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage <= 1}
-                    className="organizer-events__pagination-button"
-                  >
-                    Önceki
-                  </button>
-                  
-                  <div className="organizer-events__pagination-info">
-                    <span>{currentPage} / {totalPages}</span>
-                    <span className="organizer-events__pagination-total">({totalEvents} etkinlik)</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage >= totalPages}
-                    className="organizer-events__pagination-button"
-                  >
-                    Sonraki
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </div>
+        </div>
         </div>
       </div>
+
+      <div className="organizer-events__content">
+        {!events || events.length === 0 ? (
+          <div className="organizer-events__empty">
+            <h3 className="organizer-events__empty-title">
+              {loading ? 'Etkinlikler yükleniyor...' : 'Henüz etkinliğiniz yok'}
+            </h3>
+            <p className="organizer-events__empty-description">
+              {loading ? 'Lütfen bekleyin...' : 'İlk etkinliğinizi oluşturmak için "Yeni Etkinlik" butonuna tıklayın.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="organizer-events__table-container">
+              <table className="organizer-events__table">
+                <thead className="organizer-events__table-header">
+                  <tr>
+                    <th>Etkinlik</th>
+                    <th>Kategori</th>
+                    <th>Tarih</th>
+                    <th>Mekan</th>
+                    <th>Durum</th>
+                    <th>İşlemler</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events
+                    .filter(event => event && event.id)
+                    .map(event => (
+                    <tr key={event.id} className="organizer-events__table-row">
+                      <td className="organizer-events__table-cell" data-label="Etkinlik">
+                        <div className="organizer-events__event-info">
+                          <p className="organizer-events__event-name">{String(event?.name || 'İsimsiz Etkinlik')}</p>
+                          <p className="organizer-events__event-city">{String(event?.city || '-')}</p>
+                        </div>
+                      </td>
+                      <td className="organizer-events__table-cell" data-label="Kategori">
+                        <span className="organizer-events__category">{getCategoryText(String(event?.category || ''))}</span>
+                      </td>
+                      <td className="organizer-events__table-cell" data-label="Tarih">
+                        <p className="organizer-events__event-date">{event?.startDate ? formatDate(String(event.startDate)) : '-'}</p>
+                      </td>
+                      <td className="organizer-events__table-cell" data-label="Mekan">
+                        <div className="organizer-events__venue-info">
+                          <p className="organizer-events__venue-name">{String(event?.venue || '-')}</p>
+                          <p className="organizer-events__venue-address">{String(event?.address || '-')}</p>
+                        </div>
+                      </td>
+                      <td className="organizer-events__table-cell" data-label="Durum">
+                        <span className={`organizer-events__status organizer-events__status--${getStatusClass(String(event?.status || 'DRAFT'))}`}>
+                          {getStatusText(String(event?.status || 'DRAFT'))}
+                        </span>
+                      </td>
+                      <td className="organizer-events__table-cell" data-label="İşlemler">
+                        <div className="organizer-events__actions">
+                          {/* Show edit action only for organizer's own events */}
+                          {user?.id === String(event.organizerId) && (
+                            <Link
+                              to={`/organizer/events/${event.id}/edit`}
+                              state={{ event }}
+                              className="organizer-events__action-link"
+                            >
+                              Düzenle
+                            </Link>
+                          )}
+                          <Link
+                            to={`/events/${event.id}/chat`}
+                            className="organizer-events__action-link organizer-events__action-link--chat"
+                          >
+                            💬 Sohbet
+                          </Link>
+                          {/* Show statistics action only for organizer's own events */}
+                          {user?.id === String(event.organizerId) && (
+                            <Link
+                              to={`/organizer?eventId=${event.id}`}
+                              className="organizer-events__action-link organizer-events__action-link--secondary"
+                            >
+                              📊 İstatistik
+                            </Link>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="organizer-events__pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="organizer-events__pagination-button"
+                >
+                  Önceki
+                </button>
+                
+                <div className="organizer-events__pagination-info">
+                  <span>{currentPage} / {totalPages}</span>
+                  <span className="organizer-events__pagination-total">({totalEvents} etkinlik)</span>
+                </div>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className="organizer-events__pagination-button"
+                >
+                  Sonraki
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="organizer-events-wrapper">
+      <div className="organizer-events organizer-events--desktop">
+        {content}
+      </div>
+      <MobileLayout title="Etkinliklerim">
+        {content}
+      </MobileLayout>
     </div>
   );
 };

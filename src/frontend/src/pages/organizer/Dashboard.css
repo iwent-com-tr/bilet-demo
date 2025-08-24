@@ -684,6 +684,18 @@
     width: 100vw;
     padding: 0 16px;
   }
+
+  .organizer-dashboard__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .organizer-dashboard__create-button {
+    width: 100%;
+    justify-content: center;
+    padding: 16px;
+  }
   
   .organizer-dashboard__event-selector,
   .organizer-dashboard__stat-card,
@@ -697,5 +709,15 @@
   
   .organizer-dashboard__actions {
     gap: 12px;
+    flex-direction: column;
+  }
+
+  .organizer-dashboard__action-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .organizer-dashboard__quick-stats {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
