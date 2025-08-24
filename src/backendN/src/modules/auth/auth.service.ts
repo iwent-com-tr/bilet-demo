@@ -259,4 +259,63 @@ export class AuthService {
     
     return user;
   }
+  
+  static async getOrganizerById(organizerId: string) {
+    const organizer = await prisma.organizer.findUnique({ 
+      where: { id: organizerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        company: true,
+        phone: true,
+        phoneVerified: true,
+        avatar: true,
+        email: true,
+        approved: true,
+        taxNumber: true,
+        taxOffice: true,
+        address: true,
+        bankAccount: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!organizer) {
+      const err: any = new Error('organizer not found');
+      err.status = 404; err.code = 'ORGANIZER_NOT_FOUND';
+      throw err;
+    }
+    
+    return organizer;
+  }
+  
+  static async getProfileById(id: string, userType?: string) {
+    // Try to get user first
+    try {
+      const user = await this.getUserById(id);
+      return { type: 'user', data: user };
+    } catch (userError: any) {
+      if (userError.code !== 'USER_NOT_FOUND') {
+        throw userError;
+      }
+    }
+    
+    // If user not found, try organizer
+    try {
+      const organizer = await this.getOrganizerById(id);
+      return { type: 'organizer', data: organizer };
+    } catch (organizerError: any) {
+      if (organizerError.code !== 'ORGANIZER_NOT_FOUND') {
+        throw organizerError;
+      }
+    }
+    
+    // Neither found
+    const err: any = new Error('profile not found');
+    err.status = 404; err.code = 'PROFILE_NOT_FOUND';
+    throw err;
+  }
 }

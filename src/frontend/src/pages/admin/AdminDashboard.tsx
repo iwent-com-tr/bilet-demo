@@ -41,10 +41,13 @@ const AdminDashboard: React.FC = () => {
             <p>Manage organizers, approvals, and events</p>
           </Link>
           
-          <div className="bg-gray-600 text-gray-300 p-6 rounded-lg text-center">
+          <Link 
+            to="/admin/events" 
+            className="bg-green-600 hover:bg-green-700 text-white p-6 rounded-lg transition-colors text-center"
+          >
             <h3 className="text-xl font-semibold mb-2">Event Management</h3>
-            <p>Coming soon</p>
-          </div>
+            <p>List, filter and export events</p>
+          </Link>
           
           <div className="bg-gray-600 text-gray-300 p-6 rounded-lg text-center">
             <h3 className="text-xl font-semibold mb-2">Analytics</h3>

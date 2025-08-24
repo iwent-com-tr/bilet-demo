@@ -20,6 +20,7 @@ import { initMeili } from './lib/meili';
 import { populateEvents } from './lib/event-populator';
 import settingsRoutes from './modules/settings/settings.routes';
 import adminUserRoutes from './modules/admin/users.routes';
+import adminEventRoutes from './modules/admin/event.routes';
 import { adminApiLimiter } from './middlewares/rateLimiter';
 dotenv.config();
 
@@ -62,6 +63,7 @@ app.use(`${API_PREFIX}/tickets`, ticketRoutes);
 app.use(`${API_PREFIX}/friendships`, friendshipRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
+app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));

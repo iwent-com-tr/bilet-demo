@@ -37,6 +37,8 @@ import UserList from './pages/admin/UserList';
 import UserDetail from './pages/admin/UserDetail';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import OrganizerList from './pages/admin/OrganizerList';
+import AdminEventList from './pages/admin/EventList';
+import AdminEventDetail from './pages/admin/EventDetail';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -176,6 +178,16 @@ const App: React.FC = () => {
             <Route path="/admin/organizers/:id" element={
               <ProtectedRoute requiredRole="ADMIN">
                 <OrganizerDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/events" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminEventList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/events/:id" element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminEventDetail />
               </ProtectedRoute>
             } />
           </Route>
