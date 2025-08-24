@@ -58,7 +58,7 @@ model Organizer {
   address       String?
   bankAccount   String?
   lastLogin     DateTime?
-  approved      Boolean   @default(false)   // kept conservative default (was true in one source, false in another)
+  approved      Boolean   @default(true)
   devices       Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -546,6 +546,7 @@ model Venue {
   capacity         Int?
   seatedCapacity   Int?
   standingCapacity Int?
+  socialMedia       Json?           @default("{}")
   accessibility    Json? // {"wheelchair": true, "parking": true}
   address          String?
   city             String?

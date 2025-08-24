@@ -1,0 +1,81 @@
+.venues-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.venues-detail__approved-wrapper{
+    position: relative;
+    left: 0px;
+    top: 0px;
+    z-index: 1;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+}
+
+.venues-detail__approved-wrapper img{
+    width: 40px;
+    height: 40px;
+}
+
+.venues-detail__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.venue-banner-wrapper {
+    position: relative;
+    width: 300px;      /* Make sure width = height for perfect circle */
+    height: 300px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+}
+
+.venue-banner {
+    width: 100%;       /* Full width of the wrapper */
+    height: 100%;      /* Full height of the wrapper */
+    object-fit: cover; /* Ensures the image fills the circle */
+    
+}
+
+.venue-detail__name {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 16px 0;
+    text-align: center;
+}
+
+.venue-stats {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.venue-details-text {
+    font-size: 16px;
+    text-align: center;
+    margin: 8px 24px;
+    line-height: 1.4;
+    color: #808080;
+    font-weight: 900;
+}
+
+.venue-additional {
+    color: var(--active-green);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 16px 0;
+    text-align: center;
+}

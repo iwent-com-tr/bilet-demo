@@ -22,7 +22,20 @@ export class VenuesService {
       }
     
       static async findBySlug(slug: string) {
-        const venue = await prisma.event.findFirst({ where: { slug, deletedAt: null } });
+        console.log(slug);
+        const venue = await prisma.venue.findFirst({ 
+          where: {
+             slug,
+            deletedAt: null 
+            },
+            include: {
+              events: {
+                select: {
+                  id: true
+                }
+              }
+            } 
+        });
         if (!venue) {
           const e: any = new Error('venue not found');
           e.status = 404; e.code = 'NOT_FOUND';

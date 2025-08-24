@@ -36,6 +36,7 @@ import CalendarPage from './pages/Calendar';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
+import VenuesDetail from 'pages/venues/VenuesDetail';
 
 const App: React.FC = () => {
   return (
@@ -54,6 +55,7 @@ const App: React.FC = () => {
             <Route path="/register/organizer" element={<OrganizerRegister />} />
             <Route path="/search" element={<Search />} />
             <Route path='/search/:query' element={<Search />} />
+            <Route path="/venues/:slug" element={<VenuesDetail />} />
           </Route>
 
           {/* User Routes */}
