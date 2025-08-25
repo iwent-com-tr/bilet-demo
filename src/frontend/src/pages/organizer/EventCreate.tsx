@@ -336,7 +336,8 @@ const OrganizerEventCreate: React.FC = () => {
       capacity: '',
       newTicketType: '',
       newTicketPrice: '',
-      newTicketCapacity: ''
+      newTicketCapacity: '',
+      artists: [],
     },
     validationSchema: Yup.object({
       name: Yup.string()
@@ -419,7 +420,10 @@ const OrganizerEventCreate: React.FC = () => {
           description: (values as any).description,
           capacity: parseInt((values as any).capacity),
           ticketTypes: ticketTypes,
-          details: categoryDetails
+          details: categoryDetails,
+          ...(((values as any).category === "CONCERT" || (values as any).category === "PERFORMANCE" || (values as any).category === "FESTIVAL") && {
+            artists: (categoryDetails as any)?.artistList?.map((artist: any) => artist.name) || []
+          })
         }, {
           headers: {
             'Authorization': `Bearer ${token}`,

@@ -11,7 +11,7 @@ const MobileHeader: React.FC = () => {
     <div className="mobile-header">
       <h1 className="mobile-header__greeting">
         <img src={greetingEmoji} alt="Greeting" className="mobile-header__greeting-emoji" />
-        Günaydın, {firstName}
+        {}, {firstName}
       </h1>
     </div>
   );

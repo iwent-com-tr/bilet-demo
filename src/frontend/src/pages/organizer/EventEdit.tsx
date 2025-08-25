@@ -166,6 +166,8 @@ const categories = [
 ];
 
 const OrganizerEventEdit: React.FC = () => {
+  const API_BASE_URL = process.env.REACT_APP_API_URL as string | undefined;
+
   const { id } = useParams<{ id: string }>();
   const { user, isAuthenticated, isOrganizer, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -178,6 +180,174 @@ const OrganizerEventEdit: React.FC = () => {
   const [categoryDetails, setCategoryDetails] = useState<CategoryDetails>(null);
   const [arrayInputs, setArrayInputs] = useState<{[key: string]: string}>({});
   const moduleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // VENUE SUGGESTIONS
+    const [venueSuggestions, setVenueSuggestions] = useState<any[]>([]);
+    const [isVenueDropdownOpen, setIsVenueDropdownOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(-1);
+    const debounceRef = React.useRef<number | null>(null);
+    const selectedVenueRef = React.useRef<any | null>(null); // optionally keep selected venue object
+  
+    const fetchVenueSuggestions = async (query: string) => {
+      if (!API_BASE_URL || !query || query.trim().length === 0) {
+        setVenueSuggestions([]);
+        setIsVenueDropdownOpen(false);
+        return;
+      }
+  
+      try {
+        const res = await axios.get(`${API_BASE_URL}/venues`, {
+          params: { q: query, limit: 10 }
+        });
+        const list = res.data?.data || res.data || [];
+        setVenueSuggestions(list);
+        setIsVenueDropdownOpen(list.length > 0);
+        setHighlightedIndex(-1);
+      } catch (err) {
+        // non-blocking
+        setVenueSuggestions([]);
+        setIsVenueDropdownOpen(false);
+      }
+    };
+  
+    const handleVenueInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      // update formik value (so validations still work)
+      formik.setFieldValue('venue', value);
+      // clear selectedVenueRef if user typed after selection
+      selectedVenueRef.current = null;
+  
+      // debounce the search
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = window.setTimeout(() => {
+        fetchVenueSuggestions(value);
+      }, 300);
+    };
+  
+    const handleSelectVenue = (venue: any) => {
+      // When user selects suggestion, write the *display* value to Formik
+      // optionally store venue id somewhere (e.g. formik.setFieldValue('venueId', venue.id))
+      formik.setFieldValue('venue', venue.name ?? venue.title ?? '');
+      selectedVenueRef.current = venue;
+      setVenueSuggestions([]);
+      setIsVenueDropdownOpen(false);
+      setHighlightedIndex(-1);
+    };
+  
+    const handleVenueKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!isVenueDropdownOpen || venueSuggestions.length === 0) return;
+  
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(i => Math.min(i + 1, venueSuggestions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(i => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < venueSuggestions.length) {
+          handleSelectVenue(venueSuggestions[highlightedIndex]);
+        } else if (venueSuggestions.length === 1) {
+          handleSelectVenue(venueSuggestions[0]);
+        }
+      } else if (e.key === 'Escape') {
+        setIsVenueDropdownOpen(false);
+      }
+    };
+  
+    // close dropdown after blur but allow click on suggestion -> short timeout
+    const handleVenueBlur = () => {
+      window.setTimeout(() => {
+        setIsVenueDropdownOpen(false);
+      }, 150);
+    };
+  
+    // ARTIST SUGGESTIONS (shared for concert/festival/performance)
+    const [artistSuggestions, setArtistSuggestions] = useState<any[]>([]);
+    const [isArtistDropdownOpen, setIsArtistDropdownOpen] = useState(false);
+    const [artistHighlightedIndex, setArtistHighlightedIndex] = useState(-1);
+    const artistDebounceRef = React.useRef<number | null>(null);
+    const artistActiveField = useState<string | null>(null)[0]; // placeholder, we'll use a setter below instead
+    const [currentArtistField, setCurrentArtistField] = useState<string | null>(null);
+    const selectedArtistRefs = React.useRef<{[key:string]: any}>({});
+  
+    const fetchArtistSuggestions = async (query: string) => {
+      if (!API_BASE_URL || !query || query.trim().length === 0) {
+        setArtistSuggestions([]);
+        setIsArtistDropdownOpen(false);
+        return;
+      }
+  
+      try {
+        const res = await axios.get(`${API_BASE_URL}/artists`, {
+          params: { q: query, limit: 10 }
+        });
+        const list = res.data?.data || res.data || [];
+        setArtistSuggestions(list);
+        setIsArtistDropdownOpen(list.length > 0);
+        setArtistHighlightedIndex(-1);
+      } catch (err) {
+        setArtistSuggestions([]);
+        setIsArtistDropdownOpen(false);
+      }
+    };
+  
+    const handleArtistInputChange = (field: string, value: string) => {
+      updateArrayInput(field, value);
+      // clear selected artist if user typed after selection
+      selectedArtistRefs.current[field] = null;
+      setCurrentArtistField(field);
+  
+      if (artistDebounceRef.current) {
+        window.clearTimeout(artistDebounceRef.current);
+      }
+      artistDebounceRef.current = window.setTimeout(() => {
+        fetchArtistSuggestions(value);
+      }, 300);
+    };
+  
+    const handleSelectArtist = (field: string, artist: any) => {
+      // add to the category array (artist.name assumed)
+      addArrayItem(field, artist.name ?? artist.title ?? '');
+      updateArrayInput(field, '');
+      selectedArtistRefs.current[field] = artist;
+      setArtistSuggestions([]);
+      setIsArtistDropdownOpen(false);
+      setArtistHighlightedIndex(-1);
+      setCurrentArtistField(null);
+    };
+  
+    const handleArtistKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, field: string) => {
+      if (!isArtistDropdownOpen || artistSuggestions.length === 0 || currentArtistField !== field) return;
+  
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setArtistHighlightedIndex(i => Math.min(i + 1, artistSuggestions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setArtistHighlightedIndex(i => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (artistHighlightedIndex >= 0 && artistHighlightedIndex < artistSuggestions.length) {
+          handleSelectArtist(field, artistSuggestions[artistHighlightedIndex]);
+        } else if (artistSuggestions.length === 1) {
+          handleSelectArtist(field, artistSuggestions[0]);
+        }
+      } else if (e.key === 'Escape') {
+        setIsArtistDropdownOpen(false);
+      }
+    };
+  
+    const handleArtistBlur = (field: string) => {
+      // small timeout to allow click selection
+      window.setTimeout(() => {
+        setIsArtistDropdownOpen(false);
+        setCurrentArtistField(null);
+      }, 150);
+    };
+  
 
   // Scroll to module function
   const scrollToModule = (hash: string) => {
@@ -275,7 +445,8 @@ const OrganizerEventEdit: React.FC = () => {
         description: eventData.description || '',
         capacity: eventData.capacity || 0,
         ticketTypes: Array.isArray(ticketTypes) ? ticketTypes : [],
-        status: eventData.status || ''
+        status: eventData.status || '',
+        artists: eventData.artists || [],
       });
 
       // Set banner preview if exists
@@ -583,19 +754,21 @@ const OrganizerEventEdit: React.FC = () => {
     const currentArray = (categoryDetails as any)?.[field] || [];
     const inputValue = arrayInputs[field] || '';
 
+    const isArtistField = ['artistList', 'lineup', 'performers'].includes(field);
+
     return (
-      <div className="event-edit__array-field">
-        <h4 className="event-edit__array-title">{title}</h4>
-        {description && <p className="event-edit__array-description">{description}</p>}
+      <div className="event-create__array-field">
+        <h4 className="event-create__array-title">{title}</h4>
+        {description && <p className="event-create__array-description">{description}</p>}
         
-        <div className="event-edit__array-list">
+        <div className="event-create__array-list">
           {currentArray.map((item: string, index: number) => (
-            <div key={index} className="event-edit__array-item">
-              <span className="event-edit__array-item-text">{item}</span>
+            <div key={index} className="event-create__array-item">
+              <span className="event-create__array-item-text">{item}</span>
               <button
                 type="button"
                 onClick={() => removeArrayItem(field, index)}
-                className="event-edit__array-remove"
+                className="event-create__array-remove"
               >
                 ×
               </button>
@@ -603,15 +776,38 @@ const OrganizerEventEdit: React.FC = () => {
           ))}
         </div>
 
-        <div className="event-edit__array-add">
+        <div className="event-create__array-add" style={{ position: 'relative' }}>
           <input
             type="text"
             value={inputValue}
-            onChange={(e) => updateArrayInput(field, e.target.value)}
+            onChange={(e) => {
+              if (isArtistField) {
+                handleArtistInputChange(field, e.target.value);
+              } else {
+                updateArrayInput(field, e.target.value);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (isArtistField) {
+                handleArtistKeyDown(e as any, field);
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                addArrayItemWithInput(field);
+              }
+            }}
+            onFocus={() => {
+              if (isArtistField && artistSuggestions.length > 0) {
+                setIsArtistDropdownOpen(true);
+                setCurrentArtistField(field);
+              }
+            }}
+            onBlur={() => {
+              if (isArtistField) handleArtistBlur(field);
+            }}
             placeholder={placeholder}
-            className="event-edit__array-input"
+            className="event-create__array-input"
             onKeyPress={(e) => {
-              if (e.key === 'Enter') {
+              if (!isArtistField && e.key === 'Enter') {
                 e.preventDefault();
                 addArrayItemWithInput(field);
               }
@@ -620,10 +816,54 @@ const OrganizerEventEdit: React.FC = () => {
           <button
             type="button"
             onClick={() => addArrayItemWithInput(field)}
-            className="event-edit__array-add-button"
+            className="event-create__array-add-button"
           >
             Ekle
           </button>
+
+          {/* Artist suggestions dropdown (shared) */}
+          {isArtistField && currentArtistField === field && isArtistDropdownOpen && artistSuggestions.length > 0 && (
+            <ul
+              role="listbox"
+              className="event-create__venue-suggestions"
+              style={{
+                position: 'absolute',
+                zIndex: 30,
+                left: 0,
+                right: 0,
+                marginTop: 6,
+                maxHeight: 220,
+                overflowY: 'auto',
+                background: '#111',
+                borderRadius: 8,
+                boxShadow: '0 6px 18px rgba(0,0,0,0.5)',
+                padding: 8,
+              }}
+            >
+              {artistSuggestions.map((a, idx) => (
+                <li
+                  key={a.id ?? `${a.name}-${idx}`}
+                  role="option"
+                  aria-selected={artistHighlightedIndex === idx}
+                  onMouseDown={(ev) => { ev.preventDefault(); handleSelectArtist(field, a); }}
+                  onMouseEnter={() => setArtistHighlightedIndex(idx)}
+                  className={`event-create__venue-suggestion ${artistHighlightedIndex === idx ? 'event-create__venue-suggestion--highlighted' : ''}`}
+                  style={{
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    borderRadius: 6,
+                    background: artistHighlightedIndex === idx ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>{a.name ?? a.title ?? '—'}</span>
+                  {a.genre && <small style={{ opacity: 0.7 }}>{a.genre}</small>}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     );
@@ -907,6 +1147,7 @@ const OrganizerEventEdit: React.FC = () => {
     capacity: number;
     ticketTypes: TicketType[];
     status: string;
+    artists: string[];
   }>({
     initialValues: {
       name: '',
@@ -925,7 +1166,8 @@ const OrganizerEventEdit: React.FC = () => {
       description: '',
       capacity: 0,
       ticketTypes: [],
-      status: ''
+      status: '',
+      artists: [],
     },
     validationSchema: Yup.object({
       name: Yup.string()
@@ -1006,7 +1248,10 @@ const OrganizerEventEdit: React.FC = () => {
         // Add category details to the final values
         const dataToSend = {
           ...finalValues,
-          details: categoryDetails
+          details: categoryDetails,
+          ...(((values as any).category === "CONCERT" || (values as any).category === "PERFORMANCE" || (values as any).category === "FESTIVAL") && {
+            artists: (categoryDetails as any)?.artistList?.map((artist: any) => artist.name) || []
+          })
         };
 
         await axios.patch(`${process.env.REACT_APP_API_URL}/events/${id}`, dataToSend, {
@@ -1171,23 +1416,83 @@ const OrganizerEventEdit: React.FC = () => {
           >
             <h2 className="event-edit__section-title">Konum Bilgileri</h2>
             <div className="event-edit__grid">
-              <div className="event-edit__field">
-                <label htmlFor="venue" className="event-edit__label">
+              <div className="event-create__field" style={{ position: 'relative' }}>
+                <label htmlFor="venue" className="event-create__label">
                   Etkinlik Yeri
                 </label>
                 <input
                   type="text"
                   id="venue"
-                  {...formik.getFieldProps('venue')}
-                  className={`event-edit__input ${
-                    formik.touched.venue && formik.errors.venue ? 'event-edit__input--error' : ''
+                  value={formik.values.venue}
+                  onChange={handleVenueInputChange}
+                  onKeyDown={handleVenueKeyDown}
+                  onFocus={() => {
+                    if (venueSuggestions.length > 0) setIsVenueDropdownOpen(true);
+                  }}
+                  onBlur={handleVenueBlur}
+                  className={`event-create__input ${
+                    formik.touched.venue && formik.errors.venue ? 'event-create__input--error' : ''
                   }`}
                   placeholder="Örn: Zorlu PSM"
+                  aria-autocomplete="list"
+                  aria-expanded={isVenueDropdownOpen}
+                  aria-haspopup="listbox"
+                  autoComplete="off"
                 />
                 {formik.touched.venue && formik.errors.venue && (
-                  <span className="event-edit__error">{formik.errors.venue}</span>
+                  <span className="event-create__error">{formik.errors.venue}</span>
+                )}
+
+                {isVenueDropdownOpen && venueSuggestions.length > 0 && (
+                  <ul
+                    role="listbox"
+                    className="event-create__venue-suggestions"
+                    style={{
+                      position: 'absolute',
+                      zIndex: 30,
+                      left: 0,
+                      right: 0,
+                      marginTop: 32,
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                      background: '#111', // tweak to match your UI
+                      borderRadius: 8,
+                      boxShadow: '0 6px 18px rgba(0,0,0,0.5)',
+                      padding: 8,
+                    }}
+                  >
+                    {venueSuggestions.map((v, idx) => (
+                      <li
+                        key={v.id ?? `${v.name}-${idx}`}
+                        role="option"
+                        aria-selected={highlightedIndex === idx}
+                        onMouseDown={(ev) => {
+                          // mouseDown because blur happens before click; prevents losing the selection
+                          ev.preventDefault();
+                          handleSelectVenue(v);
+                        }}
+                        onMouseEnter={() => setHighlightedIndex(idx)}
+                        className={`event-create__venue-suggestion ${
+                          highlightedIndex === idx ? 'event-create__venue-suggestion--highlighted' : ''
+                        }`}
+                        style={{
+                          padding: '8px 10px',
+                          cursor: 'pointer',
+                          borderRadius: 6,
+                          background: highlightedIndex === idx ? 'rgba(255,255,255,0.04)' : 'transparent',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <span style={{ fontSize: 14 }}>{v.name ?? v.title ?? '—'}</span>
+                        {v.city && <small style={{ opacity: 0.7 }}>{v.city}</small>}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
+              
 
               <div className="event-edit__field">
                 <label htmlFor="city" className="event-edit__label">
