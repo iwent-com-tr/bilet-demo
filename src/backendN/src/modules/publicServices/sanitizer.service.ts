@@ -1,3 +1,4 @@
+import { id } from "zod/v4/locales/index.cjs";
 import { eventIndex } from "../../lib/meili";
 import { approve } from "../organizer/organizer.controller";
 
@@ -115,6 +116,7 @@ export function sanitizeOrganizer(o: any) {
 
 export function sanitizePublicOrganizer(o: any) {
   return {
+    id: o.id,
     firstName: o.firstName,
     lastName: o.lastName,
     company: o.company,

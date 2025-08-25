@@ -38,6 +38,7 @@ import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
+import OrganizerDetails from 'pages/organizer/organizer 3rd view/OrganizerDetails';
 
 const App: React.FC = () => {
   return (
@@ -130,6 +131,9 @@ const App: React.FC = () => {
               <ProtectedRoute requiredRole="organizer">
                 <OrganizerProfile />
               </ProtectedRoute>
+            } />
+            <Route path="/organizer/:id" element={
+              <OrganizerDetails />
             } />
             <Route path="/organizer/devices" element={
               <ProtectedRoute requiredRole="organizer">
