@@ -39,6 +39,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import OrganizerList from './pages/admin/OrganizerList';
 import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
+import { PushNotificationDemo } from 'pages/PushNotificationDemo';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -61,6 +62,7 @@ const App: React.FC = () => {
             <Route path="/register/organizer" element={<OrganizerRegister />} />
             <Route path="/search" element={<Search />} />
             <Route path='/search/:query' element={<Search />} />
+            <Route path="/push-notification-demo" element={<PushNotificationDemo />} />
           </Route>
 
           {/* User Routes */}

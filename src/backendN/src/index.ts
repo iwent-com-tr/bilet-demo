@@ -21,6 +21,7 @@ import { populateEvents } from './lib/event-populator';
 import settingsRoutes from './modules/settings/settings.routes';
 import adminUserRoutes from './modules/admin/users.routes';
 import adminEventRoutes from './modules/admin/event.routes';
+import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
 import { adminApiLimiter } from './middlewares/rateLimiter';
 dotenv.config();
 
@@ -62,6 +63,8 @@ app.use(`${API_PREFIX}/events`, eventRoutes);
 app.use(`${API_PREFIX}/tickets`, ticketRoutes);
 app.use(`${API_PREFIX}/friendships`, friendshipRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+app.use(`${API_PREFIX}/push`, pushNotificationRoutes);
+app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
 app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
