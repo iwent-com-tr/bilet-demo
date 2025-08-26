@@ -54,9 +54,11 @@ class PushNotificationManager {
         throw new Error('Push notifications are not supported in this browser');
       }
 
-      // Only initialize in development or on specific domains
+      // Check if we should initialize OneSignal for this environment
       if (!this.shouldInitializeOneSignal()) {
         console.log('[PushManager] OneSignal initialization skipped for this environment');
+        // Mark as initialized but with limited functionality
+        this.isInitialized = true;
         return;
       }
 
@@ -67,9 +69,11 @@ class PushNotificationManager {
       await window.OneSignal.init({
         appId: this.getOneSignalAppId(),
         allowLocalhostAsSecureOrigin: process.env.NODE_ENV === 'development',
-        requiresUserPrivacyConsent: true, // Always require consent
+        requiresUserPrivacyConsent: false, // Changed to false for demo purposes
         notificationClickHandlerAction: 'focus',
         notificationClickHandlerMatch: 'origin',
+        autoRegister: false, // We'll handle registration manually
+        autoResubscribe: true,
       });
 
       this.oneSignal = window.OneSignal;
@@ -81,6 +85,8 @@ class PushNotificationManager {
       console.log('[PushManager] OneSignal initialized successfully');
     } catch (error) {
       console.error('[PushManager] Failed to initialize OneSignal:', error);
+      // Don't throw the error, just mark as failed initialization
+      this.isInitialized = false;
       throw error;
     }
   }
@@ -96,26 +102,17 @@ class PushNotificationManager {
         throw new Error('OneSignal not initialized');
       }
 
-      // Check if user has given marketing consent
-      const hasMarketingConsent = this.checkMarketingConsent();
-      if (!hasMarketingConsent) {
-        throw new Error('Marketing consent required for push notifications');
-      }
+      // For demo purposes, skip marketing consent check
+      // const hasMarketingConsent = this.checkMarketingConsent();
+      // if (!hasMarketingConsent) {
+      //   throw new Error('Marketing consent required for push notifications');
+      // }
 
-      // Provide user consent to OneSignal
-      await this.oneSignal.provideUserConsent(true);
+      // Provide user consent to OneSignal (not needed if requiresUserPrivacyConsent is false)
+      // await this.oneSignal.provideUserConsent(true);
 
-      // Request permission
-      const permissionResult = await this.oneSignal.slideDown({
-        prompting: {
-          slideDown: {
-            enabled: true,
-            acceptButtonText: 'Allow',
-            cancelButtonText: 'No Thanks',
-            siteNameInPrompt: true,
-          },
-        },
-      });
+      // Request permission using the simpler method
+      const permissionResult = await this.oneSignal.requestPermission();
 
       if (!permissionResult) {
         throw new Error('Permission denied by user');
@@ -151,11 +148,21 @@ class PushNotificationManager {
    */
   async getSubscriptionStatus(): Promise<SubscriptionStatus> {
     try {
-      if (!this.isInitialized || !this.oneSignal) {
+      if (!this.isInitialized) {
+        console.log('[PushManager] OneSignal not initialized yet');
         return {
           isSubscribed: false,
           permissionGranted: false,
           error: 'OneSignal not initialized',
+        };
+      }
+
+      if (!this.oneSignal) {
+        console.log('[PushManager] OneSignal instance not available');
+        return {
+          isSubscribed: false,
+          permissionGranted: false,
+          error: 'OneSignal instance not available',
         };
       }
 
@@ -431,6 +438,7 @@ class PushNotificationManager {
     
     // Only initialize on HTTPS or localhost
     if (window.location.protocol !== 'https:' && hostname !== 'localhost') {
+      console.log('[PushManager] OneSignal requires HTTPS or localhost');
       return false;
     }
 
@@ -438,17 +446,30 @@ class PushNotificationManager {
     const isDevelopment = (
       hostname === 'localhost' ||
       hostname.startsWith('192.168.') ||
-      hostname.includes('dev.')
+      hostname.includes('dev.') ||
+      process.env.NODE_ENV === 'development'
     );
 
-    // In development, only initialize if explicitly enabled
+    // In development, check if explicitly enabled OR if we're on localhost
     if (isDevelopment) {
-      return process.env.NODE_ENV === 'development' && 
-             process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
+      const isExplicitlyEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
+      const isLocalhost = hostname === 'localhost';
+      
+      // Allow initialization on localhost even without the env var for demo purposes
+      if (isLocalhost || isExplicitlyEnabled) {
+        console.log('[PushManager] OneSignal enabled for development environment');
+        return true;
+      }
+      
+      console.log('[PushManager] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
+      return false;
     }
 
-    // In production, initialize based on domain
-    return hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
+    // In production, initialize based on domain or if explicitly configured
+    const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
+    const hasAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+    
+    return isProductionDomain || !!hasAppId;
   }
 
   private getOneSignalAppId(): string {

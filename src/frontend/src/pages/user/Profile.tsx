@@ -20,6 +20,7 @@ interface CityItem {
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<{ events: number; points: number; friends: number }>({ events: 0, points: 0, friends: 0 });
@@ -339,13 +340,21 @@ const Profile: React.FC = () => {
       </button>
     </form>
   );
-
   return (
     <div className="profile-page">
       {isMobile && <PageHeader title="Profilim" menuItems={[{
         label: 'Ayarlar',
         onClick: () => navigate('/user/settings'),
-      }]} />}
+      },
+      {
+        label: 'Bildirim Test',
+        onClick: () => navigate('/push-notification-demo'),
+      },
+      {
+        label: 'Çıkış Yap',
+        onClick: () => logout(),
+      }
+      ]} />}
       <div className="profile-mobile-content">
         {showSettings ? (
           renderSettingsForm()

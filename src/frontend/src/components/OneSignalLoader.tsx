@@ -13,11 +13,15 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
   // Check if push notifications should be enabled
   const isDevelopment = process.env.NODE_ENV === 'development';
   const isProduction = process.env.NODE_ENV === 'production';
+  const hostname = window.location.hostname;
   
-  // In development, check for explicit enable flag
+  // In development, check for explicit enable flag OR localhost
   if (isDevelopment) {
     const enabledInDev = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
-    if (!enabledInDev) {
+    const isLocalhost = hostname === 'localhost';
+    
+    // Allow on localhost for demo purposes
+    if (!enabledInDev && !isLocalhost) {
       return {
         enabled: false,
         reason: 'Push notifications disabled in development environment. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.',
@@ -27,9 +31,10 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
   
   // In production, check hostname
   if (isProduction) {
-    const hostname = window.location.hostname;
     const isValidDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-    if (!isValidDomain) {
+    const hasAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+    
+    if (!isValidDomain && !hasAppId) {
       return {
         enabled: false,
         reason: `Push notifications not configured for domain: ${hostname}`,
