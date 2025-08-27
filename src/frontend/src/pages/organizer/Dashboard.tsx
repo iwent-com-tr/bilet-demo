@@ -241,8 +241,8 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const calculateTicketUsagePercentage = () => {
-    if (!stats || stats.totalTickets === 0) return 0;
-    return stats.usageStats.usagePercentage;
+    if (!stats || stats.totalTickets === 0 || !stats.usageStats) return 0;
+    return stats.usageStats.usagePercentage || 0;
   };
 
   const getSelectedEventName = () => {
@@ -472,7 +472,9 @@ const OrganizerDashboard: React.FC = () => {
                 onChange={e => setSelectedEvent(e.target.value)}
                 className="organizer-dashboard__select"
               >
-                {events.map(event => (
+                {events
+                  .filter(event => event && event.id && event.name)
+                  .map(event => (
                   <option key={event.id} value={event.id}>
                     {String(event.name || 'İsimsiz Etkinlik')} - {event.startDate ? formatDate(String(event.startDate)) : '-'}
                   </option>
@@ -494,7 +496,7 @@ const OrganizerDashboard: React.FC = () => {
                   <div className="organizer-dashboard__quick-stat-icon">🎫</div>
                   <div className="organizer-dashboard__quick-stat-content">
                     <p className="organizer-dashboard__quick-stat-label">Kalan Bilet</p>
-                    <p className="organizer-dashboard__quick-stat-value">{stats.usageStats.remainingTickets}</p>
+                    <p className="organizer-dashboard__quick-stat-value">{stats.usageStats?.remainingTickets || 0}</p>
                   </div>
                 </div>
                 <div className="organizer-dashboard__quick-stat">
@@ -597,13 +599,15 @@ const OrganizerDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="organizer-dashboard__table-body">
-                      {stats.ticketTypeBreakdown.map((ticketType) => (
+                      {stats.ticketTypeBreakdown
+                        .filter(ticketType => ticketType && ticketType.type)
+                        .map((ticketType) => (
                         <tr key={ticketType.type}>
                           <td className="organizer-dashboard__ticket-type">{ticketType.type}</td>
-                          <td className="organizer-dashboard__ticket-sold">{ticketType.count}</td>
-                          <td className="organizer-dashboard__ticket-used">{ticketType.used}</td>
+                          <td className="organizer-dashboard__ticket-sold">{ticketType.count || 0}</td>
+                          <td className="organizer-dashboard__ticket-used">{ticketType.used || 0}</td>
                           <td className="organizer-dashboard__ticket-revenue">
-                            {formatCurrency(ticketType.revenue)}
+                            {formatCurrency(ticketType.revenue || 0)}
                           </td>
                         </tr>
                       ))}

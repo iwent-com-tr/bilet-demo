@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { OrganizerService, sanitizeOrganizer } from './organizer.service';
+import { OrganizerService } from './organizer.service';
 import { PhoneVerificationService } from '../users/phone-verification.service';
 import {
   ListOrganizersQueryDTO,
@@ -11,11 +11,21 @@ import {
   OrganizerEventsQueryDTO,
 } from './organizer.dto';
 
+import { sanitizeOrganizer, sanitizePublicOrganizer } from '../publicServices/sanitizer.service';
+
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const { page, limit, q } = ListOrganizersQueryDTO.parse(req.query);
     const result = await OrganizerService.list({ page, limit, q });
     res.json({ ...result, data: result.data.map(sanitizeOrganizer) });
+  } catch (e) { next(e); }
+}
+
+export async function listPublic(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { page, limit, q } = ListOrganizersQueryDTO.parse(req.query);
+    const result = await OrganizerService.listPublic({ page, limit, q });
+    res.json({ ...result, data: result.data.map(sanitizePublicOrganizer) });
   } catch (e) { next(e); }
 }
 

@@ -7,10 +7,13 @@ import * as ctrl from './organizer.controller';
 const r = Router();
 
 // Public list organizers — Admin only
-r.get('/', authGuard.required, rbac('ADMIN'), ctrl.list);
+r.get('/', authGuard.optional, rbac('ADMIN'), ctrl.list);
 
 // Public get organizer public profile by id (safe information only)
 r.get('/public/:id', ctrl.getPublicById);
+
+// Public get organizer for search
+r.get('/public/', authGuard.optional, ctrl.listPublic);
 
 // Admin creates an organizer account (separate from public register)
 r.post('/', authGuard.required, rbac('ADMIN'), ctrl.adminCreate);

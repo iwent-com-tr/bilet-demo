@@ -35,6 +35,10 @@ export const ListEventsQueryDTO = z.object({
     .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
   organizerId: z.string().uuid({ message: 'organizerId geçerli bir UUID olmalıdır.' }).optional(),
   status: z.enum(EventStatuses).optional(),
+  price: z.coerce.number().optional(),
+  distance: z.coerce.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
 });
 
 export const CreateEventDTO = z.object({
@@ -75,6 +79,8 @@ export const CreateEventDTO = z.object({
   details: z.record(z.string(), z.any()).optional(),
   // For admin to assign an organizer on creation; ignored for organizer self-create
   organizerId: z.string().uuid({ message: 'organizerId geçerli bir UUID olmalıdır.' }).optional(),
+  venueId: z.string().optional(),
+  artists: z.array(z.record(z.string(), z.any()).optional()),
 }).superRefine((data, ctx) => {
   if (data.endDate <= data.startDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'Bitiş tarihi başlangıç tarihinden sonra olmalıdır.' });
@@ -95,7 +101,6 @@ export const CreateEventDTO = z.object({
 
 export const UpdateEventDTO = z.object({
   name: z.string().min(2, { message: 'Etkinlik adı en az 2 karakter olmalıdır.' }).optional(),
-  // Category change is intentionally disallowed to avoid cross-table migrations
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   venue: z.string().min(2, { message: 'Mekan adı en az 2 karakter olmalıdır.' }).optional(),
@@ -127,26 +132,27 @@ export const UpdateEventDTO = z.object({
   }).refine((data) => data.capacity > 0, {
     message: 'Bilet kapasitesi pozitif tam sayı olmalıdır (capacity veya quota alanı).'
   })).optional(),
-  // Optional details update — shallow merge at service level per category table
   details: z.record(z.string(), z.any()).optional(),
   status: z.enum(EventStatuses).optional(),
+  venueId: z.string().optional(),
+  artists: z.array(z.record(z.string(), z.any()).optional()).optional(),
 }).superRefine((data, ctx) => {
   if (data.startDate && data.endDate && data.endDate <= data.startDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'Bitiş tarihi başlangıç tarihinden sonra olmalıdır.' });
   }
-  
-  // Validate ticket capacities against total event capacity (if both are provided)
+
   if (data.capacity && data.ticketTypes && data.ticketTypes.length > 0) {
     const totalTicketCapacity = data.ticketTypes.reduce((sum, ticket) => sum + ticket.capacity, 0);
     if (totalTicketCapacity > data.capacity) {
-      ctx.addIssue({ 
-        code: z.ZodIssueCode.custom, 
-        path: ['ticketTypes'], 
-        message: `Bilet kapasiteleri toplamı (${totalTicketCapacity}) etkinlik kapasitesini (${data.capacity}) aşamaz.` 
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ticketTypes'],
+        message: `Bilet kapasiteleri toplamı (${totalTicketCapacity}) etkinlik kapasitesini (${data.capacity}) aşamaz.`
       });
     }
   }
 });
+
 
 export type ListEventsQuery = z.infer<typeof ListEventsQueryDTO>;
 export type CreateEventInput = z.infer<typeof CreateEventDTO>;

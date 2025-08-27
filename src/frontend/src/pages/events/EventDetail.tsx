@@ -37,6 +37,10 @@ interface Event {
     stageSetup?: string;
     duration?: string;
   };
+  artists: Array<{
+    artistId: string;
+    time: string;
+  }>;
 }
 
 interface Organizer {
@@ -63,6 +67,7 @@ const EventDetail: React.FC = () => {
   const [participants, setParticipants] = useState<any[]>([]);
   const [userHasTicket, setUserHasTicket] = useState(false);
   const [checkingTickets, setCheckingTickets] = useState(false);
+  const [artists, setArtists] = useState<{ name: string; image: string; time?: string | null }[]>([]);
 
   useEffect(() => {
     fetchEvent();
@@ -88,6 +93,34 @@ const EventDetail: React.FC = () => {
       checkUserTickets();
     }
   }, [event, isAuthenticated]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!event) {
+        setArtists([]); // clear if no event
+        return;
+      }
+      try {
+        const resolved = await getArtists(); // getArtists defined below
+        if (mounted) setArtists(resolved);
+      } catch (err) {
+        console.error('Error loading artists:', err);
+        if (mounted) {
+          // keep fallback/demo artists in case of failure
+          setArtists([
+            { name: 'Santi & Tuğçe', image: '/placeholder-artist.jpg' },
+            { name: 'Okan Güven', image: '/placeholder-artist.jpg' },
+            { name: 'Ali Bakır', image: '/placeholder-artist.jpg' }
+          ]);
+        }
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [event]);
 
   const fetchEvent = async () => {
     try {
@@ -260,31 +293,37 @@ const EventDetail: React.FC = () => {
   };
 
   // Get artists from event details if it's a concert
-  const getArtists = () => {
-    if (event?.category === 'CONCERT' && event?.details?.artistList) {
-      return event.details.artistList.map((artist, index) => ({
-        name: typeof artist === 'string' ? artist : artist.name || 'Unknown Artist',
-        image: '/placeholder-artist.jpg',
-      }));
-    }
-    // For demo purposes, show some sample artists
-    return [
-      {
-        name: 'Santi & Tuğçe',
-        image: '/placeholder-artist.jpg',
-      },
-      {
-        name: 'Okan Güven',
-        image: '/placeholder-artist.jpg',
-      },
-      {
-        name: 'Ali Bakır',
-        image: '/placeholder-artist.jpg',
-      }
-    ];
-  };
+  const getArtists = async () => {
+  if (event?.artists?.length) {
+    return await Promise.all(
+      event.artists.map(async (a) => {
+        try {
+          // Fetch artist info based on artistId
+          const res = await axios.get(`${process.env.REACT_APP_API_URL}/artists/${a.artistId}`);
+          const data = await res.data.json();
+          return {
+            name: data.name || `Artist ${a.artistId}`,
+            image: data.imageUrl || '/placeholder-artist.jpg',
+            time: a.time
+          };
+        } catch {
+          return {
+            name: `Artist ${a.artistId}`,
+            image: '/placeholder-artist.jpg',
+            time: a.time
+          };
+        }
+      })
+    );
+  }
 
-  const artists = getArtists();
+  // --- Fallback to demo artists if no event.artists exist ---
+  return [
+    { name: 'Santi & Tuğçe', image: '/placeholder-artist.jpg', time: '' },
+    { name: 'Okan Güven', image: '/placeholder-artist.jpg', time: '' },
+    { name: 'Ali Bakır', image: '/placeholder-artist.jpg', time: '' }
+  ];
+};
 
   if (loading) {
     return (
@@ -368,6 +407,7 @@ const EventDetail: React.FC = () => {
                       </div>
                       <div className="event-detail__mobile-artist-info">
                         <span className="event-detail__mobile-artist-name">{artist.name}</span>
+                        <span className="event-detail__mobile-artist-time">{artist.time}</span>
                       </div>
                     </div>
                   ))}

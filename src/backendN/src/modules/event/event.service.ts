@@ -7,28 +7,9 @@ import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
 import { oneSignalService } from '../push-notification/onesignal.service';
 import { fi } from 'zod/v4/locales/index.cjs';
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-}
-
-async function generateUniqueSlug(base: string): Promise<string> {
-  const initial = slugify(base);
-  const existing = await prisma.event.findMany({
-    where: { slug: { startsWith: initial } },
-    select: { slug: true },
-  });
-  if (existing.length === 0) return initial;
-  const taken = new Set(existing.map((e: { slug: string }) => e.slug));
-  let i = 1;
-  while (taken.has(`${initial}-${i}`)) i += 1;
-  return `${initial}-${i}`;
-}
+import { generateUniqueEventSlug } from '../publicServices/slug.service';
+import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
+import { SearchService } from '../search/search.service';
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) {
   // Try MeiliSearch first, with database fallback for reliability
@@ -225,7 +206,7 @@ async function getCategoryDetails(eventId: string, category: typeof EVENT_CATEGO
 }
 
 async function generateCreateInfos(input: CreateEventInput) {
-  const slug = await generateUniqueSlug(`${input.name}`);
+  const slug = await generateUniqueEventSlug(`${input.name}`);
 
   const createInfoMeili = {
       name: input.name,
@@ -332,7 +313,17 @@ export class EventService {
   }
 
   static async findBySlug(slug: string) {
-    const event = await prisma.event.findFirst({ where: { slug, deletedAt: null } });
+    const event = await prisma.event.findFirst({
+      where: { slug, deletedAt: null },
+      include: {
+        artists: {
+          select: {
+            artistId: true,
+            time: true
+          }
+        }
+      }
+    });
     if (!event) {
       const e: any = new Error('event not found');
       e.status = 404; e.code = 'NOT_FOUND';
@@ -349,7 +340,7 @@ export class EventService {
       throw e;
     }
 
-    const [createInfoMeili, createInfoPrisma] = await generateCreateInfos(input);
+    const [createInfoMeili, createInfoPrisma] = await generateEventCreateInfos(input);
 
     const created = await prisma.event.create({
       data: createInfoPrisma as any, // ts ile uğraşmamak için
@@ -396,7 +387,13 @@ export class EventService {
       }
     }
 
-    const [updateInfoMeili, updateInfoPrisma] = await generateUpdateInfos(input);
+    const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
+
+    await prisma.eventArtist.deleteMany({
+      where: {
+        eventId: id,
+      }
+    })
 
     const updated = await prisma.event.update({
       where: { id },

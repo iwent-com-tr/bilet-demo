@@ -22,9 +22,13 @@ const eventCategories = [
 const FilterScreen: React.FC = () => {
 
     const [isFilterScreenOn, setIsFilterScreenOn] = useContext(SearchContext);
+
     const [activeDate, setActiveDate] = useState<any>(null);
     const [city, setCity] = useState<any>("");
     const [activeCategories, setActiveCategories] = useState<any>(Array(8).fill(false));
+    const [price, setPrice] = useState<any>(5000);
+    const [distance, setDistance] = useState<any>(500);
+
     const [resetPressed, setResetPressed] = useState(false);
     const [applyPressed, setApplyPressed] = useState(false);
 
@@ -59,16 +63,28 @@ const FilterScreen: React.FC = () => {
         });
     }
 
+    function handlePriceChange(event: any) {
+        const val = event.target.value.replace(/[^0-9.]/g, '');
+        setPrice(val);
+    }
+
+    function handleDistanceChange(event: any) {
+        const val = event.target.value.replace(/[^0-9.]/g, '');
+        setDistance(val);
+    }
+
     function handleResetClick() {
         setActiveDate(null);
         setCity("");
         setActiveCategories(Array(8).fill(false));
+        setPrice(5000);
+        setDistance(500);
     }
 
     function handleApplyClick() {
         let startDate = "", endDate = "";
 
-        if (activeDate) {
+        if (activeDate !== null) {
             const today = new Date();
             const tomorrow = new Date(today.getDate() + 1);
             const weekLater = new Date(today.getDate() + 7);
@@ -100,12 +116,14 @@ const FilterScreen: React.FC = () => {
 
         const f_city = city;
 
-        setFilters(p => ({
+        setFilters((p: any) => ({
             ...p,
             dateFrom: startDate,
             dateTo: endDate,
             category: category || "",
             city: f_city || "",
+            price: price || "",
+            distance: distance || ""
         }));
 
         setIsFilterScreenOn(false);
@@ -117,7 +135,7 @@ const FilterScreen: React.FC = () => {
         <div className={"filter-screen" + (!isFilterScreenOn ? " blocked" : "")}>
             <header className="filter-screen__header">
                 <button className="filter-screen__back-button">
-                    <img src={backIcon} alt="" onClick={() => setIsFilterScreenOn(false)} />
+                    <img src={backIcon} alt="" onClick={handleApplyClick} />
                 </button>
                 <h2 className="filter-screen__title">Arama Filtresi</h2>
             </header>
@@ -225,11 +243,75 @@ const FilterScreen: React.FC = () => {
                 </div>
             </div>
             <div className="filter-screen__price">
-                  <h1 className="filter-title">Fiyat (COMING SOON)</h1>
-            </div>
-            <div className="filter-screen__distance">
-                  <h1 className="filter-title">Uzaklık (COMING SOON)</h1>
-            </div>
+                <h1 className="filter-title">Fiyat</h1>
+
+                <div className="filter-screen__price-row">
+                    {/* numeric input on the left (a bit wider) */}
+                    <input
+                    type="text"
+                    value={price + "TL"}
+                    onChange={handlePriceChange}
+                    className="filter-screen__price-input"
+                    />
+
+                    {/* track container stretches to fill remaining space,
+                        contains the slider and its labels so they align perfectly */}
+                    <div className="filter-screen__price-track">
+                    <input
+                        type="range"
+                        min="0"
+                        max="5000"
+                        step={100}
+                        value={price}
+                        onChange={handlePriceChange}
+                        className="filter-screen__price-range"
+                        style={{
+                        background: `linear-gradient(to right, var(--active-green) ${(price / 5000) * 100}%, #ddd ${(price / 5000) * 100}%)`
+                        }}
+                    />
+
+                    <div className="filter-screen__price-labels">
+                        <span>0TL</span>
+                        <span>5.000TL</span>
+                    </div>
+                    </div>
+                </div>
+                </div>
+                <div className="filter-screen__price">
+                <h1 className="filter-title">Uzaklık</h1>
+
+                <div className="filter-screen__price-row">
+                    {/* numeric input on the left (a bit wider) */}
+                    <input
+                    type="text"
+                    value={distance + "KM"}
+                    onChange={handleDistanceChange}
+                    className="filter-screen__price-input"
+                    />
+
+                    {/* track container stretches to fill remaining space,
+                        contains the slider and its labels so they align perfectly */}
+                    <div className="filter-screen__price-track">
+                    <input
+                        type="range"
+                        min="0.5"
+                        max="500"
+                        step={0.5}
+                        value={distance}
+                        onChange={handleDistanceChange}
+                        className="filter-screen__price-range"
+                        style={{
+                        background: `linear-gradient(to right, var(--active-green) ${((distance - 0.5) / 499.5) * 100}%, #ddd ${((distance - 0.5) / 499.5) * 100}%)`
+                        }}
+                    />
+
+                    <div className="filter-screen__price-labels">
+                        <span>0.5KM</span>
+                        <span>500KM</span>
+                    </div>
+                    </div>
+                </div>
+                </div>
             <div className="filter-screen__buttons">
                 <button className={"filter-screen__reset-button" + (resetPressed ? " active" : "")}
                 onClick={handleResetClick}

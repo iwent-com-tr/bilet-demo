@@ -32,14 +32,18 @@ model User {
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
   deletedAt               DateTime?
-  blocksTo                Block[]                      @relation("Blocked")
-  blocksFrom              Block[]                      @relation("Blocker")
-  favorites               Favorite[]
+
+  /* Relations */
+  tickets                 Ticket[]
   friendshipsFrom         Friendship[]                 @relation("UserFrom")
   friendshipsTo           Friendship[]                 @relation("UserTo")
-  receivedMessages        PrivateMessage[]             @relation("Receiver")
   sentMessages            PrivateMessage[]             @relation("Sender")
-  tickets                 Ticket[]
+  receivedMessages        PrivateMessage[]             @relation("Receiver")
+  blocksFrom              Block[]                      @relation("Blocker")
+  blocksTo                Block[]                      @relation("Blocked")
+  favoriteEvents          FavoriteEvent[]
+  favoriteArtists         FavoriteArtist[]
+  favoriteVenues          FavoriteVenue[]
   notificationPreferences UserNotificationPreference[]
   settings                UserSetting[]
   socialAccounts          UserSocialAccount[]
@@ -71,12 +75,16 @@ model Organizer {
   address       String?
   bankAccount   String?
   lastLogin     DateTime?
-  approved      Boolean   @default(true) // Indicates if the organizer is approved by admins
+  approved      Boolean   @default(false)   // kept conservative default (was true in one source, false in another)
   devices       Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
+
+  /* Relations */
   events        Event[]
+  addedArtists  Artist[]
+  addedVenues   Venue[]
 
   @@index([email])
 }
@@ -88,7 +96,7 @@ model Event {
   category           EventCategory
   startDate          DateTime
   endDate            DateTime
-  venue              String
+  venue              String?             // textual venue name (kept nullable because one source used non-null, other did)
   address            String
   city               String
   banner             String?
@@ -101,23 +109,34 @@ model Event {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   deletedAt          DateTime?
-  chatMessages       ChatMessage[]
-  concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
-  conferenceDetails  ConferenceDetails?  @relation("EventToConferenceDetails")
-  educationDetails   EducationDetails?   @relation("EventToEducationDetails")
+
+  /* Relations */
   organizer          Organizer           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  favorites          Favorite[]
-  festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
-  performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
-  sportDetails       SportDetails?       @relation("EventToSportDetails")
   tickets            Ticket[]
+  chatMessages       ChatMessage[]
+  favoriteUsers      FavoriteEvent[]
+  artists            EventArtist[]
+
+  /* Detailed event-type relations (kept from both sources) */
+  concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
+  festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
   universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
   workshopDetails    WorkshopDetails?    @relation("EventToWorkshopDetails")
+  conferenceDetails  ConferenceDetails?  @relation("EventToConferenceDetails")
+  sportDetails       SportDetails?       @relation("EventToSportDetails")
+  performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
+  educationDetails   EducationDetails?   @relation("EventToEducationDetails")
+
+  /* Optional venue relation to a Venue model (kept as experimental in one input) */
+  venueExperimental  Venue?              @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  venueId            String?
 
   @@index([slug])
   @@index([organizerId])
   @@index([status])
+  @@index([venueId])
 }
+
 
 model ConcertDetails {
   id         String   @id @default(uuid())
@@ -250,18 +269,6 @@ model Ticket {
   @@index([qrCode])
 }
 
-model Favorite {
-  id        String   @id @default(uuid())
-  userId    String
-  eventId   String
-  createdAt DateTime @default(now())
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, eventId])
-  @@index([userId])
-  @@index([eventId])
-}
 
 model ChatMessage {
   id         String            @id @default(uuid())
@@ -555,6 +562,19 @@ enum UserType {
   ADMIN
 }
 
+model FavoriteEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
+
 enum FriendshipStatus {
   PENDING
   ACCEPTED
@@ -565,6 +585,102 @@ enum PrivateMessageStatus {
   SENT
   READ
   DELETED
+}
+
+// ADDITION OF ARTISTS
+
+model Artist {
+  id             String           @id @default(uuid())
+  name           String
+  slug           String           @unique
+  genres         String[]         @default([])
+  banner         String?
+  socialMedia    Json             @default("{}")
+  bio            String?
+  organizerId    String?
+  adderOrganizer Organizer?       @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  approved       Boolean          @default(false) // Indicates if artist has been approved by admin
+  favoriteUsers  FavoriteArtist[]
+  favoriteCount  Int
+  deletedAt      DateTime?
+  events         EventArtist[]
+
+  @@index([slug])
+  @@index([organizerId])
+}
+
+model FavoriteArtist {
+  id        String   @id @default(uuid())
+  userId    String
+  artistId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@index([userId])
+  @@index([artistId])
+}
+
+model EventArtist {
+  id        String    @id @default(uuid())
+  time      DateTime?
+  eventId   String
+  artistId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  artist    Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, artistId])
+  @@index([eventId])
+  @@index([artistId])
+}
+
+// ADDITION OF VENUES
+
+model Venue {
+  id               String          @id @default(uuid())
+  name             String
+  slug             String          @unique
+  banner           String?
+  details          String?
+  capacity         Int?
+  seatedCapacity   Int?
+  standingCapacity Int?
+  accessibility    Json? // {"wheelchair": true, "parking": true}
+  address          String?
+  city             String?
+  latitude         Decimal?        @db.Decimal(9, 6)
+  longitude        Decimal?        @db.Decimal(9, 6)
+  mapsLocation     String?
+  organizerId      String?
+  adderOrganizer   Organizer?      @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  approved         Boolean         @default(false) // Indicates if artist has been approved by admin
+  favoriteUsers    FavoriteVenue[]
+  favoriteCount    Int             @default(0)
+  deletedAt        DateTime?
+  events           Event[]
+
+  @@index([slug])
+  @@index([organizerId])
+}
+
+model FavoriteVenue {
+  id        String   @id @default(uuid())
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([userId])
+  @@index([venueId])
 }
 
 // Enums for Admin Panel

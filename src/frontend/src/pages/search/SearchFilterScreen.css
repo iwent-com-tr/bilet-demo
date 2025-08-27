@@ -20,13 +20,16 @@
 }
 
 .filter-screen {
-  position: fixed;       /* remove from flow */
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  opacity: 1;
-  transform: translateY(0);
+  height: 100vh;                /* explicit viewport height */
+  overflow-y: auto;             /* enable vertical scrolling */
+  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+  touch-action: pan-y;          /* allow vertical pan gestures */
+  overscroll-behavior: contain; /* avoid body scroll bleed */
+  padding-bottom: 64px;         /* so last controls aren't glued to the bottom */
   transition: all 0.5s ease;
   z-index: 100;
   background-color: black;
@@ -102,7 +105,7 @@
 }
 
 .filter-title {
-    font-size: 12px;
+    font-size: 16px;
     color: rgb(153, 153, 153);
     font-weight: 900;
     margin-left: 12px;
@@ -208,6 +211,125 @@
     margin-bottom: 12px;
     transition: transform 0.5s ease, opacity 0.5s ease;
 }
+
+/* Top-level container: full width */
+.filter-screen__price {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  margin-top: 12px;
+  width: 100%;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+/* Row that holds input + track; fills horizontal space */
+.filter-screen__price-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;           /* space between input and slider track */
+  width: 95%;
+  margin-left: 12px;
+  margin-top: 12px;
+}
+
+/* Numeric input: a bit wider, stays left, won't shrink too small */
+.filter-screen__price-input {
+  width: 180px;         /* increase if you want more space */
+  min-width: 120px;
+  max-width: 30%;       /* prevents it from growing excessively on huge screens */
+  padding: 8px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--accent);
+  outline: none;
+  transition: all 0.2s ease;
+  flex-shrink: 0;       /* protect width when space is tight */
+}
+
+.filter-screen__price-input:focus {
+  border-color: var(--active-green);
+  box-shadow: none;
+  background-color: var(--accent);
+  outline: none;
+}
+
+/* Track container: this stretches to take all remaining horizontal space */
+.filter-screen__price-track {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Slider: fills the track container width */
+.filter-screen__price-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 10px;
+  border-radius: 6px;
+  background: #ddd; /* inline style from JSX will override with gradient */
+  outline: none;
+  display: block;
+}
+
+/* WebKit track */
+.filter-screen__price-range::-webkit-slider-runnable-track {
+  height: 10px;
+  background: transparent;
+  border-radius: 6px;
+}
+
+/* Firefox track/progress */
+.filter-screen__price-range::-moz-range-track {
+  height: 10px;
+  background: #ddd;
+  border-radius: 6px;
+}
+.filter-screen__price-range::-moz-range-progress {
+  height: 10px;
+  background: var(--active-green);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+/* Thumb */
+.filter-screen__price-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--active-green);
+  cursor: pointer;
+  margin-top: -5px; /* vertically centers the thumb */
+  transition: transform 0.15s ease;
+}
+.filter-screen__price-range::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--active-green);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+/* Labels aligned under the slider: because they are inside the same track container
+   and the slider is width:100%, the labels will exactly match the slider ends. */
+.filter-screen__price-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 14px;
+  color: #aaa;
+  font-weight: 700;
+  user-select: none;
+}
+
+
 
 .filter-screen__buttons {
     display: flex;

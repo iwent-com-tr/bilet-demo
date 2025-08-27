@@ -684,24 +684,26 @@ const OrganizerEvents: React.FC = () => {
                 <tbody>
                   {events
                     .filter(event => event && event.id)
+                    
+                    .filter(event => event && event.id) // Filter out null/undefined events
                     .map(event => (
                     <tr key={event.id} className="organizer-events__table-row">
                       <td className="organizer-events__table-cell" data-label="Etkinlik">
                         <div className="organizer-events__event-info">
-                          <p className="organizer-events__event-name">{String(event?.name || 'İsimsiz Etkinlik')}</p>
-                          <p className="organizer-events__event-city">{String(event?.city || '-')}</p>
+                          <p className="organizer-events__event-name">{String(event?.name || 'İsimsiz Etkinlik') || 'İsimsiz Etkinlik'}</p>
+                          <p className="organizer-events__event-city">{String(event?.city || '-') || 'Şehir belirtilmemiş'}</p>
                         </div>
                       </td>
                       <td className="organizer-events__table-cell" data-label="Kategori">
                         <span className="organizer-events__category">{getCategoryText(String(event?.category || ''))}</span>
                       </td>
                       <td className="organizer-events__table-cell" data-label="Tarih">
-                        <p className="organizer-events__event-date">{event?.startDate ? formatDate(String(event.startDate)) : '-'}</p>
+                        <p className="organizer-events__event-date">{event?.startDate ? event?.startDate ? formatDate(String(event.startDate)) : '-' : 'Tarih belirtilmemiş'}</p>
                       </td>
                       <td className="organizer-events__table-cell" data-label="Mekan">
                         <div className="organizer-events__venue-info">
-                          <p className="organizer-events__venue-name">{String(event?.venue || '-')}</p>
-                          <p className="organizer-events__venue-address">{String(event?.address || '-')}</p>
+                          <p className="organizer-events__venue-name">{String(event?.venue || '-') || 'Mekan belirtilmemiş'}</p>
+                          <p className="organizer-events__venue-address">{String(event?.address || '-') || 'Adres belirtilmemiş'}</p>
                         </div>
                       </td>
                       <td className="organizer-events__table-cell" data-label="Durum">
