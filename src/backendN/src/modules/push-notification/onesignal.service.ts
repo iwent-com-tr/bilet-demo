@@ -161,6 +161,182 @@ export class OneSignalService {
   }
 
   /**
+   * Send notification to ticket holders of a specific event
+   */
+  async sendToEventTicketHolders(
+    eventId: string,
+    title: string,
+    body: string,
+    options: {
+      url?: string;
+      data?: Record<string, any>;
+      icon?: string;
+      badge?: string;
+      ticketType?: string; // Optional: target specific ticket types
+    } = {}
+  ): Promise<OneSignalNotificationResponse> {
+    const filters: any[] = [
+      {
+        field: 'tag',
+        key: 'ticket_holder',
+        relation: '=',
+        value: 'true'
+      },
+      {
+        operator: 'AND',
+        field: 'tag',
+        key: 'event_id',
+        relation: '=',
+        value: eventId
+      }
+    ];
+
+    // Add ticket type filter if specified
+    if (options.ticketType) {
+      filters.push({
+        operator: 'AND',
+        field: 'tag',
+        key: 'ticket_type',
+        relation: '=',
+        value: options.ticketType.toLowerCase().replace(/\s+/g, '_')
+      });
+    }
+
+    return this.sendNotification({
+      filters,
+      headings: { en: title },
+      contents: { en: body },
+      url: options.url,
+      data: {
+        ...options.data,
+        notification_type: 'event_ticket_holder',
+        event_id: eventId,
+        ticket_type: options.ticketType
+      },
+      chrome_web_icon: options.icon,
+      chrome_web_badge: options.badge,
+    });
+  }
+
+  /**
+   * Send notification to all ticket holders (across all events)
+   */
+  async sendToAllTicketHolders(
+    title: string,
+    body: string,
+    options: {
+      url?: string;
+      data?: Record<string, any>;
+      icon?: string;
+      badge?: string;
+      eventCategory?: string; // Optional: target by event category
+      eventCity?: string; // Optional: target by event city
+    } = {}
+  ): Promise<OneSignalNotificationResponse> {
+    const filters: any[] = [
+      {
+        field: 'tag',
+        key: 'ticket_holder',
+        relation: '=',
+        value: 'true'
+      }
+    ];
+
+    // Add event category filter if specified
+    if (options.eventCategory) {
+      filters.push({
+        operator: 'AND',
+        field: 'tag',
+        key: 'event_category',
+        relation: '=',
+        value: options.eventCategory.toLowerCase()
+      });
+    }
+
+    // Add event city filter if specified
+    if (options.eventCity) {
+      filters.push({
+        operator: 'AND',
+        field: 'tag',
+        key: 'event_city',
+        relation: '=',
+        value: options.eventCity.toLowerCase()
+      });
+    }
+
+    return this.sendNotification({
+      filters,
+      headings: { en: title },
+      contents: { en: body },
+      url: options.url,
+      data: {
+        ...options.data,
+        notification_type: 'all_ticket_holders',
+        event_category: options.eventCategory,
+        event_city: options.eventCity
+      },
+      chrome_web_icon: options.icon,
+      chrome_web_badge: options.badge,
+    });
+  }
+
+  /**
+   * Send reminder notification before event starts
+   */
+  async sendEventReminder(
+    eventId: string,
+    eventName: string,
+    hoursBeforeEvent: number,
+    options: {
+      venue?: string;
+      startTime?: string;
+      url?: string;
+      data?: Record<string, any>;
+    } = {}
+  ): Promise<OneSignalNotificationResponse> {
+    const title = `Etkinlik Hatırlatması: ${eventName}`;
+    const body = hoursBeforeEvent === 24 
+      ? `${eventName} etkinliği yarın başlıyor! ${options.venue ? `Konum: ${options.venue}` : ''}`
+      : `${eventName} etkinliği ${hoursBeforeEvent} saat sonra başlıyor!`;
+
+    return this.sendToEventTicketHolders(eventId, title, body, {
+      url: options.url,
+      data: {
+        ...options.data,
+        notification_type: 'event_reminder',
+        hours_before: hoursBeforeEvent,
+        event_name: eventName
+      }
+    });
+  }
+
+  /**
+   * Get segment statistics for ticket holders
+   */
+  async getTicketHolderStats(): Promise<{
+    totalTicketHolders: number;
+    byEventCategory: Record<string, number>;
+    byEventCity: Record<string, number>;
+    recentPurchases: number; // Last 7 days
+  }> {
+    try {
+      // This would require OneSignal's View apps API
+      // For now, return placeholder data - in production you'd call:
+      // const response = await this.client.get(`/apps/${this.appId}/segments`)
+      
+      return {
+        totalTicketHolders: 0,
+        byEventCategory: {},
+        byEventCity: {},
+        recentPurchases: 0
+      };
+    } catch (error) {
+      console.error('Failed to get ticket holder stats:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get player (device) information
    */
   async getPlayer(playerId: string): Promise<OneSignalPlayerResponse> {

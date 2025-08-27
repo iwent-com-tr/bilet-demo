@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import AuthPushNotificationIntegration from '../components/AuthPushNotificationIntegration';
 
 interface User {
   id: string;
@@ -228,7 +229,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin: user?.userType === 'ADMIN' || user?.adminRole === 'ADMIN'
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <AuthPushNotificationIntegration 
+        debug={process.env.NODE_ENV === 'development'}
+        onLoginSuccess={(userId) => {
+          console.log('[Auth] OneSignal login successful for user:', userId);
+        }}
+        onLoginFailure={(userId, error) => {
+          console.warn('[Auth] OneSignal login failed for user:', userId, error.message);
+        }}
+        onLogoutSuccess={() => {
+          console.log('[Auth] OneSignal logout successful');
+        }}
+        onLogoutFailure={(error) => {
+          console.warn('[Auth] OneSignal logout failed:', error.message);
+        }}
+      />
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthContext; 

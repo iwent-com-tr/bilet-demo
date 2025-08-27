@@ -17,6 +17,10 @@ export interface UsePushNotificationReturn {
   permissionState: NotificationPermissionState;
   error: string | null;
   
+  // External ID management
+  currentExternalUserId: string | null;
+  isUserLoggedIn: boolean;
+  
   // Actions
   initialize: () => Promise<void>;
   requestPermission: () => Promise<void>;
@@ -25,6 +29,12 @@ export interface UsePushNotificationReturn {
   setTags: (tags: Record<string, string>) => Promise<void>;
   loginUser: (userId: string) => Promise<void>;
   logoutUser: () => Promise<void>;
+  ensureUserLogin: (userId: string) => Promise<void>;
+  autoLoginIfAuthenticated: (userId: string) => Promise<void>;
+  
+  // Ticket holder specific actions
+  addTicketHolderTags: (eventId: string, ticketType: string, referenceCode: string) => Promise<void>;
+  removeTicketHolderTags: (eventId: string) => Promise<void>;
   
   // Computed properties
   canRequestPermission: boolean;
@@ -197,6 +207,113 @@ export function usePushNotification(options: UsePushNotificationOptions = {}): U
     }
   }, [onError]);
 
+  // Get current external user ID
+  const getCurrentExternalUserId = useCallback(() => {
+    return pushNotificationManager.getCurrentExternalUserId();
+  }, []);
+
+  // Check if user is logged in to OneSignal
+  const isUserLoggedInToOneSignal = useCallback(() => {
+    return pushNotificationManager.isUserLoggedIn();
+  }, []);
+
+  // Ensure user is logged in with correct external ID
+  const ensureUserLogin = useCallback(async (userId: string) => {
+    try {
+      setError(null);
+      
+      if (!isInitialized) {
+        await initialize();
+      }
+      
+      const success = await pushNotificationManager.ensureUserLogin(userId);
+      
+      if (!success) {
+        throw new Error('Failed to ensure user login');
+      }
+      
+      // Update subscription status after ensuring login
+      const updatedStatus = await pushNotificationManager.getSubscriptionStatus();
+      setSubscriptionStatus(updatedStatus);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to ensure user login';
+      setError(errorMessage);
+      onError?.(err instanceof Error ? err : new Error(errorMessage));
+    }
+  }, [isInitialized, initialize, onError]);
+
+  // Auto-login if authenticated but not logged into OneSignal
+  const autoLoginIfAuthenticated = useCallback(async (userId: string) => {
+    try {
+      setError(null);
+      
+      const success = await pushNotificationManager.autoLoginIfAuthenticated(userId);
+      
+      if (success) {
+        // Update subscription status after auto-login
+        const updatedStatus = await pushNotificationManager.getSubscriptionStatus();
+        setSubscriptionStatus(updatedStatus);
+      }
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to auto-login user';
+      setError(errorMessage);
+      onError?.(err instanceof Error ? err : new Error(errorMessage));
+    }
+  }, [onError]);
+
+  // Add ticket holder tags for segmentation
+  const addTicketHolderTags = useCallback(async (eventId: string, ticketType: string, referenceCode: string) => {
+    try {
+      setError(null);
+      
+      if (!isInitialized) {
+        await initialize();
+      }
+      
+      // Create comprehensive tags for segmentation
+      const tags = {
+        ticket_holder: 'true',
+        event_id: eventId,
+        ticket_type: ticketType.toLowerCase().replace(/\s+/g, '_'),
+        ticket_reference: referenceCode,
+        purchase_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        has_ticket: 'true',
+        customer_type: 'ticket_buyer'
+      };
+      
+      await setTags(tags);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add ticket holder tags';
+      setError(errorMessage);
+      onError?.(err instanceof Error ? err : new Error(errorMessage));
+    }
+  }, [isInitialized, initialize, setTags, onError]);
+
+  // Remove ticket holder tags
+  const removeTicketHolderTags = useCallback(async (eventId: string) => {
+    try {
+      setError(null);
+      
+      // Remove event-specific tags
+      const tagsToRemove = {
+        ticket_holder: '',
+        event_id: '',
+        ticket_type: '',
+        ticket_reference: ''
+      };
+      
+      await setTags(tagsToRemove);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to remove ticket holder tags';
+      setError(errorMessage);
+      onError?.(err instanceof Error ? err : new Error(errorMessage));
+    }
+  }, [setTags, onError]);
+
   // Setup event listeners
   useEffect(() => {
     const unsubscribeFromSubscription = pushNotificationManager.onSubscriptionChange((status) => {
@@ -232,6 +349,8 @@ export function usePushNotification(options: UsePushNotificationOptions = {}): U
   const isPWA = pushNotificationManager.isPWA();
   const deviceInfo = pushNotificationManager.detectDeviceInfo();
   const showIOSBanner = deviceInfo.os === 'IOS' && !isPWA && isSupported;
+  const currentExternalUserId = getCurrentExternalUserId();
+  const isUserLoggedIn = isUserLoggedInToOneSignal();
 
   return {
     // State
@@ -241,6 +360,10 @@ export function usePushNotification(options: UsePushNotificationOptions = {}): U
     permissionState,
     error,
     
+    // External ID management
+    currentExternalUserId,
+    isUserLoggedIn,
+    
     // Actions
     initialize,
     requestPermission,
@@ -249,6 +372,12 @@ export function usePushNotification(options: UsePushNotificationOptions = {}): U
     setTags,
     loginUser,
     logoutUser,
+    ensureUserLogin,
+    autoLoginIfAuthenticated,
+    
+    // Ticket holder specific actions
+    addTicketHolderTags,
+    removeTicketHolderTags,
     
     // Computed properties
     canRequestPermission,

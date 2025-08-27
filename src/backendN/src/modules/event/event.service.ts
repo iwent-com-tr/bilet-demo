@@ -5,6 +5,7 @@ import { EventStatuses } from './event.dto';
 import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
+import { oneSignalService } from '../push-notification/onesignal.service';
 import { fi } from 'zod/v4/locales/index.cjs';
 
 function slugify(input: string): string {
@@ -432,6 +433,13 @@ export class EventService {
       console.error('Failed to notify chat system about event publication:', error);
     }
     
+    // Send notification to ticket holders about event going live
+    try {
+      await this.notifyTicketHoldersEventPublished(event.name, id);
+    } catch (error) {
+      console.error('Failed to notify ticket holders about event publication:', error);
+    }
+    
     return { ...event, details };
   }
 
@@ -557,6 +565,96 @@ export class EventService {
         peakEntryTime,
       },
     };
+  }
+
+  /**
+   * Send notification to ticket holders when event is published
+   */
+  static async notifyTicketHoldersEventPublished(eventName: string, eventId: string) {
+    try {
+      await oneSignalService.sendToEventTicketHolders(
+        eventId,
+        `🎉 ${eventName} Etkinliği Açıldı!`,
+        `${eventName} etkinliği artık aktif! Bilet detaylarınızı kontrol edin ve hazırlıklarınızı tamamlayın.`,
+        {
+          data: {
+            notification_type: 'event_published',
+            event_id: eventId,
+            event_name: eventName
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send event published notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send event update notification to ticket holders
+   */
+  static async notifyTicketHoldersEventUpdate(
+    eventId: string, 
+    eventName: string, 
+    updateType: 'time_change' | 'venue_change' | 'general_update',
+    message: string
+  ) {
+    try {
+      const titles = {
+        time_change: `⏰ ${eventName} - Saat Değişikliği`,
+        venue_change: `📍 ${eventName} - Mekan Değişikliği`,
+        general_update: `📢 ${eventName} - Önemli Duyuru`
+      };
+
+      await oneSignalService.sendToEventTicketHolders(
+        eventId,
+        titles[updateType],
+        message,
+        {
+          data: {
+            notification_type: 'event_update',
+            update_type: updateType,
+            event_id: eventId,
+            event_name: eventName
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send event update notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send event reminder notifications
+   */
+  static async sendEventReminders(eventId: string, hoursBeforeEvent: number = 24) {
+    try {
+      const event = await prisma.event.findFirst({ 
+        where: { id: eventId, deletedAt: null },
+        select: { name: true, venue: true, startDate: true }
+      });
+      
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      await oneSignalService.sendEventReminder(
+        eventId,
+        event.name,
+        hoursBeforeEvent,
+        {
+          venue: event.venue,
+          startTime: event.startDate.toLocaleTimeString('tr-TR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send event reminder:', error);
+      throw error;
+    }
   }
 }
 

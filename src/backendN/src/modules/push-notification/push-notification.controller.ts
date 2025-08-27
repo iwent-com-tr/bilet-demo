@@ -6,6 +6,9 @@ import {
   SyncSubscriptionSchema,
   UpdateTagsSchema,
   TestNotificationSchema,
+  TicketHolderNotificationSchema,
+  EventReminderSchema,
+  SegmentNotificationSchema,
 } from './push-notification.schemas';
 import { SyncSubscriptionRequest } from './push-notification.types';
 
@@ -269,6 +272,213 @@ export class PushNotificationController {
   }
 
   /**
+   * Send notification to event ticket holders
+   * POST /api/v1/push/notify/ticket-holders
+   */
+  async notifyTicketHolders(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const validatedData = TicketHolderNotificationSchema.parse(req.body);
+      
+      // Verify user has permission to send notifications for this event
+      const event = await prisma.event.findUnique({
+        where: { id: validatedData.eventId },
+        select: { organizerId: true, name: true }
+      });
+      
+      if (!event) {
+        res.status(404).json({ error: 'Event not found' });
+        return;
+      }
+      
+      // Check if user is organizer or admin
+      const isAdmin = (req as any).user?.adminRole === 'ADMIN';
+      if (!isAdmin && event.organizerId !== userId) {
+        res.status(403).json({ error: 'Permission denied' });
+        return;
+      }
+      
+      // Send notification to ticket holders
+      const result = await oneSignalService.sendToEventTicketHolders(
+        validatedData.eventId,
+        validatedData.notification.title,
+        validatedData.notification.body,
+        {
+          url: validatedData.notification.url,
+          data: validatedData.notification.data,
+          icon: validatedData.notification.icon,
+          badge: validatedData.notification.badge,
+          ticketType: validatedData.ticketType,
+        }
+      );
+      
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Notification sent to ${event.name} ticket holders`,
+      });
+    } catch (error) {
+      console.error('Notify ticket holders error:', error);
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Failed to send notification',
+      });
+    }
+  }
+
+  /**
+   * Send event reminder to ticket holders
+   * POST /api/v1/push/notify/event-reminder
+   */
+  async sendEventReminder(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const validatedData = EventReminderSchema.parse(req.body);
+      
+      // Verify user has permission for this event
+      const event = await prisma.event.findUnique({
+        where: { id: validatedData.eventId },
+        select: { organizerId: true, name: true }
+      });
+      
+      if (!event) {
+        res.status(404).json({ error: 'Event not found' });
+        return;
+      }
+      
+      const isAdmin = (req as any).user?.adminRole === 'ADMIN';
+      if (!isAdmin && event.organizerId !== userId) {
+        res.status(403).json({ error: 'Permission denied' });
+        return;
+      }
+      
+      // Send event reminder
+      const result = await oneSignalService.sendEventReminder(
+        validatedData.eventId,
+        validatedData.eventName,
+        validatedData.hoursBeforeEvent,
+        {
+          venue: validatedData.venue,
+          startTime: validatedData.startTime,
+          url: validatedData.url,
+          data: validatedData.data,
+        }
+      );
+      
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Event reminder sent to ${event.name} ticket holders`,
+      });
+    } catch (error) {
+      console.error('Send event reminder error:', error);
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Failed to send reminder',
+      });
+    }
+  }
+
+  /**
+   * Send notification to segmented users
+   * POST /api/v1/push/notify/segment
+   */
+  async notifySegment(req: Request, res: Response): Promise<void> {
+    try {
+      if ((req as any).user?.adminRole !== 'ADMIN') {
+        res.status(403).json({ error: 'Admin access required' });
+        return;
+      }
+
+      const validatedData = SegmentNotificationSchema.parse(req.body);
+      
+      let result;
+      
+      if (validatedData.segment.ticketHolders) {
+        // Send to all ticket holders with optional filters
+        result = await oneSignalService.sendToAllTicketHolders(
+          validatedData.notification.title,
+          validatedData.notification.body,
+          {
+            url: validatedData.notification.url,
+            data: validatedData.notification.data,
+            icon: validatedData.notification.icon,
+            badge: validatedData.notification.badge,
+            eventCategory: validatedData.segment.eventCategory,
+            eventCity: validatedData.segment.eventCity,
+          }
+        );
+      } else if (validatedData.segment.customTags) {
+        // Send to users with custom tags
+        result = await oneSignalService.sendToSegment(
+          validatedData.segment.customTags,
+          validatedData.notification.title,
+          validatedData.notification.body,
+          {
+            url: validatedData.notification.url,
+            data: validatedData.notification.data,
+            icon: validatedData.notification.icon,
+            badge: validatedData.notification.badge,
+          }
+        );
+      } else {
+        res.status(400).json({ error: 'Invalid segment configuration' });
+        return;
+      }
+      
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Notification sent to segment',
+      });
+    } catch (error) {
+      console.error('Notify segment error:', error);
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Failed to send notification',
+      });
+    }
+  }
+
+  /**
+   * Get ticket holder statistics
+   * GET /api/v1/admin/push/ticket-stats
+   */
+  async getTicketHolderStats(req: Request, res: Response): Promise<void> {
+    try {
+      if ((req as any).user?.adminRole !== 'ADMIN') {
+        res.status(403).json({ error: 'Admin access required' });
+        return;
+      }
+
+      const [oneSignalStats, dbStats] = await Promise.all([
+        oneSignalService.getTicketHolderStats(),
+        this.getDatabaseTicketStats(),
+      ]);
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          oneSignal: oneSignalStats,
+          database: dbStats,
+        },
+      });
+    } catch (error) {
+      console.error('Get ticket holder stats error:', error);
+      res.status(500).json({
+        error: 'Failed to get ticket holder statistics',
+      });
+    }
+  }
+
+  /**
    * Get database statistics for health check
    */
   private async getDatabaseStats(): Promise<{
@@ -290,6 +500,78 @@ export class PushNotificationController {
       return {
         status: 'down',
         lastCheck: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Get database ticket holder statistics
+   */
+  private async getDatabaseTicketStats(): Promise<{
+    totalTicketHolders: number;
+    activeEvents: number;
+    recentTicketSales: number;
+    popularCategories: Array<{ category: string; count: number }>;
+  }> {
+    try {
+      const [ticketHolders, activeEvents, recentSales, categoryStats] = await Promise.all([
+        // Count unique users with active tickets
+        prisma.ticket.findMany({
+          where: { status: { in: ['ACTIVE', 'USED'] } },
+          distinct: ['userId'],
+          select: { userId: true },
+        }),
+        // Count active events
+        prisma.event.count({
+          where: {
+            status: 'ACTIVE',
+            deletedAt: null,
+          },
+        }),
+        // Count tickets sold in last 7 days
+        prisma.ticket.count({
+          where: {
+            status: { in: ['ACTIVE', 'USED'] },
+            createdAt: {
+              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+            },
+          },
+        }),
+        // Get popular event categories
+        prisma.event.groupBy({
+          by: ['category'],
+          where: {
+            status: 'ACTIVE',
+            deletedAt: null,
+          },
+          _count: {
+            category: true,
+          },
+          orderBy: {
+            _count: {
+              category: 'desc',
+            },
+          },
+          take: 5,
+        }),
+      ]);
+
+      return {
+        totalTicketHolders: ticketHolders.length,
+        activeEvents,
+        recentTicketSales: recentSales,
+        popularCategories: categoryStats.map(stat => ({
+          category: stat.category,
+          count: stat._count.category,
+        })),
+      };
+    } catch (error) {
+      console.error('Database ticket stats error:', error);
+      return {
+        totalTicketHolders: 0,
+        activeEvents: 0,
+        recentTicketSales: 0,
+        popularCategories: [],
       };
     }
   }

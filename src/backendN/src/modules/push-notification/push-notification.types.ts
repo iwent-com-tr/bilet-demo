@@ -84,6 +84,10 @@ export interface AdminSendRequest {
     userId?: string;            // Send to specific user
     externalId?: string;        // Send to external ID
     tags?: Record<string, string>; // Send to users with tags
+    eventId?: string;           // Send to event ticket holders
+    ticketType?: string;        // Target specific ticket type
+    eventCategory?: string;     // Target by event category
+    eventCity?: string;         // Target by event city
   };
   notification: {
     title: string;
@@ -148,8 +152,60 @@ export interface DeviceInfo {
   userAgent?: string;
 }
 
-// Webhook event types
-export type WebhookEventType = 'display' | 'click' | 'dismiss';
+// Ticket holder specific notification types
+export interface TicketHolderNotificationRequest {
+  eventId: string;
+  ticketType?: string;        // Optional: target specific ticket types
+  notification: {
+    title: string;
+    body: string;
+    url?: string;
+    icon?: string;
+    badge?: string;
+    data?: Record<string, any>;
+  };
+}
+
+export interface EventReminderRequest {
+  eventId: string;
+  eventName: string;
+  hoursBeforeEvent: number;   // 24, 2, etc.
+  venue?: string;
+  startTime?: string;
+  url?: string;
+  data?: Record<string, any>;
+}
+
+export interface SegmentNotificationRequest {
+  segment: {
+    ticketHolders?: boolean;    // Target all ticket holders
+    eventCategory?: string;     // Target by event category
+    eventCity?: string;         // Target by event city
+    customTags?: Record<string, string>; // Custom tag filters
+  };
+  notification: {
+    title: string;
+    body: string;
+    url?: string;
+    icon?: string;
+    badge?: string;
+    data?: Record<string, any>;
+  };
+}
+
+// Ticket holder tag structure
+export interface TicketHolderTags {
+  ticket_holder: 'true';
+  event_id: string;
+  ticket_type: string;        // Normalized ticket type
+  event_category: string;     // Event category in lowercase
+  event_city: string;         // Event city in lowercase
+  ticket_reference: string;   // Ticket reference code
+  purchase_date: string;      // YYYY-MM-DD
+  event_month: string;        // YYYY-MM
+  has_ticket: 'true';
+  customer_type: 'ticket_buyer';
+}
 
 // OneSignal device types mapping
 export const ONESIGNAL_DEVICE_TYPES = {

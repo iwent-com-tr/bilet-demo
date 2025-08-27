@@ -99,8 +99,52 @@ router.post('/onesignal/dismissed',
 );
 
 // ======================
+// Ticket Holder Notifications
+// ======================
+
+/**
+ * Send notification to event ticket holders
+ * POST /api/v1/push/notify/ticket-holders
+ */
+router.post('/notify/ticket-holders',
+  adminLimiter,
+  authGuard.required,
+  pushController.notifyTicketHolders.bind(pushController)
+);
+
+/**
+ * Send event reminder to ticket holders
+ * POST /api/v1/push/notify/event-reminder
+ */
+router.post('/notify/event-reminder',
+  adminLimiter,
+  authGuard.required,
+  pushController.sendEventReminder.bind(pushController)
+);
+
+/**
+ * Send notification to segmented users
+ * POST /api/v1/push/notify/segment
+ */
+router.post('/notify/segment',
+  adminLimiter,
+  authGuard.required,
+  pushController.notifySegment.bind(pushController)
+);
+
+// ======================
 // Admin Endpoints
 // ======================
+
+/**
+ * Get ticket holder statistics
+ * GET /api/v1/admin/push/ticket-stats
+ */
+router.get('/admin/push/ticket-stats',
+  adminLimiter,
+  authGuard.required,
+  pushController.getTicketHolderStats.bind(pushController)
+);
 
 /**
  * Get notification statistics
@@ -151,6 +195,11 @@ router.get('/docs', (req, res) => {
         'DELETE /api/v1/push/subscription': 'Remove user subscription',
         'POST /api/v1/push/tags': 'Update user tags for segmentation',
       },
+      notifications: {
+        'POST /api/v1/push/notify/ticket-holders': 'Send notification to event ticket holders',
+        'POST /api/v1/push/notify/event-reminder': 'Send event reminder to ticket holders',
+        'POST /api/v1/push/notify/segment': 'Send notification to segmented users (admin only)',
+      },
       webhooks: {
         'POST /api/v1/onesignal/display': 'OneSignal webhook for notification displayed',
         'POST /api/v1/onesignal/clicked': 'OneSignal webhook for notification clicked',
@@ -159,6 +208,7 @@ router.get('/docs', (req, res) => {
       admin: {
         'GET /api/v1/admin/push/stats': 'Get notification statistics',
         'GET /api/v1/admin/push/health': 'Health check endpoint',
+        'GET /api/v1/admin/push/ticket-stats': 'Get ticket holder statistics',
         'POST /api/v1/admin/push/test': 'Send test notification (development only)',
       },
     },

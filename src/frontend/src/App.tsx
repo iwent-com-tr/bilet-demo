@@ -39,7 +39,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import OrganizerList from './pages/admin/OrganizerList';
 import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
-import { PushNotificationDemo } from 'pages/PushNotificationDemo';
+import { PushNotificationDemo } from './pages/PushNotificationDemo';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
 // Context
 import { AuthProvider } from './context/AuthContext';

@@ -40,9 +40,13 @@ export const AdminSendSchema = z.object({
     userId: z.string().optional(),
     externalId: z.string().optional(),
     tags: z.record(z.string(), z.string()).optional(),
+    eventId: z.string().uuid().optional(),
+    ticketType: z.string().optional(),
+    eventCategory: z.string().optional(),
+    eventCity: z.string().optional(),
   }).refine(
-    (target) => target.userId || target.externalId || target.tags,
-    'At least one target must be specified (userId, externalId, or tags)'
+    (target) => target.userId || target.externalId || target.tags || target.eventId,
+    'At least one target must be specified (userId, externalId, tags, or eventId)'
   ),
   notification: z.object({
     title: z.string().min(1, 'Title is required').max(64, 'Title must be 64 characters or less'),
@@ -102,6 +106,52 @@ export const StatsQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   groupBy: z.enum(['browser', 'os', 'deviceType', 'pwa']).optional(),
+});
+
+// Ticket holder notification validation
+export const TicketHolderNotificationSchema = z.object({
+  eventId: z.string().uuid('Event ID must be a valid UUID'),
+  ticketType: z.string().optional(),
+  notification: z.object({
+    title: z.string().min(1, 'Title is required').max(64, 'Title must be 64 characters or less'),
+    body: z.string().min(1, 'Body is required').max(178, 'Body must be 178 characters or less'),
+    url: z.string().url().optional(),
+    icon: z.string().url().optional(),
+    badge: z.string().url().optional(),
+    data: z.record(z.string(), z.any()).optional(),
+  }),
+});
+
+// Event reminder validation
+export const EventReminderSchema = z.object({
+  eventId: z.string().uuid('Event ID must be a valid UUID'),
+  eventName: z.string().min(1, 'Event name is required'),
+  hoursBeforeEvent: z.number().positive('Hours must be positive').max(168, 'Maximum 7 days (168 hours)'),
+  venue: z.string().optional(),
+  startTime: z.string().optional(),
+  url: z.string().url().optional(),
+  data: z.record(z.string(), z.any()).optional(),
+});
+
+// Segment notification validation
+export const SegmentNotificationSchema = z.object({
+  segment: z.object({
+    ticketHolders: z.boolean().optional(),
+    eventCategory: z.string().optional(),
+    eventCity: z.string().optional(),
+    customTags: z.record(z.string(), z.string()).optional(),
+  }).refine(
+    (segment) => segment.ticketHolders || segment.eventCategory || segment.eventCity || segment.customTags,
+    'At least one segment criteria must be specified'
+  ),
+  notification: z.object({
+    title: z.string().min(1, 'Title is required').max(64, 'Title must be 64 characters or less'),
+    body: z.string().min(1, 'Body is required').max(178, 'Body must be 178 characters or less'),
+    url: z.string().url().optional(),
+    icon: z.string().url().optional(),
+    badge: z.string().url().optional(),
+    data: z.record(z.string(), z.any()).optional(),
+  }),
 });
 
 // Test notification validation
@@ -191,4 +241,6 @@ export type SegmentTag = z.infer<typeof SegmentTagSchema>;
 export type BulkSegmentTagsRequest = z.infer<typeof BulkSegmentTagsSchema>;
 export type SubscriptionResponse = z.infer<typeof SubscriptionResponseSchema>;
 export type NotificationStatsResponse = z.infer<typeof NotificationStatsResponseSchema>;
-export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
+export type TicketHolderNotificationRequest = z.infer<typeof TicketHolderNotificationSchema>;
+export type EventReminderRequest = z.infer<typeof EventReminderSchema>;
+export type SegmentNotificationRequest = z.infer<typeof SegmentNotificationSchema>;

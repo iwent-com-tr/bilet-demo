@@ -84,6 +84,18 @@ const OrganizerEvents: React.FC = () => {
   const [dateToInput, setDateToInput] = useState('');
   const [isDateFiltering, setIsDateFiltering] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  
+  // Notification states
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [selectedEventForNotification, setSelectedEventForNotification] = useState<Event | null>(null);
+  const [notificationForm, setNotificationForm] = useState({
+    type: 'update', // 'update' | 'reminder'
+    updateType: 'general_update', // 'time_change' | 'venue_change' | 'general_update'
+    title: '',
+    message: '',
+    hoursBeforeEvent: 24
+  });
 
   // Debounced search effect
   useEffect(() => {
@@ -388,6 +400,104 @@ const OrganizerEvents: React.FC = () => {
     return categoryDictionary[category] || category;
   };
 
+  const handleNotificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedEventForNotification) {
+      toast.error('Lütfen bir etkinlik seçin');
+      return;
+    }
+
+    if (notificationForm.type === 'update' && !notificationForm.message.trim()) {
+      toast.error('Mesaj alanı zorunludur');
+      return;
+    }
+
+    setNotificationLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      if (notificationForm.type === 'reminder') {
+        // Send reminder
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/events/${selectedEventForNotification.id}/send-reminder`,
+          {
+            hoursBeforeEvent: notificationForm.hoursBeforeEvent
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        toast.success(`${selectedEventForNotification.name} etkinliği için hatırlatma gönderildi! (${notificationForm.hoursBeforeEvent} saat öncesi)`);
+      } else {
+        // Send update notification
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/events/${selectedEventForNotification.id}/notify-update`,
+          {
+            updateType: notificationForm.updateType,
+            message: notificationForm.message
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        toast.success(`${selectedEventForNotification.name} güncellemesi bilet sahiplerine gönderildi! 📱`);
+      }
+
+      // Reset form and close modal
+      setNotificationForm({
+        type: 'update',
+        updateType: 'general_update',
+        title: '',
+        message: '',
+        hoursBeforeEvent: 24
+      });
+      setSelectedEventForNotification(null);
+      setShowNotificationModal(false);
+    } catch (error: any) {
+      console.error('Bildirim gönderme hatası:', error);
+      
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/login');
+        return;
+      } else if (error.response?.status === 403) {
+        toast.error('Bu işlem için yetkiniz yok');
+      } else if (error.response?.status === 404) {
+        toast.error('Etkinlik bulunamadı');
+      } else {
+        toast.error('Bildirim gönderilirken bir hata oluştu');
+      }
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const openNotificationModal = (event: Event, type: 'update' | 'reminder') => {
+    setSelectedEventForNotification(event);
+    setNotificationForm({
+      type,
+      updateType: type === 'update' ? 'general_update' : notificationForm.updateType,
+      title: type === 'reminder' 
+        ? `${event.name} Hatırlatması`
+        : `${event.name} Güncelleme`,
+      message: type === 'reminder'
+        ? `${event.name} etkinliği yaklaşıyor! Hazırlıklarınızı tamamlamayı unutmayın.`
+        : '',
+      hoursBeforeEvent: 24
+    });
+    setShowNotificationModal(true);
+  };
+
   if (authLoading || loading) {
     return (
       <div className="organizer-events-wrapper">
@@ -617,6 +727,25 @@ const OrganizerEvents: React.FC = () => {
                           >
                             💬 Sohbet
                           </Link>
+                          {/* Show notification actions only for organizer's own events */}
+                          {user?.id === String(event.organizerId) && (
+                            <>
+                              <button
+                                onClick={() => openNotificationModal(event, 'update')}
+                                className="organizer-events__action-button organizer-events__action-button--notification"
+                                title="Bilet sahiplerine bildirim gönder"
+                              >
+                                📱 Bildirim
+                              </button>
+                              <button
+                                onClick={() => openNotificationModal(event, 'reminder')}
+                                className="organizer-events__action-button organizer-events__action-button--reminder"
+                                title="Etkinlik hatırlatması gönder"
+                              >
+                                ⏰ Hatırlatma
+                              </button>
+                            </>
+                          )}
                           {/* Show statistics action only for organizer's own events */}
                           {user?.id === String(event.organizerId) && (
                             <Link
@@ -662,6 +791,113 @@ const OrganizerEvents: React.FC = () => {
           </>
         )}
       </div>
+      
+      {/* Notification Modal */}
+      {showNotificationModal && selectedEventForNotification && (
+        <div className="organizer-events__modal-overlay" onClick={() => setShowNotificationModal(false)}>
+          <div className="organizer-events__modal" onClick={e => e.stopPropagation()}>
+            <div className="organizer-events__modal-header">
+              <h3 className="organizer-events__modal-title">
+                {notificationForm.type === 'reminder' ? '⏰ Hatırlatma Gönder' : '📱 Bildirim Gönder'}
+              </h3>
+              <button 
+                className="organizer-events__modal-close"
+                onClick={() => setShowNotificationModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleNotificationSubmit} className="organizer-events__modal-form">
+              <div className="organizer-events__modal-info">
+                <p><strong>Etkinlik:</strong> {selectedEventForNotification.name}</p>
+                <p><strong>Tarih:</strong> {formatDate(selectedEventForNotification.startDate)}</p>
+                <p><strong>Hedef:</strong> Bu etkinliğin bilet sahipleri</p>
+              </div>
+              
+              {notificationForm.type === 'update' && (
+                <>
+                  <div className="organizer-events__form-group">
+                    <label className="organizer-events__form-label">Güncelleme Türü</label>
+                    <select
+                      value={notificationForm.updateType}
+                      onChange={(e) => setNotificationForm(prev => ({ 
+                        ...prev, 
+                        updateType: e.target.value as 'time_change' | 'venue_change' | 'general_update'
+                      }))}
+                      className="organizer-events__form-select"
+                    >
+                      <option value="general_update">Genel Duyuru</option>
+                      <option value="time_change">Saat Değişikliği</option>
+                      <option value="venue_change">Mekan Değişikliği</option>
+                    </select>
+                  </div>
+                  
+                  <div className="organizer-events__form-group">
+                    <label className="organizer-events__form-label">Mesaj</label>
+                    <textarea
+                      value={notificationForm.message}
+                      onChange={(e) => setNotificationForm(prev => ({ ...prev, message: e.target.value }))}
+                      placeholder="Bilet sahiplerine göndermek istediğiniz mesajı yazın..."
+                      className="organizer-events__form-textarea"
+                      rows={4}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              
+              {notificationForm.type === 'reminder' && (
+                <div className="organizer-events__form-group">
+                  <label className="organizer-events__form-label">Kaç Saat Öncesi Hatırlatma</label>
+                  <select
+                    value={notificationForm.hoursBeforeEvent}
+                    onChange={(e) => setNotificationForm(prev => ({ 
+                      ...prev, 
+                      hoursBeforeEvent: parseInt(e.target.value)
+                    }))}
+                    className="organizer-events__form-select"
+                  >
+                    <option value={1}>1 saat öncesi</option>
+                    <option value={2}>2 saat öncesi</option>
+                    <option value={6}>6 saat öncesi</option>
+                    <option value={24}>1 gün öncesi</option>
+                    <option value={48}>2 gün öncesi</option>
+                    <option value={168}>1 hafta öncesi</option>
+                  </select>
+                  <p className="organizer-events__form-help">
+                    Bu hatırlatma anında bilet sahiplerine gönderilir.
+                  </p>
+                </div>
+              )}
+              
+              <div className="organizer-events__modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(false)}
+                  className="organizer-events__modal-button organizer-events__modal-button--secondary"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={notificationLoading}
+                  className="organizer-events__modal-button organizer-events__modal-button--primary"
+                >
+                  {notificationLoading ? (
+                    <>
+                      <div className="organizer-events__action-spinner"></div>
+                      Gönderiliyor...
+                    </>
+                  ) : (
+                    notificationForm.type === 'reminder' ? 'Hatırlatma Gönder' : 'Bildirim Gönder'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 

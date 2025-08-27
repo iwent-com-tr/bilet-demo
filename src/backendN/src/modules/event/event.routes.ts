@@ -35,6 +35,10 @@ r.put('/:id/details', authGuard.required, ctrl.updateDetails);
 // Stats: protected GET for organizer and admin
 r.get('/:id/stats', authGuard.required, ctrl.getEventStats);
 
+// Event notifications for ticket holders
+r.post('/:id/notify-update', authGuard.required, ctrl.notifyEventUpdate);
+r.post('/:id/send-reminder', authGuard.required, ctrl.sendEventReminder);
+
 // Calendar endpoints - public access
 r.get('/calendar/events', ctrl.getCalendarEvents);
 r.get('/calendar/date/:date', ctrl.getEventsByDate);

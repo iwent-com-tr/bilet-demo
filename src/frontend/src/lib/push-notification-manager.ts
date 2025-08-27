@@ -15,6 +15,8 @@ export interface SubscriptionStatus {
   onesignalUserId?: string;
   subscriptionHash?: string;
   deviceInfo?: DeviceInfo;
+  externalUserId?: string;        // External ID currently set
+  isLoggedIn?: boolean;           // Whether user is logged into OneSignal
   error?: string;
 }
 
@@ -31,6 +33,8 @@ class PushNotificationManager {
   private initPromise: Promise<void> | null = null;
   private subscriptionCallbacks: Array<(status: SubscriptionStatus) => void> = [];
   private permissionCallbacks: Array<(state: NotificationPermissionState) => void> = [];
+  private currentExternalUserId: string | null = null;
+  private loginPromise: Promise<boolean> | null = null;
 
   constructor() {
     this.detectEnvironment();
@@ -153,6 +157,8 @@ class PushNotificationManager {
         return {
           isSubscribed: false,
           permissionGranted: false,
+          externalUserId: this.currentExternalUserId || undefined,
+          isLoggedIn: false,
           error: 'OneSignal not initialized',
         };
       }
@@ -162,29 +168,42 @@ class PushNotificationManager {
         return {
           isSubscribed: false,
           permissionGranted: false,
+          externalUserId: this.currentExternalUserId || undefined,
+          isLoggedIn: false,
           error: 'OneSignal instance not available',
         };
       }
 
-      const [isSubscribed, onesignalUserId, permissionGranted] = await Promise.all([
+      const [isSubscribed, onesignalUserId, permissionGranted, externalUserId] = await Promise.all([
         this.oneSignal.isPushNotificationsEnabled(),
         this.oneSignal.getUserId(),
         this.oneSignal.getNotificationPermission() === 'granted',
+        this.oneSignal.getExternalUserId(),
       ]);
 
       const deviceInfo = this.detectDeviceInfo();
+      const isLoggedIn = !!externalUserId;
+
+      // Update local state with the actual external user ID from OneSignal
+      if (externalUserId && externalUserId !== this.currentExternalUserId) {
+        this.currentExternalUserId = externalUserId;
+      }
 
       return {
         isSubscribed,
         permissionGranted,
         onesignalUserId: onesignalUserId || undefined,
         deviceInfo,
+        externalUserId: externalUserId || this.currentExternalUserId || undefined,
+        isLoggedIn,
       };
     } catch (error) {
       console.error('[PushManager] Failed to get subscription status:', error);
       return {
         isSubscribed: false,
         permissionGranted: false,
+        externalUserId: this.currentExternalUserId || undefined,
+        isLoggedIn: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
@@ -251,14 +270,45 @@ class PushNotificationManager {
    * Login user with external ID
    */
   async loginUser(externalUserId: string): Promise<boolean> {
+    // Prevent concurrent login attempts
+    if (this.loginPromise) {
+      console.log('[PushManager] Login already in progress, waiting...');
+      return this.loginPromise;
+    }
+
+    // If already logged in with the same external ID, return success
+    if (this.currentExternalUserId === externalUserId) {
+      console.log('[PushManager] Already logged in with the same external ID');
+      return true;
+    }
+
+    this.loginPromise = this._performLogin(externalUserId);
+    const result = await this.loginPromise;
+    this.loginPromise = null;
+    return result;
+  }
+
+  /**
+   * Perform the actual login operation
+   */
+  private async _performLogin(externalUserId: string): Promise<boolean> {
     try {
-      if (!this.isInitialized || !this.oneSignal) {
+      if (!this.isInitialized) {
+        console.log('[PushManager] Initializing OneSignal before login...');
+        await this.initialize();
+      }
+
+      if (!this.oneSignal) {
         throw new Error('OneSignal not initialized');
       }
 
-      await this.oneSignal.login(externalUserId);
+      console.log('[PushManager] Logging in user with external ID:', externalUserId);
       
-      // Set default tags
+      // Login with external ID
+      await this.oneSignal.login(externalUserId);
+      this.currentExternalUserId = externalUserId;
+      
+      // Set default user tags for segmentation
       const deviceInfo = this.detectDeviceInfo();
       await this.setUserTags({
         env: process.env.NODE_ENV === 'production' ? 'prod' : 'dev',
@@ -266,11 +316,26 @@ class PushNotificationManager {
         os: deviceInfo.os.toLowerCase(),
         device_type: deviceInfo.deviceType.toLowerCase(),
         pwa: deviceInfo.pwa.toString(),
+        user_id: externalUserId,
+        last_login: new Date().toISOString(),
       });
 
+      // Sync with backend
+      try {
+        const subscriptionStatus = await this.getSubscriptionStatus();
+        if (subscriptionStatus.isSubscribed && subscriptionStatus.onesignalUserId) {
+          await this.syncWithBackend(subscriptionStatus.onesignalUserId, externalUserId);
+        }
+      } catch (syncError) {
+        console.warn('[PushManager] Failed to sync with backend after login:', syncError);
+        // Don't fail the login if backend sync fails
+      }
+
+      console.log('[PushManager] User logged in successfully with external ID:', externalUserId);
       return true;
     } catch (error) {
       console.error('[PushManager] Failed to login user:', error);
+      this.currentExternalUserId = null;
       return false;
     }
   }
@@ -281,13 +346,41 @@ class PushNotificationManager {
   async logoutUser(): Promise<boolean> {
     try {
       if (!this.isInitialized || !this.oneSignal) {
-        return true; // Not initialized, nothing to logout
+        console.log('[PushManager] OneSignal not initialized, clearing local state');
+        this.currentExternalUserId = null;
+        return true;
       }
 
+      const previousExternalId = this.currentExternalUserId;
+      console.log('[PushManager] Logging out user with external ID:', previousExternalId);
+      
+      // Logout from OneSignal
       await this.oneSignal.logout();
+      this.currentExternalUserId = null;
+      
+      // Clear user-specific tags
+      try {
+        await this.oneSignal.sendTags({
+          user_id: '',
+          last_login: '',
+        });
+      } catch (tagError) {
+        console.warn('[PushManager] Failed to clear user tags on logout:', tagError);
+      }
+      
+      // Notify backend about logout
+      try {
+        await axios.post('/api/v1/push/logout');
+      } catch (backendError) {
+        console.warn('[PushManager] Failed to notify backend about logout:', backendError);
+      }
+
+      console.log('[PushManager] User logged out successfully');
       return true;
     } catch (error) {
       console.error('[PushManager] Failed to logout user:', error);
+      // Clear local state even if OneSignal logout fails
+      this.currentExternalUserId = null;
       return false;
     }
   }
@@ -337,6 +430,67 @@ class PushNotificationManager {
         this.permissionCallbacks.splice(index, 1);
       }
     };
+  }
+
+  /**
+   * Check if user is currently logged in to OneSignal
+   */
+  isUserLoggedIn(): boolean {
+    return !!this.currentExternalUserId;
+  }
+
+  /**
+   * Get current external user ID
+   */
+  getCurrentExternalUserId(): string | null {
+    return this.currentExternalUserId;
+  }
+
+  /**
+   * Auto-login user if authenticated but not logged into OneSignal
+   */
+  async autoLoginIfAuthenticated(externalUserId: string): Promise<boolean> {
+    try {
+      // Only auto-login if not already logged in with the same ID
+      if (this.currentExternalUserId === externalUserId) {
+        return true;
+      }
+
+      // Auto-initialize if needed
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // Only login if OneSignal is properly initialized
+      if (this.isInitialized && this.oneSignal) {
+        return await this.loginUser(externalUserId);
+      }
+
+      return false;
+    } catch (error) {
+      console.error('[PushManager] Auto-login failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure user is logged in with correct external ID
+   */
+  async ensureUserLogin(externalUserId: string): Promise<boolean> {
+    try {
+      const currentStatus = await this.getSubscriptionStatus();
+      
+      // If already logged in with the correct external ID, nothing to do
+      if (currentStatus.isLoggedIn && currentStatus.externalUserId === externalUserId) {
+        return true;
+      }
+
+      // Login with the correct external ID
+      return await this.loginUser(externalUserId);
+    } catch (error) {
+      console.error('[PushManager] Failed to ensure user login:', error);
+      return false;
+    }
   }
 
   /**
@@ -559,7 +713,7 @@ class PushNotificationManager {
     return consent === 'true';
   }
 
-  private async syncWithBackend(onesignalUserId: string): Promise<void> {
+  private async syncWithBackend(onesignalUserId: string, externalUserId?: string): Promise<void> {
     try {
       const deviceInfo = this.detectDeviceInfo();
       
@@ -569,6 +723,7 @@ class PushNotificationManager {
         os: deviceInfo.os,
         deviceType: deviceInfo.deviceType,
         pwa: deviceInfo.pwa,
+        externalUserId: externalUserId || this.currentExternalUserId,
       });
       
       console.log('[PushManager] Synced with backend successfully');
