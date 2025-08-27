@@ -1192,4 +1192,8 @@
     padding: 10px 12px;
     font-size: 13px;
   }
+
+  .event-edit__category-grid {
+    grid-template-columns: 1fr;
+  }
 }

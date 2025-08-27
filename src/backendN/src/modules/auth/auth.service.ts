@@ -8,12 +8,15 @@ import { any } from 'zod';
 // UserType enum values matching the Prisma schema
 const UserType = {
   USER: 'USER',
-  ADMIN: 'ADMIN'
+  ADMIN: 'ADMIN',
+  ORGANIZER: 'ORGANIZER',
+  SUPPORT: 'SUPPORT',
+  READONLY: 'READONLY'
 } as const;
 
 export class AuthService {
   static async register(userData: RegisterInput) {
-    const { email, password, firstName, lastName, birthYear, phone, city, userType, avatar } = userData;
+    const { email, password, firstName, lastName, birthYear, adminRole, phone, city, userType, avatar } = userData;
     
     const exists = await prisma.user.findUnique({ where: { email } });
     const existsOrganizer = await prisma.organizer.findUnique({ where: { email } });
@@ -45,6 +48,19 @@ export class AuthService {
       throw err;
     }
     
+    // Determine the correct adminRole based on userType
+    let finalAdminRole: 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY';
+    if (userType === 'USER') {
+      // If userType is USER, adminRole must always be USER regardless of the request
+      finalAdminRole = 'USER';
+    } else if (userType === 'ADMIN') {
+      // If userType is ADMIN, adminRole can be customizable (default to USER if not provided)
+      finalAdminRole = (adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY') || 'USER';
+    } else {
+      // Default case (should not happen with proper validation)
+      finalAdminRole = 'USER';
+    }
+    
     const passwordHash = await hashPassword(password);
     const user = await prisma.user.create({
       data: {
@@ -56,6 +72,7 @@ export class AuthService {
         phone,
         city,
         userType: userType || UserType.USER,
+        adminRole: finalAdminRole,
         avatar,
         phoneVerified: false,
         points: 0
@@ -103,16 +120,23 @@ export class AuthService {
         throw err;
       }
       
-      // Get user for updated token
-      const user = await prisma.user.findUnique({ where: { id: userId } });
+      // Try to get user first, then organizer
+      let user = await prisma.user.findUnique({ where: { id: userId } });
+      let userType: string = user?.userType || 'USER';
+      
       if (!user) {
-        const err: any = new Error('user not found');
-        err.status = 404; err.code = 'USER_NOT_FOUND';
-        throw err;
+        // Try organizer
+        const organizer = await prisma.organizer.findUnique({ where: { id: userId } });
+        if (!organizer) {
+          const err: any = new Error('profile not found');
+          err.status = 404; err.code = 'PROFILE_NOT_FOUND';
+          throw err;
+        }
+        userType = 'ORGANIZER';
       }
       
       const newRefreshToken = signRefresh({ sub: userId });
-      const accessToken = signAccess({ sub: userId, userType: user.userType });
+      const accessToken = signAccess({ sub: userId, userType: userType });
       
       return { accessToken, refreshToken: newRefreshToken };
     } catch (error) {
@@ -226,6 +250,7 @@ export class AuthService {
         avatar: true,
         city: true,
         userType: true,
+        adminRole: true,
         points: true,
         lastLogin: true,
         createdAt: true,
@@ -240,5 +265,64 @@ export class AuthService {
     }
     
     return user;
+  }
+  
+  static async getOrganizerById(organizerId: string) {
+    const organizer = await prisma.organizer.findUnique({ 
+      where: { id: organizerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        company: true,
+        phone: true,
+        phoneVerified: true,
+        avatar: true,
+        email: true,
+        approved: true,
+        taxNumber: true,
+        taxOffice: true,
+        address: true,
+        bankAccount: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!organizer) {
+      const err: any = new Error('organizer not found');
+      err.status = 404; err.code = 'ORGANIZER_NOT_FOUND';
+      throw err;
+    }
+    
+    return organizer;
+  }
+  
+  static async getProfileById(id: string, userType?: string) {
+    // Try to get user first
+    try {
+      const user = await this.getUserById(id);
+      return { type: 'user', data: user };
+    } catch (userError: any) {
+      if (userError.code !== 'USER_NOT_FOUND') {
+        throw userError;
+      }
+    }
+    
+    // If user not found, try organizer
+    try {
+      const organizer = await this.getOrganizerById(id);
+      return { type: 'organizer', data: organizer };
+    } catch (organizerError: any) {
+      if (organizerError.code !== 'ORGANIZER_NOT_FOUND') {
+        throw organizerError;
+      }
+    }
+    
+    // Neither found
+    const err: any = new Error('profile not found');
+    err.status = 404; err.code = 'PROFILE_NOT_FOUND';
+    throw err;
   }
 }

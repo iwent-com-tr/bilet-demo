@@ -15,6 +15,7 @@ r.post('/logout', authGuard.required, ctrl.logout);
 // Organizer authentication
 r.post('/register-organizer', ctrl.registerOrganizer);
 r.post('/login-organizer', ctrl.loginOrganizer);
+r.get('/organizer-me', authGuard.required, ctrl.organizerMe);
 
 // Profile management
 r.get('/me', authGuard.required, ctrl.me);

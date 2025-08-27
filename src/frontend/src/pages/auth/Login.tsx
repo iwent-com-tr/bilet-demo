@@ -1,20 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
+import MobileOrganizerButton from '../../components/MobileOrganizerButton';
 import showPasswordIcon from '../../assets/show-passowrd.svg';
 import './Login.css';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [awareOfScreen, setAwareOfScreen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-
+  
+  // Check if in production environment
+  const currentEnv = process.env.REACT_APP_ENV || 'development';
+  const isProduction = currentEnv === 'production';
+  const isDevelopment = currentEnv === 'development';
+  
+  // Debug: Log environment info (remove in production)
+  console.log('Environment Debug:', {
+    REACT_APP_ENV: process.env.REACT_APP_ENV,
+    currentEnv,
+    isProduction,
+    isDevelopment,
+    awareOfScreen
+  });
   // Unsplash images for the grid
   const gridImages = [
     'https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // Concert crowd
@@ -34,15 +49,15 @@ const Login: React.FC = () => {
     initialValues: {
       identifier: '',
       sifre: '',
-      tip: 'user'
+      userType: 'USER'
     },
     validationSchema: Yup.object({
       identifier: Yup.string()
         .required('E-posta adresi veya telefon numarası zorunludur')
         .test('email-or-phone', 'Geçerli bir e-posta veya telefon giriniz', function (val) {
-          const tip = (this.parent as any).tip;
+          const userType = (this.parent as any).userType;
           if (!val) return false;
-          if (tip === 'organizer') {
+          if (userType === 'ORGANIZER' || userType === 'ADMIN') {
             return /.+@.+\..+/.test(val);
           }
           return /.+@.+\..+/.test(val) || phoneRegex.test(val);
@@ -50,23 +65,31 @@ const Login: React.FC = () => {
       sifre: Yup.string()
         .min(6, 'Şifre en az 6 karakter olmalıdır')
         .required('Şifre zorunludur'),
-      tip: Yup.string().oneOf(['user', 'organizer']).required()
+      userType: Yup.string().oneOf(['USER', 'ORGANIZER', 'ADMIN']).required()
     }),
     onSubmit: async (values) => {
       try {
         setServerError(null);
         setLoading(true);
-        await login(values.identifier, values.sifre, values.tip as 'user' | 'organizer');
+        // Admin users use the regular user login endpoint since they're stored in the user table
+        const loginType = values.userType === 'ADMIN' ? 'user' : values.userType.toLowerCase() as 'user' | 'organizer';
+        await login(values.identifier, values.sifre, loginType);
         if (rememberMe) {
           localStorage.setItem('login:remember', '1');
           localStorage.setItem('login:identifier', values.identifier);
-          localStorage.setItem('login:tip', values.tip);
+          localStorage.setItem('login:userType', values.userType);
         } else {
           localStorage.removeItem('login:remember');
           localStorage.removeItem('login:identifier');
-          localStorage.removeItem('login:tip');
+          localStorage.removeItem('login:userType');
         }
-        navigate(values.tip === 'organizer' ? '/organizer' : '/');
+        if (values.userType === 'ORGANIZER') {
+          navigate('/organizer');
+        } else if (values.userType === 'ADMIN') {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
       } catch (error: any) {
         const raw = error?.response?.data;
         let msg: string | null = null;
@@ -91,18 +114,40 @@ const Login: React.FC = () => {
     }
   });
 
-  const isOrganizer = formik.values.tip === 'organizer';
+  const isOrganizer = formik.values.userType === 'ORGANIZER';
+  const isAdmin = formik.values.userType === 'ADMIN';
 
   // Prefill from localStorage when rememberMe was set previously
   useEffect(() => {
+    // Check URL parameters first
+    const typeParam = searchParams.get('type');
+    let initialUserType: 'USER' | 'ORGANIZER' | 'ADMIN' = 'USER';
+    
+    if (typeParam === 'organizer') {
+      initialUserType = 'ORGANIZER';
+    } else if (typeParam === 'admin' && !isProduction) {
+      initialUserType = 'ADMIN';
+    }
+    
     const remembered = localStorage.getItem('login:remember') === '1';
-    if (remembered) {
+    if (remembered && !typeParam) {
       setRememberMe(true);
       const storedId = localStorage.getItem('login:identifier') || '';
-      const storedTip = (localStorage.getItem('login:tip') as 'user' | 'organizer') || 'user';
-      formik.setValues({ identifier: storedId, sifre: '', tip: storedTip });
+      const storeduserType = (localStorage.getItem('login:userType') as 'USER' | 'ORGANIZER' | 'ADMIN') || 'USER';
+      formik.setValues({ identifier: storedId, sifre: '', userType: storeduserType });
+    } else {
+      // Set user type from URL parameter or default
+      formik.setFieldValue('userType', initialUserType);
     }
-  }, []);
+    
+    // In development, automatically set awareness to true
+    // In production, keep it false (user must check)
+    if (isDevelopment) {
+      setAwareOfScreen(true);
+    } else {
+      setAwareOfScreen(false);
+    }
+  }, [isDevelopment, formik.setValues, formik.setFieldValue, searchParams, isProduction]);
 
   return (
     <div className="login">
@@ -123,7 +168,26 @@ const Login: React.FC = () => {
 
       <div className="login__container">
 
-        <h2 className="login__title">{isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap'}</h2>
+        <h2 className="login__title">{isAdmin ? 'Yönetici Girişi' : isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap'}</h2>
+        
+        {/* Environment Debug Badge - Remove in production */}
+        {(isDevelopment || isProduction) && (
+          <div style={{
+            background: isDevelopment ? 'rgba(5, 239, 126, 0.1)' : 'rgba(255, 165, 0, 0.1)',
+            border: isDevelopment ? '1px solid #05EF7E' : '1px solid #FFA500',
+            color: isDevelopment ? '#05EF7E' : '#FFA500',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            textAlign: 'center',
+            marginBottom: '16px'
+          }}>
+            {isDevelopment ? '🚀 Development Mode - Login Enabled' : '🔒 Production Mode - Checkbox Required'}
+            <br />
+            <small>ENV: {process.env.REACT_APP_ENV} | AwareOfScreen: {awareOfScreen.toString()}</small>
+          </div>
+        )}
+        
         {serverError && (
           <div className="login__server-error" role="alert" aria-live="polite">
             {serverError}
@@ -136,9 +200,9 @@ const Login: React.FC = () => {
             <label className="login__user-type-label">
               <input
                 type="radio"
-                name="tip"
-                value="user"
-                checked={formik.values.tip === 'user'}
+                name="userType"
+                value="USER"
+                checked={formik.values.userType === 'USER'}
                 onChange={formik.handleChange}
                 className="login__user-type-input"
               />
@@ -147,20 +211,35 @@ const Login: React.FC = () => {
             <label className="login__user-type-label">
               <input
                 type="radio"
-                name="tip"
-                value="organizer"
-                checked={formik.values.tip === 'organizer'}
+                name="userType"
+                value="ORGANIZER"
+                checked={formik.values.userType === 'ORGANIZER'}
                 onChange={formik.handleChange}
                 className="login__user-type-input"
               />
               Organizatör
             </label>
+           {/* Hide admin option in production */}
+           {!isProduction && (
+            <label className="login__user-type-label">
+              <input
+                type="radio"
+                name="userType"
+                value="ADMIN"
+                checked={formik.values.userType === 'ADMIN'}
+                onChange={formik.handleChange}
+                className="login__user-type-input"
+              />
+              Yönetici
+            </label>
+           )}
+            
           </div>
 
           {/* Identifier */}
           <div className="login__form-group">
             <label htmlFor="identifier" className="login__label">
-              {isOrganizer ? 'E-Posta adresi' : 'E-Posta adresi veya Telefon Numarası'}
+              {isOrganizer || isAdmin ? 'E-Posta adresi' : 'E-Posta adresi veya Telefon Numarası'}
             </label>
             <div className="login__input-container">
               <svg className="login__input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,24 +303,27 @@ const Login: React.FC = () => {
               />
               Beni Hatırla
             </label>
-            <label className="login__checkbox-label">
-              <input
-                type="checkbox"
-                checked={awareOfScreen}
-                onChange={(e) => setAwareOfScreen(e.target.checked)}
-                className="login__checkbox"
-              />
-              Ekrana baktığımın farkındayım
-            </label>
+            {/* Show awareness checkbox only in production */}
+            {isProduction && (
+              <label className="login__checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={awareOfScreen}
+                  onChange={(e) => setAwareOfScreen(e.target.checked)}
+                  className="login__checkbox"
+                />
+                Ekrana baktığımın farkındayım
+              </label>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || !awareOfScreen}
+            disabled={loading || (isProduction && !awareOfScreen)}
             className="login__submit-button"
           >
-            {loading ? 'Giriş yapılıyor...' : (isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap')}
+            {loading ? 'Giriş yapılıyor...' : (isAdmin ? 'Yönetici Girişi' : isOrganizer ? 'Organizatör Girişi' : 'Giriş Yap')}
           </button>
 
           {/* Links */}
@@ -249,7 +331,7 @@ const Login: React.FC = () => {
             <p className="login__link-text">
               Henüz bir hesabın yok mu?{' '}
               <Link
-                to={formik.values.tip === 'organizer' ? '/register/organizer' : '/register'}
+                to={formik.values.userType === 'ORGANIZER' ? '/register/organizer' : formik.values.userType === 'ADMIN' ? '/register/admin' : '/register'}
                 className="login__link"
               >
                 Kayıt Ol
@@ -269,6 +351,9 @@ const Login: React.FC = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       </button>
+      
+      {/* Mobile Organizer Login Button */}
+      <MobileOrganizerButton />
     </div>
   );
 };
