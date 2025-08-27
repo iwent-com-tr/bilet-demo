@@ -51,8 +51,8 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
-    const event = await VenuesService.findBySlug(req.params.slug);
-    res.json(event);
+    const venue = await VenuesService.findBySlug(req.params.slug);
+    res.json(sanitizeVenue(venue));
   } catch (e) { next(e); }
 }
 

@@ -70,6 +70,13 @@ export class OrganizerService {
         taxOffice: true,
         address: true,
         bankAccount: true,
+        socialMedia: true,
+        favoriteCount: true,
+        events: {
+          select: {
+            id: true,
+          },
+        }
       },
     });
     if (!organizer) {

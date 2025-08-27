@@ -1079,3 +1079,65 @@
     font-size: 13px;
   }
 }
+
+/* AI WRITTEN CSS START */
+
+/* wrapper must be positioned so dropdown can be absolute inside it */
+.event-create__venue-field {
+  position: relative;
+  /* ensure dropdown isn't clipped by parent if parent had overflow hidden */
+  overflow: visible;
+}
+
+/* dropdown container that drops under the input */
+.event-create__venue-suggestions {
+  position: absolute;
+  top: calc(100% - 14px); /* sits right under the input with 6px gap */
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 60;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+  margin: 0;
+  list-style: none;
+  background: var(--panel-bg, #0b0b0b); /* pick your theme color */
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* suggestion item */
+.event-create__venue-suggestion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: var(--text, #fff);
+}
+
+/* highlighted / hovered item */
+.event-create__venue-suggestion--highlighted,
+.event-create__venue-suggestion:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+/* small city badge */
+.event-create__venue-suggestion-city {
+  opacity: 0.7;
+  font-size: 0.82rem;
+  margin-left: 12px;
+}
+
+/* fallback no-results look (if you want to add one) */
+.event-create__venue-suggestions--empty {
+  padding: 12px;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+}
+
+/* AI WRITTEN CSS END */

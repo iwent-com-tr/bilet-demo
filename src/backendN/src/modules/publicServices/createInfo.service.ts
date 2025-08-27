@@ -36,10 +36,10 @@ export async function generateEventCreateInfos(input: CreateEventInput) {
 
     if (input?.artists?.length) {
       const artistCreateInfos = await Promise.all(input.artists.map(async (artist) => {
-        const artistData = await prisma.artist.findFirst({ where: { id: (artist as any).id } });
+        const artistData = await prisma.artist.findFirst({ where: { name: (artist as any).name } });
         return artistData && {
           artistId: artistData.id,
-          time: (artist as any).time,
+          time: (artist as any).time || '',
         };
       }))
 
@@ -51,6 +51,9 @@ export async function generateEventCreateInfos(input: CreateEventInput) {
     if (input?.venueId) {
       const venueData = await prisma.venue.findFirst({ where: { id: input.venueId } });
       createInfoPrisma.venueId = venueData && input.venueId;
+    } else {
+      const venueData = await prisma.venue.findFirst({ where: { name: input.venue } });
+      createInfoPrisma.venueId = venueData && venueData.id;
     }
 
   return [createInfoMeili, createInfoPrisma];
@@ -67,7 +70,7 @@ export async function generateEventUpdateInfos(input: UpdateEventInput) {
       description: input.description || '',
     }
 
-    let createInfoPrisma = {
+    let createInfoPrisma: any = {
       ...createInfoMeili,
       banner: input.banner || undefined,
       socialMedia: (input.socialMedia ?? undefined) as any,
@@ -80,10 +83,10 @@ export async function generateEventUpdateInfos(input: UpdateEventInput) {
 
     if (input?.artists?.length) {
       const artistCreateInfos = await Promise.all(input.artists.map(async (artist) => {
-        const artistData = await prisma.artist.findFirst({ where: { id: (artist as any).id } });
+        const artistData = await prisma.artist.findFirst({ where: { name: (artist as any).name } });
         return artistData && {
           artistId: artistData.id,
-          time: (artist as any).time,
+          time: (artist as any).time || '',
         };
       }))
 
@@ -94,11 +97,10 @@ export async function generateEventUpdateInfos(input: UpdateEventInput) {
 
     if (input?.venueId) {
       const venueData = await prisma.venue.findFirst({ where: { id: input.venueId } });
-      createInfoPrisma.venueExperimental = venueData && {
-        connect: {
-          id: input.venueId,
-        },
-      }
+      createInfoPrisma.venueId = venueData && input.venueId;
+    } else {
+      const venueData = await prisma.venue.findFirst({ where: { name: input.venue } });
+      createInfoPrisma.venueId = venueData && venueData.id;
     }
 
   return [createInfoMeili, createInfoPrisma];

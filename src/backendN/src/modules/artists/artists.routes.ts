@@ -7,6 +7,8 @@ const router = Router();
 
 router.post('/upload-banner', authGuard.required, uploadBanner.single('banner'), uploadBannerResponse);
 
+router.get('/slug/:slug', ctrl.getBySlug);
+
 router.post('/', authGuard.required, uploadBanner.single('banner'), ctrl.create);
 router.get('/', authGuard.optional, ctrl.list);
 router.get('/:id', authGuard.optional, ctrl.getById);

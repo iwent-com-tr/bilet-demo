@@ -51,8 +51,12 @@ export async function getPublicById(req: Request, res: Response, next: NextFunct
     const publicInfo = {
       id: organizer.id,
       company: organizer.company,
+      avatar: organizer.avatar,
+      socialMedia: organizer.socialMedia,
+      events: organizer.events.map((event: any) => event.id),
       approved: organizer.approved,
-      avatar: organizer.avatar
+      name: organizer.firstName + ' ' + organizer.lastName,
+      favoriteCount: organizer.favoriteCount,
     };
     res.json(publicInfo);
   } catch (e) { next(e); }

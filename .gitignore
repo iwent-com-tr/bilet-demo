@@ -42,3 +42,6 @@ Thumbs.db
 
 # change script
 changes.txt
+*.key
+*.pem
+*.crt

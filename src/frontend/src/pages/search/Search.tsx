@@ -214,6 +214,7 @@ const fetchOrganizers = async () => {
     });
 
     const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/organizers/public/?${params}`);
+    console.log(response);
 
     setOrganizers((prevOrganizers : any) => {
       const newOrganizers = response.data.data.filter(
@@ -384,7 +385,7 @@ const fetchOrganizers = async () => {
                 {organizers.map((organizer: any) => (
                 <Link
                     key={organizer.id}
-                    to={`/organizers/${organizer.slug}`}
+                    to={`/organizer/${organizer.id}`}
                     className="organizer-list__card search__card"
                 >
                     <div className="organizer-list__image-container">
