@@ -7,7 +7,7 @@ import tiktokIcon from "../../../assets/social-media/tiktok.png";
 import youtubeIcon from "../../../assets/social-media/youtube.png";
 import xIcon from "../../../assets/social-media/x.png";
 import approved from "../../../assets/approved.png";
-import OrganizerEventList from "./OrganizerEventList";
+import OrganizerEventList from "../organizer-3rd-view/OrganizerEventList";
 import MobileNavbar from "components/layouts/MobileNavbar";
 
 interface Organizer {
@@ -66,30 +66,30 @@ const OrganizerDetails: React.FC = () => {
                 <div className="venue-details">
                     <h2 className="venue-detail__name">{organizer.current?.name + ' - Organizatör'}</h2>
                     <div className="venue-socials">
-                        {organizer.current?.socialMedia.instagram && (
-                            <a href={organizer.current?.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {organizer.current?.socialMedia?.instagram && (
+                            <a href={organizer.current?.socialMedia?.instagram} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={instagramIcon} alt="Instagram" className="venue-socials__icon" />
                             </a>
                         )}
-                        {organizer.current?.socialMedia.x && (
-                            <a href={organizer.current?.socialMedia.x} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {organizer.current?.socialMedia?.x && (
+                            <a href={organizer.current?.socialMedia?.x} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={xIcon} alt="X" className="venue-socials__icon" />
                             </a>
                         )}
-                        {organizer.current?.socialMedia.youtube && (
-                            <a href={organizer.current?.socialMedia.youtube} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {organizer.current?.socialMedia?.youtube && (
+                            <a href={organizer.current?.socialMedia?.youtube} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={youtubeIcon} alt="Youtube" className="venue-socials__icon" />
                             </a>
                         )}
-                        {organizer.current?.socialMedia.tiktok && (
-                            <a href={organizer.current?.socialMedia.tiktok} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {organizer.current?.socialMedia?.tiktok && (
+                            <a href={organizer.current?.socialMedia?.tiktok} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={tiktokIcon} alt="TikTok" className="venue-socials__icon" />
                             </a>
                         )}
                     </div>
                     <div className="venue-stats">
-                        <span className="venue-details-text">{organizer.current?.events.length}<br />Etkinlik</span>
-                        <span className="venue-details-text">{organizer.current?.favoriteCount}<br />Takipçi</span>
+                        <span className="venue-details-text">{organizer.current?.events?.length ?? 0}<br />Etkinlik</span>
+                        <span className="venue-details-text">{organizer.current?.favoriteCount ?? 0}<br />Takipçi</span>
                         <span className="venue-details-text">Son Ayda<br />{organizerStats.current}<br />Katılımcı</span>
                     </div>
                     <div className="venue-additional">
@@ -100,7 +100,7 @@ const OrganizerDetails: React.FC = () => {
             <div className="follow-button-wrapper">
                 <button className="follow-button">Takip Et</button>
             </div>
-            <OrganizerEventList eventIds={organizer.current?.events} />
+            <OrganizerEventList eventIds={organizer.current?.events ?? []} />
         <MobileNavbar />
         </div>
     );

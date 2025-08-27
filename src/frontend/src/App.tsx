@@ -46,7 +46,7 @@ import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
-import OrganizerDetails from 'pages/organizer/organizer 3rd view/OrganizerDetails';
+import OrganizerDetails from 'pages/organizer/organizer-3rd-view/OrganizerDetails';
 
 const App: React.FC = () => {
   return (
