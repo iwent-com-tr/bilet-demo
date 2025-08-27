@@ -637,7 +637,7 @@ export class EventService {
         event.name,
         hoursBeforeEvent,
         {
-          venue: event.venue,
+          venue: event.venue ?? 'Mekan belirtilmemiş',
           startTime: event.startDate.toLocaleTimeString('tr-TR', { 
             hour: '2-digit', 
             minute: '2-digit' 

@@ -37,7 +37,6 @@ async function seedUsers() {
         channel: PushChannel.WEB_PUSH,
         onesignalUserId: `os-user-${i}`,
         onesignalSubId: `os-sub-${i}`,
-        tokenHash: `token-hash-${i}`,
         browser: Browser.CHROME,
         os: OS.MACOS,
         deviceType: DeviceType.DESKTOP,
