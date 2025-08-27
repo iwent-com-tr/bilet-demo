@@ -39,6 +39,9 @@ r.post('/verify/resend', authGuard.required, rbac('ORGANIZER'), ctrl.resendVerif
 // Event report generation — Organizer only (for their own events)
 r.get('/event/:eventId/report', authGuard.required, rbac('ORGANIZER'), ctrl.generateEventReport);
 
+// Get events for a specific organizer (with filters) — Self or Admin access
+r.get('/:organizerId/events', authGuard.required, ctrl.getOrganizerEvents);
+
 export default r;
 
 

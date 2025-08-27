@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { generateQrPngDataUrl, dataUrlToBase64 } from '../../lib/qr';
 import { sendEmail } from '../../lib/email';
 import { joinUserToEventRoom } from '../../chat';
+import { oneSignalService } from '../push-notification/onesignal.service';
 import type { ListTicketsQuery, CreateTicketInput, UpdateTicketStatusInput, VerifyTicketInput } from './ticket.dto';
 
 export function generateReferenceCode(): string {
@@ -93,11 +94,29 @@ export class TicketService {
     // Realtime: auto-join purchaser to event room
     try { await joinUserToEventRoom(userId, params.eventId); } catch {}
 
+    // Add ticket holder tags for push notifications
+    try {
+      await this.addTicketHolderTags(userId, params.eventId, params.ticketType, referenceCode);
+    } catch (error) {
+      console.warn('Failed to add ticket holder tags:', error);
+    }
+
     return ticket;
   }
 
   static async updateStatus(id: string, input: UpdateTicketStatusInput) {
-    return prisma.ticket.update({ where: { id }, data: { status: input.status } });
+    const ticket = await prisma.ticket.update({ where: { id }, data: { status: input.status } });
+    
+    // Handle tag removal for cancelled tickets
+    if (input.status === 'CANCELLED' && ticket.userId) {
+      try {
+        await this.removeTicketHolderTags(ticket.userId, ticket.eventId);
+      } catch (error) {
+        console.warn('Failed to remove ticket holder tags on cancellation:', error);
+      }
+    }
+    
+    return ticket;
   }
 
   static async verify(id: string, input: VerifyTicketInput) {
@@ -274,6 +293,118 @@ Herhangi bir sorunuz için organizatör ile iletişime geçiniz.
       ticketType: params.ticketType,
       sent: true
     };
+  }
+
+  /**
+   * Add ticket holder tags for push notification segmentation
+   */
+  static async addTicketHolderTags(userId: string, eventId: string, ticketType: string, referenceCode: string) {
+    try {
+      // Get user's push subscriptions
+      const subscriptions = await prisma.pushSubscription.findMany({
+        where: {
+          userId,
+          subscribed: true
+        }
+      });
+
+      if (subscriptions.length === 0) {
+        console.log(`No active push subscriptions found for user ${userId}`);
+        return;
+      }
+
+      // Get event details for better tagging
+      const event = await prisma.event.findUnique({
+        where: { id: eventId },
+        select: {
+          name: true,
+          category: true,
+          startDate: true,
+          city: true
+        }
+      });
+
+      if (!event) {
+        console.warn(`Event ${eventId} not found for tagging`);
+        return;
+      }
+
+      // Create comprehensive tags for segmentation
+      const tags = {
+        ticket_holder: 'true',
+        event_id: eventId,
+        ticket_type: ticketType.toLowerCase().replace(/\s+/g, '_'),
+        event_category: event.category.toLowerCase(),
+        event_city: event.city.toLowerCase(),
+        ticket_reference: referenceCode,
+        purchase_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        event_month: event.startDate.toISOString().slice(0, 7), // YYYY-MM
+        // Additional useful segments
+        has_ticket: 'true',
+        customer_type: 'ticket_buyer'
+      };
+
+      // Update tags for all user's devices
+      const updatePromises = subscriptions.map(subscription =>
+        oneSignalService.updatePlayerTags(subscription.onesignalUserId, tags)
+      );
+
+      await Promise.all(updatePromises);
+
+      console.log(`Successfully added ticket holder tags for user ${userId}, event ${eventId}`);
+    } catch (error) {
+      console.error('Failed to add ticket holder tags:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove ticket holder tags when ticket is cancelled
+   */
+  static async removeTicketHolderTags(userId: string, eventId: string) {
+    try {
+      // Get user's push subscriptions
+      const subscriptions = await prisma.pushSubscription.findMany({
+        where: {
+          userId,
+          subscribed: true
+        }
+      });
+
+      if (subscriptions.length === 0) {
+        return;
+      }
+
+      // Check if user has other active tickets for this event
+      const remainingTickets = await prisma.ticket.count({
+        where: {
+          userId,
+          eventId,
+          status: { in: ['ACTIVE', 'USED'] }
+        }
+      });
+
+      // Only remove event-specific tags if no other tickets remain
+      if (remainingTickets === 0) {
+        const tagsToRemove = [
+          'ticket_holder',
+          'event_id',
+          'ticket_type',
+          'ticket_reference'
+        ];
+
+        // Remove tags from all user's devices
+        const removePromises = subscriptions.map(subscription =>
+          oneSignalService.deletePlayerTags(subscription.onesignalUserId, tagsToRemove)
+        );
+
+        await Promise.all(removePromises);
+
+        console.log(`Removed ticket holder tags for user ${userId}, event ${eventId}`);
+      }
+    } catch (error) {
+      console.error('Failed to remove ticket holder tags:', error);
+    }
   }
 }
 

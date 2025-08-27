@@ -1,0 +1,15 @@
+.mobile-layout {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-layout {
+    display: block;
+    padding-top: 60px; /* Space for PageHeader */
+    padding-bottom: 80px; /* Space for MobileNavbar */
+  }
+
+  .mobile-layout__main {
+    padding: 0 16px;
+  }
+}

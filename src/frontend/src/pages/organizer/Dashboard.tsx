@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -52,11 +52,23 @@ interface Stats {
 const OrganizerDashboard: React.FC = () => {
   const { user, isAuthenticated, isOrganizer, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<string>('');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(false);
+  
+  // Notification states
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationForm, setNotificationForm] = useState({
+    type: 'update', // 'update' | 'reminder'
+    updateType: 'general_update', // 'time_change' | 'venue_change' | 'general_update'
+    title: '',
+    message: '',
+    hoursBeforeEvent: 24
+  });
 
   useEffect(() => {
     if (authLoading) return; // Wait for auth to load
@@ -80,37 +92,70 @@ const OrganizerDashboard: React.FC = () => {
     }
   }, [selectedEvent]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      if (!token || !user?.id) {
+      
+      if (!token) {
+        console.log('No token, redirecting to login');
         navigate('/login');
         return;
       }
 
-      // Use the new endpoint with organizerId
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/events/organizer/${user.id}`, {
+      console.log('Fetching dashboard events for organizer:', user.id);
+      
+      // Use the new organizer events endpoint that gets ALL events (all statuses)
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/organizers/${user.id}/events?page=1&limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      // New API returns data directly in the data array
+      console.log('Dashboard API Response:', response.data);
+      
       if (response.data && response.data.data) {
-        // Filter out any null or invalid events before setting state
-        const validEvents = response.data.data.filter((event: any) => 
-          event && event.id && typeof event === 'object'
-        );
-        setEvents(validEvents);
-        if (validEvents.length > 0) {
-          setSelectedEvent(validEvents[0].id);
+        const fetchedEvents = response.data.data.filter((event: any) => {
+          if (!event || !event.id) {
+            console.warn('Invalid event found:', event);
+            return false;
+          }
+          return true;
+        });
+        
+        console.log('Valid dashboard events:', fetchedEvents.length);
+        setEvents(fetchedEvents);
+        
+        // Check if eventId is provided in URL parameters
+        const eventIdFromUrl = searchParams.get('eventId');
+        
+        if (eventIdFromUrl && fetchedEvents.find((event: Event) => event.id === eventIdFromUrl)) {
+          // If eventId is in URL and exists in events, select it
+          setSelectedEvent(eventIdFromUrl);
+          
+          // Clean up URL parameter after successful selection
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete('eventId');
+          const newUrl = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`;
+          window.history.replaceState({}, '', newUrl);
+        } else if (fetchedEvents.length > 0) {
+          // Otherwise, select the first event as default
+          setSelectedEvent(fetchedEvents[0].id);
         }
       } else {
+        console.log('No events data found in response');
         setEvents([]);
       }
-      setLoading(false);
     } catch (error: any) {
-      console.error('Etkinlik listeleme hatası:', error);
+      console.error('Dashboard events fetching error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         navigate('/login');
@@ -120,9 +165,12 @@ const OrganizerDashboard: React.FC = () => {
       } else {
         toast.error('Etkinlikler yüklenirken bir hata oluştu');
       }
+      
+      setEvents([]);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, navigate, searchParams]);
 
   const fetchEventStats = async () => {
     try {
@@ -166,15 +214,30 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    try {
+      if (!date) return '-';
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return '-';
+      
+      return dateObj.toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '-';
+    }
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    try {
+      if (typeof amount !== 'number' || isNaN(amount)) return '₺0';
+      return amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    } catch (error) {
+      console.error('Currency formatting error:', error);
+      return '₺0';
+    }
   };
 
   const calculateTicketUsagePercentage = () => {
@@ -183,8 +246,8 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const getSelectedEventName = () => {
-    const event = events.find(e => e && e.id === selectedEvent);
-    return event && event.name ? event.name : '';
+    const event = events.find(e => e.id === selectedEvent);
+    return event ? String(event.name || 'İsimsiz Etkinlik') : '';
   };
 
   const downloadReport = async () => {
@@ -245,6 +308,110 @@ const OrganizerDashboard: React.FC = () => {
     } finally {
       setReportLoading(false);
     }
+  };
+
+  const handleNotificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedEvent) {
+      toast.error('Lütfen bir etkinlik seçin');
+      return;
+    }
+
+    if (!notificationForm.title.trim() || !notificationForm.message.trim()) {
+      toast.error('Başlık ve mesaj alanları zorunludur');
+      return;
+    }
+
+    setNotificationLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      if (notificationForm.type === 'reminder') {
+        // Send reminder
+        const selectedEventData = events.find(e => e.id === selectedEvent);
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/events/${selectedEvent}/send-reminder`,
+          {
+            hoursBeforeEvent: notificationForm.hoursBeforeEvent
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        toast.success(`Etkinlik hatırlatması gönderildi! (${notificationForm.hoursBeforeEvent} saat öncesi)`);
+      } else {
+        // Send update notification
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/events/${selectedEvent}/notify-update`,
+          {
+            updateType: notificationForm.updateType,
+            message: notificationForm.message
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        toast.success('Etkinlik güncellemesi bilet sahiplerine gönderildi! 📱');
+      }
+
+      // Reset form and close modal
+      setNotificationForm({
+        type: 'update',
+        updateType: 'general_update',
+        title: '',
+        message: '',
+        hoursBeforeEvent: 24
+      });
+      setShowNotificationModal(false);
+    } catch (error: any) {
+      console.error('Bildirim gönderme hatası:', error);
+      
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/login');
+        return;
+      } else if (error.response?.status === 403) {
+        toast.error('Bu işlem için yetkiniz yok');
+      } else if (error.response?.status === 404) {
+        toast.error('Etkinlik bulunamadı');
+      } else {
+        toast.error('Bildirim gönderilirken bir hata oluştu');
+      }
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const openNotificationModal = (type: 'update' | 'reminder') => {
+    if (!selectedEvent) {
+      toast.error('Lütfen bir etkinlik seçin');
+      return;
+    }
+
+    const selectedEventData = events.find(e => e.id === selectedEvent);
+    
+    setNotificationForm({
+      type,
+      updateType: type === 'update' ? 'general_update' : notificationForm.updateType,
+      title: type === 'reminder' 
+        ? `${selectedEventData?.name} Hatırlatması`
+        : `${selectedEventData?.name} Güncelleme`,
+      message: type === 'reminder'
+        ? `${selectedEventData?.name} etkinliği yaklaşıyor! Hazırlıklarınızı tamamlamayı unutmayın.`
+        : '',
+      hoursBeforeEvent: 24
+    });
+    setShowNotificationModal(true);
   };
 
   if (authLoading || loading) {
@@ -309,7 +476,7 @@ const OrganizerDashboard: React.FC = () => {
                   .filter(event => event && event.id && event.name)
                   .map(event => (
                   <option key={event.id} value={event.id}>
-                    {event.name} - {formatDate(event.startDate)}
+                    {String(event.name || 'İsimsiz Etkinlik')} - {event.startDate ? formatDate(String(event.startDate)) : '-'}
                   </option>
                 ))}
               </select>
@@ -467,6 +634,7 @@ const OrganizerDashboard: React.FC = () => {
             <div className="organizer-dashboard__actions">
               <Link
                 to={`/organizer/events/${selectedEvent}/edit`}
+                state={{ event: events.find(e => e.id === selectedEvent) }}
                 className="organizer-dashboard__action-button organizer-dashboard__action-button--primary"
               >
                 <span className="organizer-dashboard__action-icon">✏️</span>
@@ -479,6 +647,22 @@ const OrganizerDashboard: React.FC = () => {
                 <span className="organizer-dashboard__action-icon">💬</span>
                 Sohbet Odası
               </Link>
+              <button
+                onClick={() => openNotificationModal('update')}
+                disabled={!selectedEvent}
+                className="organizer-dashboard__action-button organizer-dashboard__action-button--notification"
+              >
+                <span className="organizer-dashboard__action-icon">📱</span>
+                Bildirim Gönder
+              </button>
+              <button
+                onClick={() => openNotificationModal('reminder')}
+                disabled={!selectedEvent}
+                className="organizer-dashboard__action-button organizer-dashboard__action-button--reminder"
+              >
+                <span className="organizer-dashboard__action-icon">⏰</span>
+                Hatırlatma Gönder
+              </button>
               <button
                 onClick={downloadReport}
                 disabled={reportLoading || !selectedEvent}
@@ -509,6 +693,112 @@ const OrganizerDashboard: React.FC = () => {
           </>
         )}
       </div>
+      
+      {/* Notification Modal */}
+      {showNotificationModal && (
+        <div className="organizer-dashboard__modal-overlay" onClick={() => setShowNotificationModal(false)}>
+          <div className="organizer-dashboard__modal" onClick={e => e.stopPropagation()}>
+            <div className="organizer-dashboard__modal-header">
+              <h3 className="organizer-dashboard__modal-title">
+                {notificationForm.type === 'reminder' ? '⏰ Hatırlatma Gönder' : '📱 Bildirim Gönder'}
+              </h3>
+              <button 
+                className="organizer-dashboard__modal-close"
+                onClick={() => setShowNotificationModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleNotificationSubmit} className="organizer-dashboard__modal-form">
+              <div className="organizer-dashboard__modal-info">
+                <p><strong>Etkinlik:</strong> {getSelectedEventName()}</p>
+                <p><strong>Hedef:</strong> Bu etkinliğin bilet sahipleri</p>
+              </div>
+              
+              {notificationForm.type === 'update' && (
+                <>
+                  <div className="organizer-dashboard__form-group">
+                    <label className="organizer-dashboard__form-label">Güncelleme Türü</label>
+                    <select
+                      value={notificationForm.updateType}
+                      onChange={(e) => setNotificationForm(prev => ({ 
+                        ...prev, 
+                        updateType: e.target.value as 'time_change' | 'venue_change' | 'general_update'
+                      }))}
+                      className="organizer-dashboard__form-select"
+                    >
+                      <option value="general_update">Genel Duyuru</option>
+                      <option value="time_change">Saat Değişikliği</option>
+                      <option value="venue_change">Mekan Değişikliği</option>
+                    </select>
+                  </div>
+                  
+                  <div className="organizer-dashboard__form-group">
+                    <label className="organizer-dashboard__form-label">Mesaj</label>
+                    <textarea
+                      value={notificationForm.message}
+                      onChange={(e) => setNotificationForm(prev => ({ ...prev, message: e.target.value }))}
+                      placeholder="Bilet sahiplerine göndermek istediğiniz mesajı yazın..."
+                      className="organizer-dashboard__form-textarea"
+                      rows={4}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              
+              {notificationForm.type === 'reminder' && (
+                <div className="organizer-dashboard__form-group">
+                  <label className="organizer-dashboard__form-label">Kaç Saat Öncesi Hatırlatma</label>
+                  <select
+                    value={notificationForm.hoursBeforeEvent}
+                    onChange={(e) => setNotificationForm(prev => ({ 
+                      ...prev, 
+                      hoursBeforeEvent: parseInt(e.target.value)
+                    }))}
+                    className="organizer-dashboard__form-select"
+                  >
+                    <option value={1}>1 saat öncesi</option>
+                    <option value={2}>2 saat öncesi</option>
+                    <option value={6}>6 saat öncesi</option>
+                    <option value={24}>1 gün öncesi</option>
+                    <option value={48}>2 gün öncesi</option>
+                    <option value={168}>1 hafta öncesi</option>
+                  </select>
+                  <p className="organizer-dashboard__form-help">
+                    Bu hatırlatma anında bilet sahiplerine gönderilir.
+                  </p>
+                </div>
+              )}
+              
+              <div className="organizer-dashboard__modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(false)}
+                  className="organizer-dashboard__modal-button organizer-dashboard__modal-button--secondary"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={notificationLoading}
+                  className="organizer-dashboard__modal-button organizer-dashboard__modal-button--primary"
+                >
+                  {notificationLoading ? (
+                    <>
+                      <div className="organizer-dashboard__action-spinner"></div>
+                      Gönderiliyor...
+                    </>
+                  ) : (
+                    notificationForm.type === 'reminder' ? 'Hatırlatma Gönder' : 'Bildirim Gönder'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

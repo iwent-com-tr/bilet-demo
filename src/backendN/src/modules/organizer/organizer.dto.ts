@@ -90,11 +90,41 @@ export const OrganizerAdminUpdateDTO = OrganizerSelfUpdateDTO.extend({
 
 export const ApproveDTO = z.object({ approved: z.boolean() });
 
+export const OrganizerEventsQueryDTO = z.object({
+  page: z.coerce
+    .number()
+    .int({ message: 'Sayfa numarası tam sayı olmalıdır.' })
+    .min(1, { message: 'Sayfa numarası en az 1 olmalıdır.' })
+    .default(1),
+  limit: z.coerce
+    .number()
+    .int({ message: 'Limit tam sayı olmalıdır.' })
+    .min(1, { message: 'Limit en az 1 olmalıdır.' })
+    .max(100, { message: 'Limit en fazla 100 olabilir.' })
+    .default(20),
+  q: z.string().optional(),
+  category: z.string().optional(),
+  city: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || val.length >= 1, { message: 'Şehir adı en az 1 karakter olmalıdır.' }),
+  status: z.enum(['DRAFT', 'ACTIVE', 'CANCELLED', 'COMPLETED'] as const).optional(),
+  dateFrom: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
+  dateTo: z.string()
+    .transform(val => val === '' ? undefined : val)
+    .optional()
+    .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
+});
+
 // Types
 export type ListOrganizersQuery = z.infer<typeof ListOrganizersQueryDTO>;
 export type AdminCreateOrganizerInput = z.infer<typeof AdminCreateOrganizerDTO>;
 export type OrganizerSelfUpdateInput = z.infer<typeof OrganizerSelfUpdateDTO>;
 export type OrganizerAdminUpdateInput = z.infer<typeof OrganizerAdminUpdateDTO>;
 export type ApproveInput = z.infer<typeof ApproveDTO>;
+export type OrganizerEventsQuery = z.infer<typeof OrganizerEventsQueryDTO>;
 
 

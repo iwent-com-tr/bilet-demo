@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { ZodError } from 'zod';
 import http from 'http';
+import https from 'https';
+import fs from 'fs';
 import path from 'path';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/user.routes';
@@ -20,6 +22,10 @@ import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 import { populateDB } from './lib/utils/populators/populator';
 import settingsRoutes from './modules/settings/settings.routes';
+import adminUserRoutes from './modules/admin/users.routes';
+import adminEventRoutes from './modules/admin/event.routes';
+import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
+import { adminApiLimiter } from './middlewares/rateLimiter';
 dotenv.config();
 
 const args = process.argv.slice(2);
@@ -31,9 +37,19 @@ const VENUE_POPULATE_COUNT = parseInt(process.env.POPULATOR_VENUE_COUNT ?? '50')
 const app = express();
 const API_PREFIX = process.env.API_PREFIX || '/api/v1';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3001';
+
+// Support multiple origins for HTTPS development
+const allowedOrigins = [
+  CLIENT_ORIGIN,
+  'http://localhost:5173',
+  'https://localhost:5173',
+  
+  'https://192.168.1.46:5173'
+];
+
 app.use(helmet());
 app.use(cors({
-  origin: [CLIENT_ORIGIN],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -56,6 +72,10 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+app.use(`${API_PREFIX}/push`, pushNotificationRoutes);
+app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
+app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
+app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
@@ -69,7 +89,23 @@ app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
 });
 
 
-const server = http.createServer(app);
+// Create server (HTTP or HTTPS based on environment)
+let server;
+
+if (process.env.HTTPS === 'true') {
+  try {
+    const privateKey = fs.readFileSync(process.env.SSL_KEY_FILE || 'server.key', 'utf8');
+    const certificate = fs.readFileSync(process.env.SSL_CRT_FILE || 'server.crt', 'utf8');
+    const credentials = { key: privateKey, cert: certificate };
+    server = https.createServer(credentials, app);
+    console.log('HTTPS server configured');
+  } catch (error) {
+    console.warn('HTTPS certificates not found, falling back to HTTP:', error instanceof Error ? error.message : String(error));
+    server = http.createServer(app);
+  }
+} else {
+  server = http.createServer(app);
+}
 // Initialize Socket.IO chat server (namespace: /chat)
 setupChat(server);
 
@@ -85,6 +121,11 @@ if (args.includes('--populate')) {
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  const protocol = process.env.HTTPS === 'true' ? 'https' : 'http';
+  const host = process.env.HTTPS === 'true' ? '192.168.1.40' : 'localhost';
+  console.log(`Server running on ${protocol}://${host}:${port}`);
   console.log(`Socket.IO chat listening at path /chat`);
+  if (process.env.HTTPS === 'true') {
+    console.log('HTTPS mode: Make sure SSL certificates (server.crt, server.key) are present');
+  }
 });

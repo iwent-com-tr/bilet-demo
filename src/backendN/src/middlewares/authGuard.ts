@@ -29,11 +29,19 @@ async function attachUser(req: Request): Promise<void> {
       ((payload as any).userType as string | undefined) ||
       ((dbUser as any).userType as string | undefined) ||
       'USER';
+    
+    // Fallback: if adminRole is null but userType is 'ADMIN', use 'ADMIN' as adminRole
+    let adminRole = (dbUser as any).adminRole;
+    if (!adminRole && (dbUser as any).userType === 'ADMIN') {
+      adminRole = 'ADMIN';
+    }
+    
     (req as any).user = {
       id: (dbUser as any).id,
       email: (dbUser as any).email,
       name: (dbUser as any).name ?? (fullName || undefined),
       role: resolvedRole as any,
+      adminRole: adminRole,
       avatarUrl: (dbUser as any).avatarUrl ?? (dbUser as any).avatar ?? undefined,
     };
     return;

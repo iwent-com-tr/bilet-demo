@@ -8,6 +8,7 @@ import {
   OrganizerAdminUpdateDTO,
   OrganizerSelfUpdateDTO,
   ApproveDTO,
+  OrganizerEventsQueryDTO,
 } from './organizer.dto';
 
 import { sanitizeOrganizer, sanitizePublicOrganizer } from '../publicServices/sanitizer.service';
@@ -166,6 +167,55 @@ export async function generateEventReport(req: any, res: Response, next: NextFun
     res.end();
   } catch (e) { 
     console.error('Excel report generation error:', e);
+    next(e); 
+  }
+}
+
+// ===== ORGANIZER EVENTS LISTING =====
+export async function getOrganizerEvents(req: any, res: Response, next: NextFunction) {
+  try {
+    const organizerId = req.params.organizerId;
+    const requesterId = req.user?.id;
+    
+    // Check if the requester is the same organizer or an admin
+    const isAdmin = req.user?.role === 'ADMIN' || req.user?.userType === 'ADMIN';
+    if (!isAdmin && requesterId !== organizerId) {
+      return res.status(403).json({ 
+        error: 'forbidden', 
+        code: 'FORBIDDEN',
+        message: 'You can only access your own events' 
+      });
+    }
+    
+    const query = OrganizerEventsQueryDTO.parse(req.query);
+    const result = await OrganizerService.getOrganizerEvents(organizerId, query);
+    
+    // Sanitize events data
+    const sanitizedEvents = result.data.map(event => ({
+      id: event.id,
+      name: event.name,
+      slug: event.slug,
+      category: event.category,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      venue: event.venue,
+      address: event.address,
+      city: event.city,
+      banner: event.banner,
+      description: event.description,
+      status: event.status,
+      organizerId: event.organizerId,
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+    }));
+    
+    res.json({
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      data: sanitizedEvents
+    });
+  } catch (e) { 
     next(e); 
   }
 }

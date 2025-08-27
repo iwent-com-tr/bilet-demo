@@ -57,7 +57,7 @@ const OrganizerProfile: React.FC = () => {
       }
     };
 
-    if (user?.tip === 'organizer') {
+    if (user?.userType === 'ORGANIZER') {
       fetchProfileData();
     } else {
       setFetchingProfile(false);
@@ -344,7 +344,7 @@ const OrganizerProfile: React.FC = () => {
                   disabled={Boolean(profileData?.phoneVerified)}
                 />
                 {/* Show verify action only when number is not verified (organizer verification may share same route) */}
-                {user?.tip === 'organizer' && !profileData?.phoneVerified && (
+                {user?.userType === 'ORGANIZER' && !profileData?.phoneVerified && (
                   <div style={{ marginTop: 8 }}>
                     <button
                       type="button"

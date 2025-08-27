@@ -17,6 +17,28 @@ import {
 } from '../../components/icons/CategoryIcons';
 import './EventEdit.css';
 
+// Utility function to safely extract error messages
+const getErrorMessage = (error: any): string => {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    if (error.message) return String(error.message);
+    if (error.name) return String(error.name);
+    return 'Validation error occurred';
+  }
+  return 'Invalid input';
+};
+
+// Utility function to safely render dynamic content
+const safeRender = (value: any, fallback: string = '-'): string => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'object') {
+    if (value.name) return String(value.name);
+    if (value.message) return String(value.message);
+    return fallback;
+  }
+  return String(value);
+};
+
 interface TicketType {
   type: string;
   price: number;
@@ -370,9 +392,70 @@ const OrganizerEventEdit: React.FC = () => {
       navigate('/');
       return;
     }
-    
-    fetchEvent();
-  }, [id, isAuthenticated, isOrganizer, navigate, authLoading]);
+
+    const eventFromState = location.state?.event as Event | undefined;
+
+    if (eventFromState) {
+      setEvent(eventFromState);
+      
+      // Ensure ticketTypes is properly parsed if it's a string
+      let ticketTypes = eventFromState.ticketTypes || [];
+      if (typeof ticketTypes === 'string') {
+        try {
+          ticketTypes = JSON.parse(ticketTypes);
+        } catch (e) {
+          console.error('Error parsing ticketTypes:', e);
+          ticketTypes = [];
+        }
+      }
+      
+      // Map backend field names to frontend field names
+      if (Array.isArray(ticketTypes)) {
+        ticketTypes = ticketTypes.map((ticket: any) => ({
+          type: ticket.type || ticket.name || ticket.tip || '',
+          price: Number(ticket.price || ticket.fiyat || 0),
+          capacity: Number(ticket.capacity || ticket.quota || ticket.kapasite || 0)
+        }));
+      }
+      
+      formik.setValues({
+        name: eventFromState.name || '',
+        category: eventFromState.category || '',
+        startDate: eventFromState.startDate ? eventFromState.startDate.slice(0, 16) : '',
+        endDate: eventFromState.endDate ? eventFromState.endDate.slice(0, 16) : '',
+        venue: eventFromState.venue || '',
+        address: eventFromState.address || '',
+        city: eventFromState.city || '',
+        banner: eventFromState.banner || '',
+        socialMedia: {
+          instagram: (eventFromState.socialMedia && eventFromState.socialMedia.instagram) || '',
+          twitter: (eventFromState.socialMedia && eventFromState.socialMedia.twitter) || '',
+          facebook: (eventFromState.socialMedia && eventFromState.socialMedia.facebook) || ''
+        },
+        description: eventFromState.description || '',
+        capacity: eventFromState.capacity || 0,
+        ticketTypes: Array.isArray(ticketTypes) ? ticketTypes : [],
+        status: eventFromState.status || ''
+      });
+
+      // Set banner preview if exists
+      if (eventFromState.banner) {
+        setBannerPreview(eventFromState.banner);
+      }
+
+      // Set category details if exists
+      if (eventFromState.details) {
+        setCategoryDetails(eventFromState.details);
+      } else {
+        // Initialize empty details for the category
+        const defaultDetails = getDefaultDetailsForCategory(eventFromState.category);
+        setCategoryDetails(defaultDetails);
+      }
+      setLoading(false);
+    } else {
+      fetchEvent();
+    }
+  }, [id, isAuthenticated, isOrganizer, navigate, authLoading, location.state]);
 
   useEffect(() => {
     // Handle hash change for navigation
@@ -880,7 +963,7 @@ const OrganizerEventEdit: React.FC = () => {
         <div className="event-edit__field">
           <label className="event-edit__label">Sahne Düzeni</label>
           <textarea
-            value={details.stageSetup}
+            value={details.stageSetup || ''}
             onChange={(e) => updateCategoryDetails('stageSetup', e.target.value)}
             placeholder="Sahne düzeni hakkında bilgi verin..."
             className="event-edit__textarea"
@@ -892,7 +975,7 @@ const OrganizerEventEdit: React.FC = () => {
           <label className="event-edit__label">Süre</label>
           <input
             type="text"
-            value={details.duration}
+            value={details.duration || ''}
             onChange={(e) => updateCategoryDetails('duration', e.target.value)}
             placeholder="Örn: 2 saat 30 dakika"
             className="event-edit__input"
@@ -926,7 +1009,7 @@ const OrganizerEventEdit: React.FC = () => {
             <label className="event-edit__label">Kampüs</label>
             <input
               type="text"
-              value={details.campus}
+              value={details.campus || ''}
               onChange={(e) => updateCategoryDetails('campus', e.target.value)}
               placeholder="Kampüs adı"
               className="event-edit__input"
@@ -937,7 +1020,7 @@ const OrganizerEventEdit: React.FC = () => {
             <label className="event-edit__label">Bölüm</label>
             <input
               type="text"
-              value={details.department}
+              value={details.department || ''}
               onChange={(e) => updateCategoryDetails('department', e.target.value)}
               placeholder="Bölüm adı"
               className="event-edit__input"
@@ -974,7 +1057,7 @@ const OrganizerEventEdit: React.FC = () => {
         <div className="event-edit__field">
           <label className="event-edit__label">Seviye</label>
           <select
-            value={details.skillLevel}
+            value={details.skillLevel || 'Başlangıç'}
             onChange={(e) => updateCategoryDetails('skillLevel', e.target.value)}
             className="event-edit__select"
           >
@@ -1025,7 +1108,7 @@ const OrganizerEventEdit: React.FC = () => {
           <label className="event-edit__label">Lig</label>
           <input
             type="text"
-            value={details.league}
+            value={details.league || ''}
             onChange={(e) => updateCategoryDetails('league', e.target.value)}
             placeholder="Lig adı"
             className="event-edit__input"
@@ -1047,7 +1130,7 @@ const OrganizerEventEdit: React.FC = () => {
         <div className="event-edit__field">
           <label className="event-edit__label">Kurallar</label>
           <textarea
-            value={details.rules}
+            value={details.rules || ''}
             onChange={(e) => updateCategoryDetails('rules', e.target.value)}
             placeholder="Özel kurallar veya açıklamalar..."
             className="event-edit__textarea"
@@ -1071,7 +1154,7 @@ const OrganizerEventEdit: React.FC = () => {
             <label className="event-edit__label">Süre</label>
             <input
               type="text"
-              value={details.duration}
+              value={details.duration || ''}
               onChange={(e) => updateCategoryDetails('duration', e.target.value)}
               placeholder="Örn: 90 dakika"
               className="event-edit__input"
@@ -1082,7 +1165,7 @@ const OrganizerEventEdit: React.FC = () => {
             <label className="event-edit__label">Tür</label>
             <input
               type="text"
-              value={details.genre}
+              value={details.genre || ''}
               onChange={(e) => updateCategoryDetails('genre', e.target.value)}
               placeholder="Örn: Drama, Komedi, Müzikal"
               className="event-edit__input"
@@ -1093,7 +1176,7 @@ const OrganizerEventEdit: React.FC = () => {
         <div className="event-edit__field">
           <label className="event-edit__label">Senaryo Özeti</label>
           <textarea
-            value={details.scriptSummary}
+            value={details.scriptSummary || ''}
             onChange={(e) => updateCategoryDetails('scriptSummary', e.target.value)}
             placeholder="Performansın kısa özeti..."
             className="event-edit__textarea"
@@ -1205,7 +1288,7 @@ const OrganizerEventEdit: React.FC = () => {
       ),
       status: Yup.string().required('Durum zorunludur')
     })
-    .test('capacity-check', 'Bilet kapasiteleri toplamı etkinlik kapasitesini aşmamalıdır', function(values) {
+    .test('capacity-check', '', function(values) {
       if (!values) return true;
       
       const totalTicketCapacity = (values.ticketTypes || []).reduce((total: number, ticket: any) => {
@@ -1216,7 +1299,6 @@ const OrganizerEventEdit: React.FC = () => {
       
       if (totalTicketCapacity > eventCapacity) {
         return this.createError({
-          path: 'capacity',
           message: `Bilet kapasiteleri toplamı (${totalTicketCapacity}) etkinlik kapasitesini (${eventCapacity}) aşıyor`
         });
       }
@@ -1338,7 +1420,7 @@ const OrganizerEventEdit: React.FC = () => {
                   placeholder="Etkinlik adını giriniz"
                 />
                 {formik.touched.name && formik.errors.name && (
-                  <span className="event-edit__error">{formik.errors.name}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.name)}</span>
                 )}
               </div>
 
@@ -1366,7 +1448,7 @@ const OrganizerEventEdit: React.FC = () => {
                   ))}
                 </div>
                 {formik.touched.category && formik.errors.category && (
-                  <span className="event-edit__error">{formik.errors.category}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.category)}</span>
                 )}
               </div>
             </div>
@@ -1385,7 +1467,7 @@ const OrganizerEventEdit: React.FC = () => {
                   }`}
                 />
                 {formik.touched.startDate && formik.errors.startDate && (
-                  <span className="event-edit__error">{formik.errors.startDate}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.startDate)}</span>
                 )}
               </div>
 
@@ -1402,7 +1484,7 @@ const OrganizerEventEdit: React.FC = () => {
                   }`}
                 />
                 {formik.touched.endDate && formik.errors.endDate && (
-                  <span className="event-edit__error">{formik.errors.endDate}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.endDate)}</span>
                 )}
               </div>
             </div>
@@ -1511,7 +1593,7 @@ const OrganizerEventEdit: React.FC = () => {
                   <option value="İzmir">İzmir</option>
                 </select>
                 {formik.touched.city && formik.errors.city && (
-                  <span className="event-edit__error">{formik.errors.city}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.city)}</span>
                 )}
               </div>
             </div>
@@ -1525,13 +1607,14 @@ const OrganizerEventEdit: React.FC = () => {
                   id="address"
                   rows={3}
                   {...formik.getFieldProps('address')}
+                  value={safeRender(formik.values.address, '')}
                   className={`event-edit__textarea ${
                     formik.touched.address && formik.errors.address ? 'event-edit__textarea--error' : ''
                   }`}
                   placeholder="Detaylı adres bilgisini giriniz"
                 />
                 {formik.touched.address && formik.errors.address && (
-                  <span className="event-edit__error">{formik.errors.address}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.address)}</span>
                 )}
               </div>
             </div>
@@ -1637,7 +1720,7 @@ const OrganizerEventEdit: React.FC = () => {
                     }}
                   />
                   {formik.touched.banner && formik.errors.banner && (
-                    <span className="event-edit__error">{formik.errors.banner}</span>
+                    <span className="event-edit__error">{getErrorMessage(formik.errors.banner)}</span>
                   )}
                 </div>
               </div>
@@ -1650,6 +1733,7 @@ const OrganizerEventEdit: React.FC = () => {
                   id="description"
                   rows={5}
                   {...formik.getFieldProps('description')}
+                  value={safeRender(formik.values.description, '')}
                   className="event-edit__textarea"
                   placeholder="Etkinlik hakkında detaylı bilgi verin..."
                 />
@@ -1669,7 +1753,7 @@ const OrganizerEventEdit: React.FC = () => {
                   placeholder="1000"
                 />
                 {formik.touched.capacity && formik.errors.capacity && (
-                  <span className="event-edit__error">{formik.errors.capacity}</span>
+                  <span className="event-edit__error">{getErrorMessage(formik.errors.capacity)}</span>
                 )}
               </div>
             </div>
@@ -1741,7 +1825,7 @@ const OrganizerEventEdit: React.FC = () => {
               <div className="event-edit__capacity-summary">
                 <div className="event-edit__capacity-info">
                   <span className="event-edit__capacity-label">Toplam Etkinlik Kapasitesi:</span>
-                  <span className="event-edit__capacity-value">{formik.values.capacity || 0}</span>
+                  <span className="event-edit__capacity-value">{String(formik.values.capacity || 0)}</span>
                 </div>
                 <div className="event-edit__capacity-info">
                   <span className="event-edit__capacity-label">Bilet Kapasiteleri Toplamı:</span>
@@ -1792,7 +1876,7 @@ const OrganizerEventEdit: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={ticket.type || ''}
+                          value={safeRender(ticket.type, '')}
                           onChange={(e) => updateTicketType(index, 'type', e.target.value)}
                           className="event-edit__input"
                           placeholder="Örn: Erken Kuş, VIP, Normal"
@@ -1805,7 +1889,7 @@ const OrganizerEventEdit: React.FC = () => {
                         </label>
                         <input
                           type="number"
-                          value={ticket.price || ''}
+                          value={String(ticket.price || '')}
                           onChange={(e) => updateTicketType(index, 'price', Number(e.target.value))}
                           className="event-edit__input"
                           placeholder="0"
@@ -1820,7 +1904,7 @@ const OrganizerEventEdit: React.FC = () => {
                         </label>
                         <input
                           type="number"
-                          value={ticket.capacity || ''}
+                          value={String(ticket.capacity || '')}
                           onChange={(e) => updateTicketType(index, 'capacity', Number(e.target.value))}
                           className="event-edit__input"
                           placeholder="0"
@@ -1883,7 +1967,7 @@ const OrganizerEventEdit: React.FC = () => {
                 <option value="COMPLETED">Tamamlandı</option>
               </select>
               {formik.touched.status && formik.errors.status && (
-                <span className="event-edit__error">{formik.errors.status}</span>
+                <span className="event-edit__error">{getErrorMessage(formik.errors.status)}</span>
               )}
             </div>
           </div>
