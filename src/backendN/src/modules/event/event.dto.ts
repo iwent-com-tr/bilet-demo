@@ -80,7 +80,30 @@ export const CreateEventDTO = z.object({
   // For admin to assign an organizer on creation; ignored for organizer self-create
   organizerId: z.string().uuid({ message: 'organizerId geçerli bir UUID olmalıdır.' }).optional(),
   venueId: z.string().optional(),
-  artists: z.array(z.record(z.string(), z.any()).optional()),
+  // Accept artists as strings or objects, normalize to non-empty strings, filter null/undefined
+  artists: z
+    .array(
+      z.union([
+        z.string(),
+        z.record(z.string(), z.any()),
+        z.null(),
+        z.undefined(),
+      ])
+    )
+    .optional()
+    .transform((arr) => {
+      const list = (arr || []) as Array<string | Record<string, any> | null | undefined>;
+      return list
+        .map((item) => {
+          if (typeof item === 'string') return item.trim();
+          if (item && typeof item === 'object') {
+            const val = (item as any).name ?? (item as any).title ?? '';
+            return typeof val === 'string' ? val.trim() : '';
+          }
+          return '';
+        })
+        .filter((v) => v.length > 0);
+    }),
 }).superRefine((data, ctx) => {
   if (data.endDate <= data.startDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'Bitiş tarihi başlangıç tarihinden sonra olmalıdır.' });
@@ -135,7 +158,30 @@ export const UpdateEventDTO = z.object({
   details: z.record(z.string(), z.any()).optional(),
   status: z.enum(EventStatuses).optional(),
   venueId: z.string().optional(),
-  artists: z.array(z.record(z.string(), z.any()).optional()).optional(),
+  // Accept artists as strings or objects, normalize to non-empty strings, filter null/undefined
+  artists: z
+    .array(
+      z.union([
+        z.string(),
+        z.record(z.string(), z.any()),
+        z.null(),
+        z.undefined(),
+      ])
+    )
+    .optional()
+    .transform((arr) => {
+      const list = (arr || []) as Array<string | Record<string, any> | null | undefined>;
+      return list
+        .map((item) => {
+          if (typeof item === 'string') return item.trim();
+          if (item && typeof item === 'object') {
+            const val = (item as any).name ?? (item as any).title ?? '';
+            return typeof val === 'string' ? val.trim() : '';
+          }
+          return '';
+        })
+        .filter((v) => v.length > 0);
+    }),
 }).superRefine((data, ctx) => {
   if (data.startDate && data.endDate && data.endDate <= data.startDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'Bitiş tarihi başlangıç tarihinden sonra olmalıdır.' });

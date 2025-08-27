@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { hashPassword } from '../../lib/crypto';
 import { ExcelReportGenerator } from '../../lib/excelReport';
 import type { AdminCreateOrganizerInput, OrganizerAdminUpdateInput, OrganizerSelfUpdateInput, OrganizerEventsQuery } from './organizer.dto';
+import { SearchService } from '../search/search.service';
 
 export class OrganizerService {
   static async listPublic(data: { page: number; limit: number; q?: string }) {
@@ -44,6 +45,11 @@ export class OrganizerService {
           taxOffice: true,
           address: true,
           bankAccount: true,
+          events: {
+            select: {
+              id: true,
+            },
+          }
         },
       }),
     ]);
@@ -70,8 +76,6 @@ export class OrganizerService {
         taxOffice: true,
         address: true,
         bankAccount: true,
-        socialMedia: true,
-        favoriteCount: true,
         events: {
           select: {
             id: true,

@@ -1,15 +1,12 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import type { CreateEventInput, ListEventsQuery, UpdateEventInput, EventStats } from './event.dto';
-import { EventStatuses } from './event.dto';
 import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
 import { oneSignalService } from '../push-notification/onesignal.service';
-import { fi } from 'zod/v4/locales/index.cjs';
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
-import { SearchService } from '../search/search.service';
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) {
   // Try MeiliSearch first, with database fallback for reliability
@@ -17,9 +14,15 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) {
   let shouldFallbackToDatabase = false;
 
   // Build MeiliSearch filter
-  let filter: any[] = [
-    `status=${filters.status || 'ACTIVE'}`
-  ];
+  let filter: any[] = [];
+  const hasQuery = Boolean(filters.q && filters.q.trim().length > 0);
+  const defaultStatuses = ['ACTIVE'];
+  if (filters.status) {
+    filter.push(`status=${filters.status}`);
+  } else {
+    // When no explicit status filter, allow ACTIVE 
+    filter.push(defaultStatuses.map(s => `status=${s}`).join(' OR '));
+  }
 
   if (filters.dateFrom && filters.dateTo) {
     filter.push(`startDate >= ${filters.dateFrom} AND startDate <= ${filters.dateTo}`);
@@ -43,28 +46,30 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) {
     filter,
   };
 
-  // Try MeiliSearch with improved error handling
-  try {
-    // Always use search method since getDocuments doesn't support filtering
-    // Use empty query string when no search query is provided
-    const query = filters.q || '';
-    queryResults = await eventIndex.search(query, searchDetails);
-    
-    const hits = queryResults.hits || [];
-    const total = queryResults.estimatedTotalHits || 0;
-    
-    // Check if MeiliSearch returned valid and consistent results
-    if (hits.length > 0 || (total === 0 && hits.length === 0)) {
-      console.log(`MeiliSearch: Found ${total} total events, returning ${hits.length} hits`);
-      return [total, hits.map((hit: any) => hit.id.toString())];
-    } else if (total > 0 && hits.length === 0) {
-      // MeiliSearch says there are results but returns empty hits - fallback to database
-      console.log(`MeiliSearch inconsistency: total=${total} but hits=${hits.length}, falling back to database`);
+  // If no search query, prefer reliable DB listing to avoid index staleness
+  if (!hasQuery) {
+    shouldFallbackToDatabase = true;
+  } else {
+    // Try MeiliSearch with improved error handling
+    try {
+      const query = filters.q || '';
+      queryResults = await eventIndex.search(query, searchDetails);
+      
+      const hits = queryResults.hits || [];
+      const total = queryResults.estimatedTotalHits || 0;
+      
+      // Check if MeiliSearch returned valid and consistent results
+      if (hits.length > 0 || (total === 0 && hits.length === 0)) {
+        console.log(`MeiliSearch: Found ${total} total events, returning ${hits.length} hits`);
+        return [total, hits.map((hit: any) => hit.id.toString())];
+      } else if (total > 0 && hits.length === 0) {
+        console.log(`MeiliSearch inconsistency: total=${total} but hits=${hits.length}, falling back to database`);
+        shouldFallbackToDatabase = true;
+      }
+    } catch (error) {
+      console.warn('MeiliSearch query failed, falling back to database:', error);
       shouldFallbackToDatabase = true;
     }
-  } catch (error) {
-    console.warn('MeiliSearch query failed, falling back to database:', error);
-    shouldFallbackToDatabase = true;
   }
 
   // Database fallback with the same filtering logic
@@ -72,9 +77,13 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) {
     console.log('Using database fallback query');
     
     const where: any = { 
-      deletedAt: null, 
-      status: filters.status || 'ACTIVE'
+      deletedAt: null,
     };
+    if (filters.status) {
+      where.status = filters.status;
+    } else {
+      where.status = { in: defaultStatuses };
+    }
     
     if (filters.organizerId) {
       where.organizerId = filters.organizerId;
@@ -315,14 +324,7 @@ export class EventService {
   static async findBySlug(slug: string) {
     const event = await prisma.event.findFirst({
       where: { slug, deletedAt: null },
-      include: {
-        artists: {
-          select: {
-            artistId: true,
-            time: true
-          }
-        }
-      }
+      // Remove invalid include; adjust later when relation is available
     });
     if (!event) {
       const e: any = new Error('event not found');
@@ -388,12 +390,6 @@ export class EventService {
     }
 
     const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
-
-    await prisma.eventArtist.deleteMany({
-      where: {
-        eventId: id,
-      }
-    })
 
     const updated = await prisma.event.update({
       where: { id },

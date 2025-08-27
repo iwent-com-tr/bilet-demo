@@ -28,7 +28,7 @@ export const organizerIndex = meili.index('organizers');
 async function setupIndexes() {
 
   await eventIndex.updateSettings({
-    searchableAttributes: ['name', 'category', 'venue', 'address', 'city', 'description', 'venueExperimental', 'artists'],
+    searchableAttributes: ['name', 'category', 'venue', 'address', 'city', 'description', 'artists'],
     filterableAttributes: ['category', 'startDate', 'endDate', 'city', 'status', '_geo', 'tickets'],
     displayedAttributes: ['id'],
   });
@@ -55,106 +55,54 @@ async function setupIndexes() {
   
 
 async function syncDBToMeili() {
-
   const dbEvents = await prisma.event.findMany({
-     where: { deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        startDate: true,
-        endDate: true,
-        venue: true,
-        venueExperimental: {
-          select: {
-            name: true,
-            latitude: true,
-            longitude: true
-          }
-        },
-        address: true,
-        city: true,
-        description: true,
-        status: true,
-        ticketTypes: true, 
-        artists: {
-          select: {
-            artist: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
-    },
-  });
-  
-  const dbArtists = await prisma.artist.findMany({
     where: { deletedAt: null },
     select: {
       id: true,
       name: true,
-      genres: true, // Array of strings, meili can search into arrays
-      bio: true,
-    }, 
-  });
-
-  const dbVenues = await prisma.venue.findMany({
-    where: { deletedAt: null },
-    select: {
-      id: true,
-      name: true,
-      details: true,
-      accessibility: true,
+      category: true,
+      startDate: true,
+      endDate: true,
+      venue: true,
       address: true,
       city: true,
-      latitude: true,
-      longitude: true,
-    }, 
-  });
-
-  const dbOrganizers = await prisma.organizer.findMany({
-    where: { deletedAt: null },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      company: true,
-    }, 
-  });
-
-  const events = dbEvents.map(event => ({
-    ...event,
-    tickets: (event.ticketTypes as any).map((ticket: any) => ticket.price),
-    venueExperimental: event.venueExperimental?.name,
-    ...(
-      event.venueExperimental?.latitude && event.venueExperimental?.longitude && {
-        _geo: {
-          lat: (event.venueExperimental?.latitude && event.venueExperimental?.latitude.toNumber()),
-          lng: (event.venueExperimental?.longitude && event.venueExperimental?.longitude.toNumber()),
-        },
-      }
-    ),
-    artists: event.artists.map(a => a.artist.name),
-  }))
-
-  const artists = dbArtists;
-
-  const venues = dbVenues.map(venue => ({
-    ...venue,
-    accessibility: flattenJsonValues(venue.accessibility),
-    _geo: {
-      lat: (venue.latitude && venue.latitude.toNumber()),
-      lng: (venue.longitude && venue.longitude.toNumber()),
+      description: true,
+      status: true,
+      ticketTypes: true,
     },
-  }));
+  });
 
-  const organizers = dbOrganizers;
+  const events = dbEvents.map(e => {
+    let ticketTypes: any[] = [];
+    try {
+      const raw = e.ticketTypes as unknown as string | any[];
+      if (typeof raw === 'string') {
+        ticketTypes = JSON.parse(raw);
+      } else if (Array.isArray(raw)) {
+        ticketTypes = raw;
+      }
+    } catch {}
+
+    const ticketsPrices = Array.isArray(ticketTypes)
+      ? ticketTypes.map((t: any) => Number(t?.price)).filter((n: any) => !isNaN(n))
+      : [];
+
+    return {
+      id: e.id,
+      name: e.name,
+      category: e.category,
+      startDate: e.startDate,
+      endDate: e.endDate,
+      venue: e.venue,
+      address: e.address,
+      city: e.city,
+      description: e.description,
+      status: e.status,
+      ticketsPrices,
+    };
+  });
 
   await eventIndex.addDocuments(events);
-  await artistIndex.addDocuments(artists);
-  await venueIndex.addDocuments(venues);
-  await organizerIndex.addDocuments(organizers);
 }
 
 export async function initMeili() {

@@ -69,6 +69,7 @@ interface Event {
   createdAt: string;
   updatedAt: string;
   details?: any;
+  artists?: any[];
 }
 
 // Category-specific detail interfaces
@@ -435,7 +436,8 @@ const OrganizerEventEdit: React.FC = () => {
         description: eventFromState.description || '',
         capacity: eventFromState.capacity || 0,
         ticketTypes: Array.isArray(ticketTypes) ? ticketTypes : [],
-        status: eventFromState.status || ''
+        status: eventFromState.status || '',
+        artists: eventFromState.artists || []
       });
 
       // Set banner preview if exists
