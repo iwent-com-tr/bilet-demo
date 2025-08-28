@@ -68,4 +68,11 @@
     width: 24px;
     height: 24px;
   }
+
+  /* PWA full-screen mode support */
+  @media (display-mode: standalone) {
+    .mobile-navbar-container {
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+  }
 } 

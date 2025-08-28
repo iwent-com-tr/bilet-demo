@@ -1,0 +1,130 @@
+.chat-header {
+  position: sticky;
+  top: 0;
+  background: #000;
+  border-bottom: 1px solid #374151;
+  z-index: 20;
+  padding: 12px 0;
+}
+
+.chat-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.chat-back-button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chat-back-button:hover {
+  background: #1f2937;
+}
+
+.chat-header-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+  min-width: 0; /* For text truncation */
+}
+
+.chat-header-info:hover {
+  background: #1f2937;
+}
+
+.event-banner-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.event-info {
+  flex: 1;
+  min-width: 0; /* For text truncation */
+}
+
+.event-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-subtitle {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 2px 0 0 0;
+}
+
+.chat-menu-button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chat-menu-button:hover {
+  background: #1f2937;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .chat-header {
+    padding: 8px 0;
+    /* Account for notch/status bar */
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  
+  .chat-header-content {
+    padding: 0 12px;
+  }
+  
+  .event-name {
+    font-size: 15px;
+  }
+  
+  .event-subtitle {
+    font-size: 11px;
+  }
+  
+  .event-banner-small {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* PWA full-screen mode */
+@media (display-mode: standalone) {
+  .chat-header {
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+}

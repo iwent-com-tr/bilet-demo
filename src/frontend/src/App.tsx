@@ -44,9 +44,13 @@ import OrganizerDetail from './pages/admin/OrganizerDetail';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
+
+import Messages from './pages/chat/Messages';
+
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
 import OrganizerDetails from 'pages/organizer/organizer-3rd-view/OrganizerDetails';
+
 
 const App: React.FC = () => {
   return (
@@ -65,6 +69,9 @@ const App: React.FC = () => {
             <Route path="/register/organizer" element={<OrganizerRegister />} />
             <Route path="/search" element={<Search />} />
             <Route path='/search/:query' element={<Search />} />
+
+            <Route path="/messages" element={<Messages />} />
+
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />
             <Route path="/push-notification-demo" element={<PushNotificationDemo />} />

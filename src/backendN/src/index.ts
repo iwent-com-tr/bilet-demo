@@ -22,6 +22,8 @@ import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 import { populateDB } from './lib/utils/populators/populator';
 import settingsRoutes from './modules/settings/settings.routes';
+
+import chatRoutes from './modules/chat/chat.routes';
 import adminUserRoutes from './modules/admin/users.routes';
 import adminEventRoutes from './modules/admin/event.routes';
 import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
@@ -72,10 +74,14 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+
+app.use(`${API_PREFIX}/chat`, chatRoutes);
+
 app.use(`${API_PREFIX}/push`, pushNotificationRoutes);
 app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
 app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
+
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));

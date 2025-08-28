@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "Iwent bilet satış platformu frontend",
   "scripts": {
-    "start": "dotenv -e .env -- sh -ac 'PORT=${REACT_APP_PORT:-3000} react-scripts start'",
-    "start:https": "dotenv -e .env.https -- sh -ac 'PORT=${REACT_APP_PORT:-5173} HOST=0.0.0.0 HTTPS=true SSL_CRT_FILE=server.crt SSL_KEY_FILE=server.key react-scripts start'",
+
+    "start": "react-scripts start",
+    "start:env": "dotenv -e .env react-scripts start",
+
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

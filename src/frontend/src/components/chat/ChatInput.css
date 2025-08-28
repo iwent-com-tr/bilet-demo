@@ -1,0 +1,91 @@
+.chat-input-container {
+  position: sticky;
+  bottom: 0;
+  background: #000;
+  padding: 12px 16px;
+  border-top: 1px solid #374151;
+  z-index: 10;
+}
+
+.chat-input-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1f2937;
+  border-radius: 24px;
+  padding: 8px 16px;
+  border: 1px solid #374151;
+}
+
+.chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 0;
+  placeholder-color: #6b7280;
+}
+
+.chat-input::placeholder {
+  color: #6b7280;
+}
+
+.chat-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-send-button {
+  background: #05EF7E;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #000;
+}
+
+.chat-send-button:hover:not(:disabled) {
+  background: #04d970;
+  transform: scale(1.05);
+}
+
+.chat-send-button:disabled {
+  background: #374151;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.chat-send-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .chat-input-container {
+    padding: 12px 16px 16px 16px;
+    /* Extra bottom padding for mobile keyboards */
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  
+  .chat-input-form {
+    padding: 10px 16px;
+  }
+  
+  .chat-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .chat-send-button {
+    width: 40px;
+    height: 40px;
+  }
+}

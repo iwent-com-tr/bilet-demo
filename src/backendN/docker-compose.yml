@@ -30,5 +30,18 @@ services:
     depends_on:
       - postgres
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.5
+    container_name: iwent-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: development_master_key
+      MEILI_NO_ANALYTICS: true
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+
 volumes:
   db_data:
+  meili_data:
