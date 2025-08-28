@@ -353,4 +353,84 @@ export async function getCalendarEvents(req: Request, res: Response, next: NextF
   }
 }
 
+export async function notifyEventUpdate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const requesterId = (req as any).user?.id as string | undefined;
+    const eventId = req.params.id;
+    const isAdmin = await resolveIsAdmin(requesterId);
+    
+    // Get event to check ownership
+    const event = await EventService.findById(eventId);
+    
+    // Allow access if: user is admin, or user is the organizer who created the event
+    if (!isAdmin && event.organizerId !== requesterId) {
+      return res.status(403).json({ error: 'forbidden', code: 'FORBIDDEN' });
+    }
+    
+    const { updateType, message } = req.body;
+    
+    if (!updateType || !message) {
+      return res.status(400).json({ 
+        error: 'updateType and message are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+    
+    if (!['time_change', 'venue_change', 'general_update'].includes(updateType)) {
+      return res.status(400).json({ 
+        error: 'Invalid updateType. Must be: time_change, venue_change, or general_update',
+        code: 'INVALID_UPDATE_TYPE'
+      });
+    }
+    
+    await EventService.notifyTicketHoldersEventUpdate(
+      eventId,
+      event.name,
+      updateType,
+      message
+    );
+    
+    res.json({ 
+      success: true,
+      message: 'Event update notification sent to ticket holders'
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function sendEventReminder(req: Request, res: Response, next: NextFunction) {
+  try {
+    const requesterId = (req as any).user?.id as string | undefined;
+    const eventId = req.params.id;
+    const isAdmin = await resolveIsAdmin(requesterId);
+    
+    // Get event to check ownership
+    const event = await EventService.findById(eventId);
+    
+    // Allow access if: user is admin, or user is the organizer who created the event
+    if (!isAdmin && event.organizerId !== requesterId) {
+      return res.status(403).json({ error: 'forbidden', code: 'FORBIDDEN' });
+    }
+    
+    const { hoursBeforeEvent = 24 } = req.body;
+    
+    if (typeof hoursBeforeEvent !== 'number' || hoursBeforeEvent < 1 || hoursBeforeEvent > 168) {
+      return res.status(400).json({ 
+        error: 'hoursBeforeEvent must be a number between 1 and 168 (7 days)',
+        code: 'INVALID_HOURS'
+      });
+    }
+    
+    await EventService.sendEventReminders(eventId, hoursBeforeEvent);
+    
+    res.json({ 
+      success: true,
+      message: `Event reminder sent to ticket holders (${hoursBeforeEvent} hours before event)`
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
 

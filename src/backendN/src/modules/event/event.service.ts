@@ -1,22 +1,28 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import type { CreateEventInput, ListEventsQuery, UpdateEventInput, EventStats } from './event.dto';
-import { EventStatuses } from './event.dto';
 import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
-import { fi } from 'zod/v4/locales/index.cjs';
+import { oneSignalService } from '../push-notification/onesignal.service';
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
-import { SearchService } from '../search/search.service';
 
-async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventWhereInput */ {
-
+async function getEventIdsWithFilters(filters: ListEventsQuery) {
+  // Try MeiliSearch first, with database fallback for reliability
   let queryResults: any = undefined;
+  let shouldFallbackToDatabase = false;
 
-  let filter: any[] = [
-      `status=${filters.status || 'ACTIVE'}`
-  ];
+  // Build MeiliSearch filter
+  let filter: any[] = [];
+  const hasQuery = Boolean(filters.q && filters.q.trim().length > 0);
+  const defaultStatuses = ['ACTIVE'];
+  if (filters.status) {
+    filter.push(`status=${filters.status}`);
+  } else {
+    // When no explicit status filter, allow ACTIVE 
+    filter.push(defaultStatuses.map(s => `status=${s}`).join(' OR '));
+  }
 
   if (filters.dateFrom && filters.dateTo) {
     filter.push(`startDate >= ${filters.dateFrom} AND startDate <= ${filters.dateTo}`);
@@ -30,20 +36,101 @@ async function getEventIdsWithFilters(filters: ListEventsQuery) /* Prisma.EventW
     filter.push(filters.category.split(',').map((c: string) => `category=${c}`).join(' OR '));
   }
 
-
-  const searchDetails = {
-      limit: filters.limit,
-      offset: filters.limit * (filters.page - 1),
-      filter,
-    };
-
-  if (filters.q){
-    queryResults = await eventIndex.search(filters.q, searchDetails)
-  } else {
-    queryResults = await eventIndex.getDocuments(searchDetails);
+  if (filters.organizerId) {
+    filter.push(`organizerId=${filters.organizerId}`);
   }
 
-  return [ queryResults.estimatedTotalHits || queryResults.total, (queryResults.hits || queryResults.results).map((hit: any) => hit.id.toString()) ];
+  const searchDetails = {
+    limit: filters.limit,
+    offset: filters.limit * (filters.page - 1),
+    filter,
+  };
+
+  // If no search query, prefer reliable DB listing to avoid index staleness
+  if (!hasQuery) {
+    shouldFallbackToDatabase = true;
+  } else {
+    // Try MeiliSearch with improved error handling
+    try {
+      const query = filters.q || '';
+      queryResults = await eventIndex.search(query, searchDetails);
+      
+      const hits = queryResults.hits || [];
+      const total = queryResults.estimatedTotalHits || 0;
+      
+      // Check if MeiliSearch returned valid and consistent results
+      if (hits.length > 0 || (total === 0 && hits.length === 0)) {
+        console.log(`MeiliSearch: Found ${total} total events, returning ${hits.length} hits`);
+        return [total, hits.map((hit: any) => hit.id.toString())];
+      } else if (total > 0 && hits.length === 0) {
+        console.log(`MeiliSearch inconsistency: total=${total} but hits=${hits.length}, falling back to database`);
+        shouldFallbackToDatabase = true;
+      }
+    } catch (error) {
+      console.warn('MeiliSearch query failed, falling back to database:', error);
+      shouldFallbackToDatabase = true;
+    }
+  }
+
+  // Database fallback with the same filtering logic
+  if (shouldFallbackToDatabase) {
+    console.log('Using database fallback query');
+    
+    const where: any = { 
+      deletedAt: null,
+    };
+    if (filters.status) {
+      where.status = filters.status;
+    } else {
+      where.status = { in: defaultStatuses };
+    }
+    
+    if (filters.organizerId) {
+      where.organizerId = filters.organizerId;
+    }
+    
+    if (filters.city) {
+      where.city = { equals: filters.city, mode: 'insensitive' };
+    }
+    
+    if (filters.category) {
+      const categories = filters.category.split(',');
+      where.category = categories.length === 1 ? categories[0] : { in: categories };
+    }
+    
+    if (filters.dateFrom && filters.dateTo) {
+      where.startDate = {
+        gte: new Date(filters.dateFrom),
+        lte: new Date(filters.dateTo)
+      };
+    }
+    
+    if (filters.q) {
+      where.OR = [
+        { name: { contains: filters.q, mode: 'insensitive' } },
+        { description: { contains: filters.q, mode: 'insensitive' } },
+        { city: { contains: filters.q, mode: 'insensitive' } },
+        { venue: { contains: filters.q, mode: 'insensitive' } }
+      ];
+    }
+    
+    const [total, events] = await prisma.$transaction([
+      prisma.event.count({ where }),
+      prisma.event.findMany({
+        where,
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit,
+        select: { id: true },
+        orderBy: { startDate: 'asc' }
+      })
+    ]);
+    
+    console.log(`Database fallback: Found ${total} total events, returning ${events.length} events`);
+    return [total, events.map(e => e.id)];
+  }
+
+  // This should rarely be reached
+  return [0, []];
 }
 
 // deprecated
@@ -139,6 +226,7 @@ async function generateCreateInfos(input: CreateEventInput) {
       address: input.address,
       city: input.city,
       description: input.description,
+      organizerId: input.organizerId,
     }
 
     const createInfoPrisma = {
@@ -182,8 +270,44 @@ async function generateUpdateInfos(input: UpdateEventInput) {
 
 export class EventService {
   static async list(filters: ListEventsQuery) {
-    const ret = await SearchService.searchEvent(filters as any);
-    return ret;
+    const { page, limit } = filters;
+    
+    const [total, ids] = await getEventIdsWithFilters(filters);
+
+    if (ids.length === 0) {
+      return { page, limit, total, data: [] };
+    }
+
+    const data = await prisma.event.findMany({
+      where: { 
+        id: { in: ids as string[] },
+        deletedAt: null
+      },
+      orderBy: { startDate: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        startDate: true,
+        endDate: true,
+        venue: true,
+        address: true,
+        city: true,
+        banner: true,
+        description: true,
+        status: true,
+        organizerId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Reorder to match the order from the search/filter query
+    const dataById = new Map(data.map(d => [d.id, d]));
+    const ordered = (ids as string[]).map(id => dataById.get(id)).filter(Boolean);
+
+    return { page, limit, total, data: ordered };
   }
 
   static async findById(id: string) {
@@ -200,14 +324,7 @@ export class EventService {
   static async findBySlug(slug: string) {
     const event = await prisma.event.findFirst({
       where: { slug, deletedAt: null },
-      include: {
-        artists: {
-          select: {
-            artistId: true,
-            time: true
-          }
-        }
-      }
+      // Remove invalid include; adjust later when relation is available
     });
     if (!event) {
       const e: any = new Error('event not found');
@@ -274,12 +391,6 @@ export class EventService {
 
     const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
 
-    await prisma.eventArtist.deleteMany({
-      where: {
-        eventId: id,
-      }
-    })
-
     const updated = await prisma.event.update({
       where: { id },
       data: updateInfoPrisma as any, // ts ile uğraşmamak için
@@ -313,6 +424,13 @@ export class EventService {
       await notifyEventPublished(id); 
     } catch (error) {
       console.error('Failed to notify chat system about event publication:', error);
+    }
+    
+    // Send notification to ticket holders about event going live
+    try {
+      await this.notifyTicketHoldersEventPublished(event.name, id);
+    } catch (error) {
+      console.error('Failed to notify ticket holders about event publication:', error);
     }
     
     return { ...event, details };
@@ -441,7 +559,140 @@ export class EventService {
       },
     };
   }
+
+  /**
+   * Send notification to ticket holders when event is published
+   */
+  static async notifyTicketHoldersEventPublished(eventName: string, eventId: string) {
+    try {
+      await oneSignalService.sendToEventTicketHolders(
+        eventId,
+        `🎉 ${eventName} Etkinliği Açıldı!`,
+        `${eventName} etkinliği artık aktif! Bilet detaylarınızı kontrol edin ve hazırlıklarınızı tamamlayın.`,
+        {
+          data: {
+            notification_type: 'event_published',
+            event_id: eventId,
+            event_name: eventName
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send event published notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send event update notification to ticket holders
+   */
+  static async notifyTicketHoldersEventUpdate(
+    eventId: string, 
+    eventName: string, 
+    updateType: 'time_change' | 'venue_change' | 'general_update',
+    message: string
+  ) {
+    try {
+      const titles = {
+        time_change: `⏰ ${eventName} - Saat Değişikliği`,
+        venue_change: `📍 ${eventName} - Mekan Değişikliği`,
+        general_update: `📢 ${eventName} - Önemli Duyuru`
+      };
+
+      await oneSignalService.sendToEventTicketHolders(
+        eventId,
+        titles[updateType],
+        message,
+        {
+          data: {
+            notification_type: 'event_update',
+            update_type: updateType,
+            event_id: eventId,
+            event_name: eventName
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send event update notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send event reminder notifications
+   */
+  static async sendEventReminders(eventId: string, hoursBeforeEvent: number = 24) {
+    try {
+      const event = await prisma.event.findFirst({ 
+        where: { id: eventId, deletedAt: null },
+        select: { name: true, venue: true, startDate: true }
+      });
+      
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      await oneSignalService.sendEventReminder(
+        eventId,
+        event.name,
+        hoursBeforeEvent,
+        {
+          venue: event.venue ?? 'Mekan belirtilmemiş',
+          startTime: event.startDate.toLocaleTimeString('tr-TR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send event reminder:', error);
+      throw error;
+    }
+  }
 }
 
+export function sanitizeEvent(e: any) {
+  if (!e) return null;
+  // Ensure JSON fields are properly parsed
+  let socialMedia = e.socialMedia ?? {};
+  if (typeof socialMedia === 'string') {
+    try {
+      socialMedia = JSON.parse(socialMedia);
+    } catch (err) {
+      socialMedia = {};
+    }
+  }
+  
+  let ticketTypes = e.ticketTypes ?? [];
+  if (typeof ticketTypes === 'string') {
+    try {
+      ticketTypes = JSON.parse(ticketTypes);
+    } catch (err) {
+      ticketTypes = [];
+    }
+  }
+  
+  return {
+    id: e.id,
+    name: e.name,
+    slug: e.slug,
+    category: e.category,
+    startDate: e.startDate,
+    endDate: e.endDate,
+    venue: e.venue,
+    address: e.address,
+    city: e.city,
+    banner: e.banner,
+    socialMedia: socialMedia,
+    description: e.description,
+    capacity: e.capacity,
+    ticketTypes: Array.isArray(ticketTypes) ? ticketTypes : [],
+    status: e.status,
+    organizerId: e.organizerId,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+    details: e.details ?? undefined,
+  };
+}
 
 

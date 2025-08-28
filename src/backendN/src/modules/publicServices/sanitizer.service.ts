@@ -1,3 +1,4 @@
+import { id } from "zod/v4/locales/index.cjs";
 import { eventIndex } from "../../lib/meili";
 import { approve } from "../organizer/organizer.controller";
 
@@ -52,13 +53,13 @@ export function sanitizeVenue(e: any) {
     id: e.id,
     name: e.name,
     slug: e.slug,
-    venue: e.venue,
     address: e.address,
     city: e.city,
     banner: e.banner,
     capacity: e.capacity,
     seatedCapacity: e.seatedCapacity,
     standingCapacity: e.standingCapacity,
+    socialMedia: e.socialMedia || {},
     organizerId: e.organizerId,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
@@ -80,13 +81,15 @@ export function sanitizeArtist(e: any) {
     name: e.name,
     slug: e.slug,
     banner: e.banner,
-    bio: e.bio,
+    bio: e.bio || '',
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
     approved: e.approved,
     favoriteCount: e.favoriteCount,
     deletedAt: e.deletedAt,
-    genres: e.genres,
+    genres: e.genres || [],
+    socialMedia: e.socialMedia || {},
+    events: e.events ? e.events.map((event: any) => event.id) : [],
   };
 }
 
@@ -113,6 +116,7 @@ export function sanitizeOrganizer(o: any) {
 
 export function sanitizePublicOrganizer(o: any) {
   return {
+    id: o.id,
     firstName: o.firstName,
     lastName: o.lastName,
     company: o.company,

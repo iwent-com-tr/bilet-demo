@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './PageHeader.css';
 
 interface PageHeaderProps {
-  title: string;
+  title?: string;
   menuItems?: {
     label: string;
     onClick: () => void;
@@ -40,6 +40,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, menuItems, onBackClick }
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Move the conditional check after all hooks are declared
+  if (!title) {
+    return null;
+  }
 
   return (
     <div className="page-header">

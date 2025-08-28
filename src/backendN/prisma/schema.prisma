@@ -9,17 +9,25 @@ datasource db {
 
 model User {
   id                      String                       @id @default(uuid())
+  externalId              String                       @unique @default(cuid())
   firstName               String
   lastName                String
   email                   String                       @unique
+  emailVerified           Boolean                      @default(false)
   password                String
   birthYear               Int
   phone                   String                       @unique
   phoneVerified           Boolean                      @default(false)
   avatar                  String?
   city                    String
+  country                 String?
+  locale                  String?                      @default("tr-TR")
   lastLogin               DateTime?
+  lastSeenAt              DateTime?
   userType                UserType                     @default(USER)
+  adminRole               AdminRole                    @default(USER)
+  status                  UserStatus                   @default(ACTIVE)
+  marketingConsent        Boolean                      @default(false)
   points                  Int                          @default(0)
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
@@ -36,11 +44,21 @@ model User {
   favoriteEvents          FavoriteEvent[]
   favoriteArtists         FavoriteArtist[]
   favoriteVenues          FavoriteVenue[]
+  favoriteOrganizers      FavoriteOrganizer[]
   notificationPreferences UserNotificationPreference[]
   settings                UserSetting[]
   socialAccounts          UserSocialAccount[]
+  pushSubscriptions       PushSubscription[]
+  segmentTags             UserSegmentTag[]
+  notificationEvents      NotificationEvent[]
+  loginEvents             LoginEvent[]
+  auditLogsAsActor        AuditLog[]
 
   @@index([email])
+  @@index([externalId])
+  @@index([createdAt])
+  @@index([lastLogin])
+  @@index([adminRole, status])
 }
 
 model Organizer {
@@ -50,6 +68,7 @@ model Organizer {
   company       String
   phone         String
   phoneVerified Boolean   @default(false)
+  socialMedia   Json?     @default("{}")
   avatar        String?
   email         String    @unique
   password      String
@@ -57,8 +76,9 @@ model Organizer {
   taxOffice     String?
   address       String?
   bankAccount   String?
+  favoriteCount Int       @default(0)
   lastLogin     DateTime?
-  approved      Boolean   @default(false)   // kept conservative default (was true in one source, false in another)
+  approved      Boolean   @default(true)
   devices       Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -68,6 +88,7 @@ model Organizer {
   events        Event[]
   addedArtists  Artist[]
   addedVenues   Venue[]
+  favoriteUsers FavoriteOrganizer[]
 
   @@index([email])
 }
@@ -392,6 +413,93 @@ model UserSocialAccount {
   @@index([userId])
 }
 
+// Admin Panel Models
+model PushSubscription {
+  id              String     @id @default(cuid())
+  userId          String
+  channel         PushChannel @default(WEB_PUSH)
+  onesignalUserId String     // OneSignal player_id (required)
+  onesignalSubId  String?    // OneSignal subscription_id (optional)
+  subscriptionHash String?   // Hashed endpoint for security
+  browser         Browser
+  os              OS
+  deviceType      DeviceType
+  pwa             Boolean
+  subscribed      Boolean    @default(true)
+  lastSeen        DateTime?  // Last activity timestamp
+  ipAddress       String?    // Last known IP (hashed for privacy)
+  userAgent       String?    // User agent string (truncated)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, browser, os, deviceType, pwa])
+  @@index([onesignalUserId])
+  @@index([subscribed, lastSeen])
+  @@unique([userId, onesignalUserId]) // One subscription per user per OneSignal device
+}
+
+model UserSegmentTag {
+  id        String        @id @default(cuid())
+  userId    String
+  key       String        // Tag key (e.g., "env", "city", "interests", "user_type")
+  value     String        // Tag value (e.g., "dev", "istanbul", "concerts", "premium")
+  source    SegmentSource // INTERNAL or ONESIGNAL
+  syncedAt  DateTime?     // Last sync with OneSignal
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, key, value])
+  @@index([key, value]) // For segmentation queries
+  @@unique([userId, key, source]) // One tag value per key per source
+}
+
+// New model for tracking notification events
+model NotificationEvent {
+  id              String    @id @default(cuid())
+  userId          String?
+  onesignalId     String    // OneSignal notification ID
+  onesignalUserId String?   // OneSignal player_id
+  eventType       String    // "sent", "delivered", "display", "click", "dismiss"
+  timestamp       DateTime  @default(now())
+  metadata        Json?     // Additional event data
+  ipAddress       String?   // Event source IP (hashed)
+  userAgent       String?   // User agent (truncated)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, eventType, timestamp])
+  @@index([onesignalId, eventType])
+  @@index([onesignalUserId, eventType])
+  @@index([timestamp]) // For analytics queries
+}
+
+model LoginEvent {
+  id     String      @id @default(cuid())
+  userId String
+  ts     DateTime    @default(now())
+  ip     String? // Prisma doesn't have inet, use String
+  ua     String?
+  method LoginMethod
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, ts])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  entity    String
+  entityId  String
+  action    String
+  meta      Json?
+  ts        DateTime @default(now())
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
+
 enum Language {
   TR
   EN
@@ -546,6 +654,7 @@ model Venue {
   capacity         Int?
   seatedCapacity   Int?
   standingCapacity Int?
+  socialMedia       Json?           @default("{}")
   accessibility    Json? // {"wheelchair": true, "parking": true}
   address          String?
   city             String?
@@ -577,4 +686,72 @@ model FavoriteVenue {
   @@unique([userId, venueId])
   @@index([userId])
   @@index([venueId])
+}
+
+model FavoriteOrganizer {
+  id        String   @id @default(uuid())
+  userId    String
+  organizerId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizer     Organizer    @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizerId])
+  @@index([userId])
+  @@index([organizerId])
+}
+
+// Enums for Admin Panel
+enum AdminRole {
+  USER
+  ADMIN
+  SUPPORT
+  READONLY
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum PushChannel {
+  WEB_PUSH
+}
+
+enum Browser {
+  CHROME
+  SAFARI
+  FIREFOX
+  EDGE
+  OPERA
+  OTHER
+}
+
+enum OS {
+  IOS
+  ANDROID
+  MACOS
+  WINDOWS
+  LINUX
+  CHROME_OS
+  OTHER
+}
+
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+}
+
+enum SegmentSource {
+  INTERNAL
+  ONESIGNAL
+  EXTERNAL
+}
+
+enum LoginMethod {
+  PASSWORD
+  OAUTH
+  MAGIC_LINK
 }

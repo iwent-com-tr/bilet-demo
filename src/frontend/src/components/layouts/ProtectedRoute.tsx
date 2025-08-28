@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'user' | 'organizer';
+  requiredRole?: 'USER' | 'ORGANIZER' | 'ADMIN';
   redirectTo?: string;
 }
 
@@ -13,7 +13,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole, 
   redirectTo = '/login' 
 }) => {
-  const { isAuthenticated, isOrganizer, loading } = useAuth();
+  const { isAuthenticated, isOrganizer, isAdmin, loading, user } = useAuth();
   const location = useLocation();
 
   // Show loading state while checking authentication
@@ -31,12 +31,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // If role is required and user doesn't have the required role
-  if (requiredRole && requiredRole === 'organizer' && !isOrganizer) {
+  if (requiredRole === 'ADMIN' && !isAdmin) {
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole && requiredRole === 'user' && isOrganizer) {
-    return <Navigate to="/organizer" replace />;
+  if (requiredRole === 'ORGANIZER' && !isOrganizer) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requiredRole === 'USER' && (isOrganizer || isAdmin)) {
+    return <Navigate to="/" replace />;
   }
 
   // User is authenticated and has the required role (if any)

@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "Iwent bilet satış platformu frontend",
   "scripts": {
+
     "start": "react-scripts start",
     "start:env": "dotenv -e .env react-scripts start",
+
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

@@ -52,7 +52,7 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const artist = await ArtistsService.findBySlug(req.params.slug);
-    res.json(artist);
+    res.json((artist && sanitizeArtist(artist)) || null);
   } catch (e) { next(e); }
 }
 

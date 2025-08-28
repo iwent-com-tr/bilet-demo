@@ -684,6 +684,18 @@
     width: 100vw;
     padding: 0 16px;
   }
+
+  .organizer-dashboard__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .organizer-dashboard__create-button {
+    width: 100%;
+    justify-content: center;
+    padding: 16px;
+  }
   
   .organizer-dashboard__event-selector,
   .organizer-dashboard__stat-card,
@@ -697,5 +709,432 @@
   
   .organizer-dashboard__actions {
     gap: 12px;
+    flex-direction: column;
+  }
+
+  .organizer-dashboard__action-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .organizer-dashboard__quick-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Modal styles for notifications */
+.organizer-dashboard__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: modalOverlayFadeIn 0.3s ease;
+}
+
+@keyframes modalOverlayFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+.organizer-dashboard__modal {
+  background: linear-gradient(135deg, rgba(31, 41, 55, 0.95) 0%, rgba(17, 24, 39, 0.95) 100%);
+  border: 1px solid rgba(5, 239, 126, 0.2);
+  border-radius: 20px;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 40px rgba(5, 239, 126, 0.1);
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  backdrop-filter: blur(20px);
+  position: relative;
+  animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.organizer-dashboard__modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #05EF7E 0%, #00D968 50%, #05EF7E 100%);
+  border-radius: 20px 20px 0 0;
+  animation: modalGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes modalGlow {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.organizer-dashboard__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 2rem 1rem 2rem;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+  background: rgba(5, 239, 126, 0.02);
+}
+
+.organizer-dashboard__modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.organizer-dashboard__modal-close {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.organizer-dashboard__modal-close::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.organizer-dashboard__modal-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #EF4444;
+  transform: scale(1.05);
+}
+
+.organizer-dashboard__modal-close:hover::before {
+  left: 100%;
+}
+
+.organizer-dashboard__modal-form {
+  padding: 2rem;
+}
+
+.organizer-dashboard__modal-info {
+  background: linear-gradient(135deg, rgba(5, 239, 126, 0.1) 0%, rgba(0, 217, 104, 0.05) 100%);
+  border: 1px solid rgba(5, 239, 126, 0.3);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.organizer-dashboard__modal-info::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #05EF7E 0%, #00D968 100%);
+}
+
+.organizer-dashboard__modal-info p {
+  margin: 0.25rem 0;
+  color: #05EF7E;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding-left: 12px;
+}
+
+.organizer-dashboard__modal-info p strong {
+  color: white;
+  font-weight: 600;
+}
+
+.organizer-dashboard__form-group {
+  margin-bottom: 1.5rem;
+}
+
+.organizer-dashboard__form-label {
+  display: block;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  padding-left: 12px;
+}
+
+.organizer-dashboard__form-label::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 12px;
+  background: linear-gradient(180deg, #05EF7E 0%, #00D968 100%);
+  border-radius: 2px;
+}
+
+.organizer-dashboard__form-select,
+.organizer-dashboard__form-textarea {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.organizer-dashboard__form-select:focus,
+.organizer-dashboard__form-textarea:focus {
+  outline: none;
+  border-color: #05EF7E;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 0 0 3px rgba(5, 239, 126, 0.15),
+    0 8px 25px rgba(5, 239, 126, 0.1);
+  transform: translateY(-1px);
+}
+
+.organizer-dashboard__form-select option {
+  background: #1a1a1a;
+  color: white;
+  padding: 12px;
+}
+
+.organizer-dashboard__form-textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+.organizer-dashboard__form-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.organizer-dashboard__form-help {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  font-style: italic;
+  padding-left: 12px;
+}
+
+.organizer-dashboard__modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+.organizer-dashboard__modal-button {
+  padding: 0.875rem 1.75rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.organizer-dashboard__modal-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.organizer-dashboard__modal-button:hover::before {
+  left: 100%;
+}
+
+.organizer-dashboard__modal-button--secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.organizer-dashboard__modal-button--secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.organizer-dashboard__modal-button--primary {
+  background: linear-gradient(135deg, #05EF7E 0%, #00D968 100%);
+  border: none;
+  color: #000000;
+  box-shadow: 0 4px 15px rgba(5, 239, 126, 0.3);
+}
+
+.organizer-dashboard__modal-button--primary:hover {
+  background: linear-gradient(135deg, #00D968 0%, #00C55A 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(5, 239, 126, 0.4);
+}
+
+.organizer-dashboard__modal-button--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 15px rgba(5, 239, 126, 0.1);
+}
+
+/* Notification action buttons */
+.organizer-dashboard__action-button--notification {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.organizer-dashboard__action-button--notification:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+}
+
+.organizer-dashboard__action-button--reminder {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.organizer-dashboard__action-button--reminder:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-1px);
+}
+
+/* Mobile responsiveness for modal */
+@media (max-width: 768px) {
+  .organizer-dashboard__modal {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+    border-radius: 16px;
+  }
+  
+  .organizer-dashboard__modal-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+  }
+  
+  .organizer-dashboard__modal-title {
+    font-size: 1.25rem;
+  }
+  
+  .organizer-dashboard__modal-form {
+    padding: 1.5rem;
+  }
+  
+  .organizer-dashboard__modal-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .organizer-dashboard__modal-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .organizer-dashboard__form-select,
+  .organizer-dashboard__form-textarea {
+    padding: 0.875rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .organizer-dashboard__modal-overlay {
+    padding: 0.5rem;
+  }
+  
+  .organizer-dashboard__modal {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
+    max-height: 95vh;
+  }
+  
+  .organizer-dashboard__modal-header {
+    padding: 1.25rem 1.25rem 0.75rem 1.25rem;
+  }
+  
+  .organizer-dashboard__modal-title {
+    font-size: 1.125rem;
+  }
+  
+  .organizer-dashboard__modal-form {
+    padding: 1.25rem;
+  }
+  
+  .organizer-dashboard__modal-info {
+    padding: 1rem;
+  }
+  
+  .organizer-dashboard__form-group {
+    margin-bottom: 1.25rem;
   }
 }
