@@ -1,7 +1,7 @@
 import axios from "axios";
 import PageHeader from "components/layouts/PageHeader";
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import instagramIcon from "../../assets/social-media/instagram.png";
 import tiktokIcon from "../../assets/social-media/tiktok.png";
 import youtubeIcon from "../../assets/social-media/youtube.png";
@@ -10,9 +10,11 @@ import approved from "../../assets/approved.png";
 import VenuesEventList from "./VenuesEventList";
 import "./VenuesDetail.css";
 import MobileNavbar from "components/layouts/MobileNavbar";
+import { useAuth } from "context/AuthContext";
+import { toast } from "react-toastify";
 
 interface Venue {
-    id: string,
+    id: string;
     name: string;
     slug: string;
     address: string;
@@ -32,31 +34,81 @@ interface Venue {
     mapsLocation: string;
     approved: boolean;
     favoriteCount: number;
-    deletedAt: Date;
+    deletedAt: Date | null;
     events: string[];
+    following?: boolean;
 }
 
 const VenuesDetail: React.FC = () => {
-
-    const venue = useRef<Venue | null>(null);
+    const [venue, setVenue] = useState<Venue | null>(null);
     const venueStats = useRef<any>(null);
 
     const { slug } = useParams();
+    const { isAuthenticated, user } = useAuth();
+    const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
+
     async function getVenue() {
-        const dbVenue = await axios.get(`${process.env.REACT_APP_API_URL}/venues/slug/${slug}`);
-        if (dbVenue.status === 200) {
-            venue.current = dbVenue.data as Venue;
+        try {
+            const dbVenue = await axios.get(`${process.env.REACT_APP_API_URL}/venues/slug/${slug}`);
+            console.log(dbVenue)
+            if (dbVenue.status === 200) {
+                setVenue(dbVenue.data as Venue);
+            } else {
+                setVenue(null);
+            }
+        } catch (err) {
+            setVenue(null);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }
 
-    useEffect( () => { 
-        getVenue();
-    }, [])
+    async function handleFollow() {
+        if (!isAuthenticated) {
+            toast.error("Takip etmek için giriş yapmalısınız");
+            navigate("/login");
+            return;
+        }
 
-    if (venue.current === null) return (
+        if (user?.tip !== "user") {
+            toast.error("Sadece kullanıcılar takip edebilir");
+            return;
+        }
+
+        if (!venue) return;
+
+        try {
+            if (venue.following) {
+                const res = await axios.delete(`${process.env.REACT_APP_API_URL}/venues/follow/${venue.id}`);
+                if (res.status === 200) {
+                    setVenue({
+                        ...venue,
+                        favoriteCount: venue.favoriteCount - 1,
+                        following: false,
+                    });
+                }
+            } else {
+                const res = await axios.post(`${process.env.REACT_APP_API_URL}/venues/follow/${venue.id}`);
+                if (res.status === 200) {
+                    setVenue({
+                        ...venue,
+                        favoriteCount: venue.favoriteCount + 1,
+                        following: true,
+                    });
+                }
+            }
+        } catch (error) {
+            toast.error("Takip isteği sırasında bir hata oluştu.");
+        }
+    }
+
+    useEffect(() => {
+        getVenue();
+    }, [slug]);
+
+    if (venue === null) return (
         <div className="venues-detail">
             <PageHeader title="Mekan Detayları" />
             <h1 className="venues-detail__not-found">Mekan Bulunamadı</h1>
@@ -68,51 +120,55 @@ const VenuesDetail: React.FC = () => {
             <PageHeader title="Mekan Detayları" />
             <div className="venues-detail__content">
                 <div className="venues-detail__approved-wrapper">
-                    {venue.current?.approved && <img src={approved} alt="Approved" className="venues-detail__approved" />}
+                    {venue?.approved && <img src={approved} alt="Approved" className="venues-detail__approved" />}
                 </div>
                 <div className="venue-banner-wrapper">
-                    <img src={venue.current?.banner} alt={venue.current?.name} className="venue-banner" />
+                    <img src={venue?.banner} alt={venue?.name} className="venue-banner" />
                 </div>
                 <div className="venue-details">
-                    <h2 className="venue-detail__name">{venue.current?.name + ' - Etkinlik Mekanı'}</h2>
+                    <h2 className="venue-detail__name">{venue?.name + ' - Etkinlik Mekanı'}</h2>
                     <div className="venue-socials">
-                        {venue.current?.socialMedia.instagram && (
-                            <a href={venue.current?.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {venue?.socialMedia.instagram && (
+                            <a href={venue?.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={instagramIcon} alt="Instagram" className="venue-socials__icon" />
                             </a>
                         )}
-                        {venue.current?.socialMedia.x && (
-                            <a href={venue.current?.socialMedia.x} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {venue?.socialMedia.x && (
+                            <a href={venue?.socialMedia.x} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={xIcon} alt="X" className="venue-socials__icon" />
                             </a>
                         )}
-                        {venue.current?.socialMedia.youtube && (
-                            <a href={venue.current?.socialMedia.youtube} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {venue?.socialMedia.youtube && (
+                            <a href={venue?.socialMedia.youtube} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={youtubeIcon} alt="Youtube" className="venue-socials__icon" />
                             </a>
                         )}
-                        {venue.current?.socialMedia.tiktok && (
-                            <a href={venue.current?.socialMedia.tiktok} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {venue?.socialMedia.tiktok && (
+                            <a href={venue?.socialMedia.tiktok} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={tiktokIcon} alt="TikTok" className="venue-socials__icon" />
                             </a>
                         )}
                     </div>
                     <div className="venue-stats">
-                        <span className="venue-details-text">{venue.current?.events.length}<br />Etkinlik</span>
-                        <span className="venue-details-text">{venue.current?.favoriteCount}<br />Takipçi</span>
+                        <span className="venue-details-text">{venue?.events.length}<br />Etkinlik</span>
+                        <span className="venue-details-text">{venue?.favoriteCount}<br />Takipçi</span>
                         <span className="venue-details-text">Son Ayda<br />{venueStats.current}<br />Katılımcı</span>
                     </div>
                     <div className="venue-additional">
-                        <h1 className="venue-additional__address">{venue.current?.address + ', ' + venue.current?.city}</h1>
-                        <p className="venue-additional__details">{venue.current?.details}</p>
+                        <h1 className="venue-additional__address">{venue?.address + ', ' + venue?.city}</h1>
+                        <p className="venue-additional__details">{venue?.details}</p>
                     </div>
                 </div>
             </div>
-            <div className="follow-button-wrapper">
-                <button className="follow-button">Takip Et</button>
+
+            <div className={venue.following ? "follow-button-wrapper following" : "follow-button-wrapper"}>
+                <button className={venue.following ? "follow-button following" : "follow-button"} onClick={handleFollow}>
+                    {venue.following ? "Takipten Çık" : "Takip Et"}
+                </button>
             </div>
-            <VenuesEventList eventIds={venue.current?.events} />
-        <MobileNavbar />
+
+            <VenuesEventList eventIds={venue.events} />
+            <MobileNavbar />
         </div>
     );
 };

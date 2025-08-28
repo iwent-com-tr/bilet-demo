@@ -10,7 +10,7 @@ const r = Router();
 r.get('/', authGuard.optional, rbac('ADMIN'), ctrl.list);
 
 // Public get organizer public profile by id (safe information only)
-r.get('/public/:id', ctrl.getPublicById);
+r.get('/public/:id', authGuard.optional, ctrl.getPublicById);
 
 // Public get organizer for search
 r.get('/public/', authGuard.optional, ctrl.listPublic);
@@ -41,6 +41,9 @@ r.get('/event/:eventId/report', authGuard.required, rbac('ORGANIZER'), ctrl.gene
 
 // Get events for a specific organizer (with filters) — Self or Admin access
 r.get('/:organizerId/events', authGuard.required, ctrl.getOrganizerEvents);
+// Send follow request
+r.post('/follow/:id', authGuard.required, ctrl.sendFollowRequest);
+r.delete('/follow/:id', authGuard.required, ctrl.cancelFollowRequest);
 
 export default r;
 

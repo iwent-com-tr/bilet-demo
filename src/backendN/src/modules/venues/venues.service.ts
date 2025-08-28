@@ -12,7 +12,18 @@ export class VenuesService {
   }
 
     static async findById(id: string) {
-        const venue = await prisma.event.findFirst({ where: { id, deletedAt: null } });
+        const venue = await prisma.event.findFirst({ 
+          where: { 
+            id, deletedAt: null 
+          },
+          include: {
+            favoriteUsers: {
+              select: {
+                userId: true,
+              },
+            },
+          } 
+        });
         if (!venue) {
           const e: any = new Error('venue not found');
           e.status = 404; e.code = 'NOT_FOUND';
@@ -33,7 +44,12 @@ export class VenuesService {
                 select: {
                   id: true
                 }
-              }
+              },
+              favoriteUsers: {
+                select: {
+                  userId: true,
+                },
+              },
             } 
         });
         if (!venue) {
@@ -84,4 +100,12 @@ export class VenuesService {
       
       await prisma.venue.update({ where: { id }, data: { deletedAt: new Date() } });
     }
+
+    static async sendFollowRequest(venueId: string, userId: string) {
+        return prisma.favoriteVenue.create({ data: { userId, venueId } });
+      }
+    
+      static async cancelFollowRequest(venueId: string, userId: string) {
+        return prisma.favoriteVenue.delete({ where: { userId_venueId: { userId, venueId } } });
+      }
 }
