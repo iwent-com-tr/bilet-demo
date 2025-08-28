@@ -20,6 +20,7 @@ import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 import { populateDB } from './lib/utils/populators/populator';
 import settingsRoutes from './modules/settings/settings.routes';
+import chatRoutes from './modules/chat/chat.routes';
 dotenv.config();
 
 const args = process.argv.slice(2);
@@ -56,6 +57,7 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+app.use(`${API_PREFIX}/chat`, chatRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));

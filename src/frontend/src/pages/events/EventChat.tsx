@@ -1,282 +1,330 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import ChatHeader from '../../components/chat/ChatHeader';
+import ChatMessage from '../../components/chat/ChatMessage';
+import ChatInput from '../../components/chat/ChatInput';
+import GroupInfo from '../../components/chat/GroupInfo';
+import { toast } from 'react-toastify';
 import './EventChat.css';
 
-type SenderType = 'USER' | 'ORGANIZER';
-
-interface ChatMessageDto {
+interface Message {
   id: string;
   senderId: string;
-  senderType: SenderType;
+  senderType: 'USER' | 'ORGANIZER';
   message: string;
   createdAt: string;
+  senderName?: string;
+  senderAvatar?: string;
 }
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+interface Event {
+  id: string;
+  name: string;
+  slug: string;
+  banner?: string;
+  startDate: string;
+  venue: string;
+  city: string;
+  organizer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+interface Participant {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string;
+  isOnline?: boolean;
+  role?: 'USER' | 'ORGANIZER';
+}
 
 const EventChat: React.FC = () => {
-  const { slug: eventIdOrSlug } = useParams<{ slug: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading } = useAuth();
-
-  const [messages, setMessages] = useState<ChatMessageDto[]>([]);
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [socketConnected, setSocketConnected] = useState(false);
-  const [eventData, setEventData] = useState<{ id: string; slug: string } | null>(null);
-  const socketRef = useRef<Socket | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
-
-  const token = useMemo(() => localStorage.getItem('token') || '', []);
+  const { user, isAuthenticated } = useAuth();
+  
+  const [event, setEvent] = useState<Event | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [hasTicket, setHasTicket] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (loading) return;
     if (!isAuthenticated) {
       navigate('/login');
+      return;
     }
-  }, [loading, isAuthenticated, navigate]);
 
-  // Determine if the param is a UUID (event ID) or slug
-  const isUUID = (str: string): boolean => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(str);
-  };
+    if (slug) {
+      fetchEventAndMessages();
+    }
 
-  // Fetch initial messages via socket after connection
-  const loadChatHistory = (socket: Socket) => {
-    if (!eventIdOrSlug) return;
-    
-    const payload = isUUID(eventIdOrSlug) 
-      ? { eventId: eventIdOrSlug, limit: 100 }
-      : { eventSlug: eventIdOrSlug, limit: 100 };
-      
-    socket.emit('chat:history', payload, (response: any) => {
-      if (response?.ok && response?.data) {
-        const list: ChatMessageDto[] = response.data;
-        setMessages(list);
+    return () => {
+      if (socket) {
+        socket.disconnect();
       }
-    });
-  };
+    };
+  }, [slug, isAuthenticated]);
 
-  // Setup socket connection
   useEffect(() => {
-    if (!eventIdOrSlug || !token || !isAuthenticated) {
+    scrollToBottom();
+  }, [messages]);
+
+  const fetchEventAndMessages = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch event details
+      const eventResponse = await axios.get(
+        `${process.env.REACT_APP_API_URL}/events/${slug}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+
+      const eventData = eventResponse.data.event;
+      setEvent(eventData);
+
+      // Check if user has ticket for this event
+      const ticketResponse = await axios.get(
+        `${process.env.REACT_APP_API_URL}/tickets/my-tickets?eventId=${eventData.id}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+
+      const userHasTicket = ticketResponse.data.tickets?.length > 0;
+      setHasTicket(userHasTicket);
+
+      if (!userHasTicket) {
+        toast.error('Bu etkinliğin sohbet odasına katılmak için biletiniz olması gerekiyor.');
+        navigate(`/events/${slug}`);
       return;
     }
     
-    let isMounted = true;
-    
-    // Disconnect any existing socket first
-    if (socketRef.current) {
-      socketRef.current.disconnect();
+      // Fetch chat messages
+      const messagesResponse = await axios.get(
+        `${process.env.REACT_APP_API_URL}/chat/event/${eventData.id}/messages`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+
+      setMessages(messagesResponse.data.messages || []);
+
+      // Fetch participants
+      const participantsResponse = await axios.get(
+        `${process.env.REACT_APP_API_URL}/chat/event/${eventData.id}/participants`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+
+      setParticipants(participantsResponse.data.participants || []);
+
+      // Initialize socket connection
+      initializeSocket(eventData);
+
+      setLoading(false);
+    } catch (error: any) {
+      console.error('Error fetching event chat:', error);
+      setLoading(false);
+      
+      if (error.response?.status === 403) {
+        toast.error('Bu sohbet odasına erişim izniniz yok.');
+        navigate(`/events/${slug}`);
+      } else if (error.response?.status === 404) {
+        toast.error('Etkinlik bulunamadı.');
+        navigate('/events');
+      } else {
+        toast.error('Sohbet odası yüklenirken bir hata oluştu.');
+      }
     }
-    
-    const socket = io(SOCKET_URL, {
+  };
+
+  const initializeSocket = (eventData: Event) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:3000', {
       path: '/chat',
       auth: { token },
-      forceNew: true,
-      withCredentials: true,
-      transports: ['polling', 'websocket'],
-      timeout: 20000,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-    
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      if (isMounted) {
-        setSocketConnected(true);
-        // Join the event chat room
-        setTimeout(() => {
-          const joinPayload = isUUID(eventIdOrSlug) 
-            ? { eventId: eventIdOrSlug }
-            : { eventSlug: eventIdOrSlug };
-            
-          socket.emit('chat:join', joinPayload, (response: any) => {
-            if (response?.ok) {
-              // Store event data from response
-              if (response.eventId && response.eventSlug) {
-                setEventData({ id: response.eventId, slug: response.eventSlug });
-              }
-              // Load chat history after successfully joining
-              loadChatHistory(socket);
-            }
-          });
-        }, 100);
-      }
+      transports: ['websocket', 'polling']
     });
 
-    socket.on('connect_error', (_error) => {
-      if (isMounted) {
-        setSocketConnected(false);
-      }
+    newSocket.on('connect', () => {
+      console.log('Socket connected');
+      setIsConnected(true);
+      
+      // Join event room
+      newSocket.emit('chat:join', { eventSlug: eventData.slug });
     });
 
-    socket.on('disconnect', () => {
-      if (isMounted) {
-        setSocketConnected(false);
-      }
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      setIsConnected(false);
     });
 
-    // Listen for new messages
-    socket.on('chat:message', (msg: ChatMessageDto) => {
-      if (isMounted) {
-        setMessages((prev) => {
-          // Duplicate check
-          if (prev.find(m => m.id === msg.id)) {
-            return prev;
-          }
-          const newMessages = [...prev, msg];
-          return newMessages;
-        });
-      }
+    newSocket.on('chat:message', (message: Message) => {
+      setMessages(prev => [...prev, message]);
     });
 
-    // Listen for chat events
-    socket.on('chat:joined', ({ eventId: joinedEventId, eventSlug: joinedEventSlug }: { eventId?: string; eventSlug?: string }) => {
-      if (isMounted) {
-        console.log('Successfully joined event chat:', joinedEventId || joinedEventSlug);
-        if (joinedEventId && joinedEventSlug) {
-          setEventData({ id: joinedEventId, slug: joinedEventSlug });
-        }
-      }
+    newSocket.on('chat:joined', ({ eventId }: { eventId: string }) => {
+      console.log('Joined event room:', eventId);
     });
 
-    socket.on('chat:error', ({ code, message }: { code: string; message: string }) => {
-      if (isMounted) {
-        console.error('Chat error:', code, message);
-      }
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      toast.error('Sohbet bağlantısı kurulamadı.');
     });
 
-    return () => {
-      isMounted = false;
-      if (socket.connected) {
-        const leavePayload = isUUID(eventIdOrSlug) 
-          ? { eventId: eventIdOrSlug }
-          : { eventSlug: eventIdOrSlug };
-        socket.emit('chat:leave', leavePayload);
-      }
-      socket.disconnect();
-      socketRef.current = null;
-      setSocketConnected(false);
-    };
-  }, [eventIdOrSlug, token, isAuthenticated]);
+    setSocket(newSocket);
+  };
 
-  // Auto scroll to bottom on new messages
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSendMessage = (messageText: string) => {
+    if (!socket || !event || !isConnected) {
+      toast.error('Sohbet bağlantısı yok. Lütfen sayfayı yenileyin.');
+      return;
     }
-  }, [messages.length]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !eventIdOrSlug || sending || !socketRef.current) return;
-    
-    const messageText = input.trim();
-    setInput(''); // Clear input immediately for better UX
-    setSending(true);
-    
-    const sendPayload = isUUID(eventIdOrSlug) 
-      ? { eventId: eventIdOrSlug, message: messageText }
-      : { eventSlug: eventIdOrSlug, message: messageText };
-    
-    socketRef.current.emit('chat:send', sendPayload, (response: any) => {
-      if (!response?.ok) {
-        // Restore input on error
-        setInput(messageText);
-        console.error('Failed to send message:', response?.message);
+    socket.emit('chat:send', {
+      eventSlug: event.slug,
+      message: messageText
+    }, (response: any) => {
+      if (!response.ok) {
+        toast.error(response.message || 'Mesaj gönderilemedi.');
       }
-      setSending(false);
     });
   };
 
-  if (!eventIdOrSlug) {
+  const handleBackClick = () => {
+    navigate('/messages');
+  };
+
+  const handleGroupInfoClick = () => {
+    setShowGroupInfo(true);
+  };
+
+  const handleCloseGroupInfo = () => {
+    setShowGroupInfo(false);
+  };
+
+  if (loading) {
     return (
-      <div className="event-chat">
-        <div className="event-chat__error">Geçersiz etkinlik</div>
+      <div className="event-chat-page">
+        <div className="event-chat-loading">
+          <div className="loading-spinner"></div>
+          <p>Sohbet odası yükleniyor...</p>
+        </div>
       </div>
     );
   }
 
+  if (!event) {
   return (
-    <div className="event-chat">
-      <div className="event-chat__container">
-        <div className="event-chat__header">
-          <button onClick={() => navigate(-1)} className="event-chat__back-btn">
-            ← Geri
+      <div className="event-chat-page">
+        <div className="event-chat-error">
+          <h2>Etkinlik bulunamadı</h2>
+          <button onClick={() => navigate('/events')} className="back-to-events-btn">
+            Etkinliklere Dön
           </button>
-          <h1 className="event-chat__title">💬 Etkinlik Sohbeti</h1>
-          <div style={{ fontSize: '12px', color: socketConnected ? '#05EF7E' : '#ef4444', marginLeft: 'auto' }}>
-            {socketConnected ? '🟢 Bağlı' : '🔴 Bağlantı Yok'}
           </div>
         </div>
+    );
+  }
 
-        <div ref={listRef} className="event-chat__messages">
-          {messages.map((m) => {
-            const mine = user && m.senderId === user.id;
             return (
-              <div 
-                key={m.id} 
-                className={`event-chat__message ${mine ? 'event-chat__message--mine' : 'event-chat__message--other'}`}
-              >
-                <div className={`event-chat__message-bubble ${mine ? 'event-chat__message-bubble--mine' : 'event-chat__message-bubble--other'}`}>
-                  <div className={`event-chat__message-header ${mine ? 'event-chat__message-header--mine' : 'event-chat__message-header--other'}`}>
-                    {m.senderType === 'ORGANIZER' ? 'Organizatör' : 'Kullanıcı'}
-                  </div>
-                  <p className="event-chat__message-text">{m.message}</p>
-                  <div className="event-chat__message-time">
-                    {new Date(m.createdAt).toLocaleString('tr-TR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      day: 'numeric',
-                      month: 'short'
-                    })}
+    <div className="event-chat-page">
+      <ChatHeader
+        eventName={event.name}
+        eventBanner={event.banner}
+        participantCount={participants.length}
+        onGroupInfoClick={handleGroupInfoClick}
+        onBackClick={handleBackClick}
+      />
+
+      <div className="event-chat-content" ref={messagesContainerRef}>
+        {/* Welcome Message */}
+        <div className="welcome-message">
+          <div className="welcome-text">
+            <h3>🎉 {event.name} sohbet odasına hoş geldiniz!</h3>
+            <p>Bu grup, etkinlik katılımcıları arasında iletişim kurmak için oluşturulmuştur.</p>
+            <div className="event-details">
+              <span>📅 {new Date(event.startDate).toLocaleDateString('tr-TR')}</span>
+              <span>📍 {event.venue}, {event.city}</span>
                   </div>
                 </div>
               </div>
-            );
-          })}
-          {messages.length === 0 && (
-            <div className="event-chat__empty">
-              Henüz mesaj yok. İlk mesajı gönderin!
+
+        {/* Messages */}
+        <div className="messages-container">
+          {messages.length === 0 ? (
+            <div className="no-messages">
+              <p>Henüz mesaj yok. İlk mesajı siz gönderin! 👋</p>
             </div>
+          ) : (
+            messages.map((message) => (
+              <ChatMessage
+                key={message.id}
+                message={message}
+                currentUserId={user?.id || ''}
+                currentUserType={user?.tip || 'user'}
+              />
+            ))
           )}
+          <div ref={messagesEndRef} />
+        </div>
         </div>
 
-        <form onSubmit={handleSend} className="event-chat__form">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Mesaj yazın..."
-            className="event-chat__input"
-            rows={1}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(e);
-              }
-            }}
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="event-chat__send-btn"
-          >
-            {sending ? '...' : 'Gönder'}
-          </button>
-        </form>
+      <ChatInput
+        onSendMessage={handleSendMessage}
+        disabled={!isConnected || !hasTicket}
+        placeholder={
+          !isConnected 
+            ? "Bağlantı kuruluyor..." 
+            : !hasTicket 
+              ? "Bu etkinlik için biletiniz yok" 
+              : "Ücretsiz sohbet"
+        }
+      />
+
+      {/* Connection Status */}
+      {!isConnected && (
+        <div className="connection-status">
+          <span className="connection-indicator offline"></span>
+          <span>Bağlantı kuruluyor...</span>
       </div>
+      )}
+
+      {/* Group Info Modal */}
+      {showGroupInfo && (
+        <GroupInfo
+          eventName={event.name}
+          eventBanner={event.banner}
+          participants={participants}
+          onClose={handleCloseGroupInfo}
+          currentUserId={user?.id || ''}
+          isOrganizer={user?.tip === 'organizer' && event.organizer.id === user.id}
+        />
+      )}
     </div>
   );
 };
 
 export default EventChat;
-
-
