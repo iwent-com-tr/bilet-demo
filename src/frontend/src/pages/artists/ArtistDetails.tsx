@@ -64,7 +64,7 @@ const ArtistsDetail: React.FC = () => {
             return;
         }
 
-        if (user?.tip !== "user") {
+        if (user?.userType !== "USER") {
             toast.error("Sadece kullanıcılar takip edebilir");
             return;
         }
@@ -98,7 +98,6 @@ const ArtistsDetail: React.FC = () => {
 
     useEffect(() => {
         getArtist();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [slug]);
 
     if (artist === null) return (

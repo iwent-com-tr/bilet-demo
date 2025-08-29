@@ -72,7 +72,7 @@ const VenuesDetail: React.FC = () => {
             return;
         }
 
-        if (user?.tip !== "user") {
+        if (user?.userType !== "USER") {
             toast.error("Sadece kullanıcılar takip edebilir");
             return;
         }

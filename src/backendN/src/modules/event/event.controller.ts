@@ -83,6 +83,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     if (!isAdmin && event.organizerId !== requesterId) {
       return res.status(403).json({ error: 'forbidden', code: 'FORBIDDEN' });
     }
+    console.log(req.body);
     const input = UpdateEventDTO.parse(req.body);
     const updated = await EventService.update(req.params.id, input);
     res.json({ event: sanitizeEvent(updated) });
