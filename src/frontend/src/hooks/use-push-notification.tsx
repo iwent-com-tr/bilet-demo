@@ -63,8 +63,23 @@ export function usePushNotification(options: UsePushNotificationOptions = {}): U
   });
   const [error, setError] = useState<string | null>(null);
 
+  // Check if push notifications are properly configured
+  const isConfigured = useCallback(() => {
+    const appId = process.env.REACT_APP_ONESIGNAL_APP_ID;
+    if (!appId) {
+      console.warn('[usePushNotification] REACT_APP_ONESIGNAL_APP_ID not configured');
+      return false;
+    }
+    return true;
+  }, []);
+
   // Initialize push notification manager
   const initialize = useCallback(async () => {
+    if (!isConfigured()) {
+      setError('Push notifications not properly configured');
+      return;
+    }
+
     if (isInitializing || isInitialized) return;
     
     try {
@@ -91,7 +106,7 @@ export function usePushNotification(options: UsePushNotificationOptions = {}): U
     } finally {
       setIsInitializing(false);
     }
-  }, [isInitializing, isInitialized, onError]);
+  }, [isInitializing, isInitialized, onError, isConfigured]);
 
   // Request permission and subscribe
   const requestPermission = useCallback(async () => {

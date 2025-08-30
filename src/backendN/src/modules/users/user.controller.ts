@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
+import { FollowService } from './follow.service';
 import { UpdateProfileDTO, UpdateUserDTO } from '../auth/auth.dto'; 
 import { z } from 'zod';
 import { PhoneVerificationService } from './phone-verification.service';
@@ -49,6 +50,14 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try { 
     const user = await UserService.findById(req.params.id);
+    res.json({ user: sanitizeUser(user) });
+  } catch (e) { next(e); }
+};
+
+export const getByIdWithRelationship = async (req: Request, res: Response, next: NextFunction) => {
+  try { 
+    const currentUserId = (req as any).user?.id;
+    const user = await UserService.findByIdWithRelationship(req.params.id, currentUserId);
     res.json({ user: sanitizeUser(user) });
   } catch (e) { next(e); }
 };
@@ -310,5 +319,94 @@ export const listFavorites = async (req: any, res: Response, next: NextFunction)
     const userId = req.user.id;
     const events = await UserService.listFavorites(userId);
     res.json({ events });
+  } catch (e) { next(e); }
+};
+
+// Follow/Unfollow Artists
+export const followArtist = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const { artistId } = req.params;
+    const result = await FollowService.followArtist(userId, artistId);
+    res.status(201).json({ success: true, favorite: result });
+  } catch (e) { next(e); }
+};
+
+export const unfollowArtist = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const { artistId } = req.params;
+    await FollowService.unfollowArtist(userId, artistId);
+    res.status(204).send();
+  } catch (e) { next(e); }
+};
+
+// Follow/Unfollow Venues
+export const followVenue = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const { venueId } = req.params;
+    const result = await FollowService.followVenue(userId, venueId);
+    res.status(201).json({ success: true, favorite: result });
+  } catch (e) { next(e); }
+};
+
+export const unfollowVenue = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const { venueId } = req.params;
+    await FollowService.unfollowVenue(userId, venueId);
+    res.status(204).send();
+  } catch (e) { next(e); }
+};
+
+// Follow/Unfollow Organizers
+export const followOrganizer = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const { organizerId } = req.params;
+    const result = await FollowService.followOrganizer(userId, organizerId);
+    res.status(201).json({ success: true, favorite: result });
+  } catch (e) { next(e); }
+};
+
+export const unfollowOrganizer = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const { organizerId } = req.params;
+    await FollowService.unfollowOrganizer(userId, organizerId);
+    res.status(204).send();
+  } catch (e) { next(e); }
+};
+
+// Get user's following lists
+export const getFollowing = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user.id;
+    const following = await FollowService.getUserFollowing(userId);
+    res.json(following);
+  } catch (e) { next(e); }
+};
+
+// Check follow status
+export const checkFollowStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { entityType, entityId } = req.params;
+    
+    if (!userId) {
+      return res.json({ isFollowing: false });
+    }
+
+    if (!['artist', 'venue', 'organizer'].includes(entityType)) {
+      return res.status(400).json({ error: 'Invalid entity type' });
+    }
+
+    const result = await FollowService.checkFollowStatus(
+      userId, 
+      entityType as 'artist' | 'venue' | 'organizer', 
+      entityId
+    );
+    res.json(result);
   } catch (e) { next(e); }
 };

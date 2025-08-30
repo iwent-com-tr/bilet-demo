@@ -14,6 +14,12 @@ export interface OneSignalCreateNotificationRequest {
     relation: string;
     value: string;
     operator?: 'AND' | 'OR';
+    filters?: Array<{
+      field: string;
+      key?: string;
+      relation: string;
+      value: string;
+    }>;
   }>;
   target_channel?: 'push';
   headings?: Record<string, string>;
@@ -30,6 +36,11 @@ export interface OneSignalCreateNotificationRequest {
   custom_data?: Record<string, any>;
   chrome_web_icon?: string;
   chrome_web_badge?: string;
+  ios_badgeType?: string;
+  ios_badgeCount?: number;
+  android_channel_id?: string;
+  small_icon?: string;
+  large_icon?: string;
 }
 
 export interface OneSignalNotificationResponse {

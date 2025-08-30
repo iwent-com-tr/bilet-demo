@@ -240,16 +240,89 @@
   text-align: center;
 }
 
-.messages-empty p {
+.messages-empty .empty-icon {
+  margin-bottom: 24px;
+  opacity: 0.6;
+}
+
+.messages-empty .empty-icon svg {
+  color: #05EF7E;
+}
+
+.messages-empty h3 {
   font-size: 18px;
-  font-weight: 500;
-  margin: 0 0 8px 0;
+  font-weight: 600;
+  margin: 0 0 12px 0;
   color: #fff;
+}
+
+.messages-empty p {
+  font-size: 14px;
+  color: #9ca3af;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.login-button {
+  background: #05EF7E;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.login-button:hover {
+  background: #04d970;
+  transform: translateY(-1px);
 }
 
 .messages-empty span {
   font-size: 14px;
   color: #9ca3af;
+}
+
+/* Error state */
+.messages-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: #1F2937;
+  margin: 16px;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+.messages-error p {
+  font-size: 14px;
+  color: #EF4444;
+  margin: 0 0 16px 0;
+}
+
+.retry-button {
+  background: #05EF7E;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+  background: #04d970;
 }
 
 /* Loading State */

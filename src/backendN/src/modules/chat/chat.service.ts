@@ -1,4 +1,6 @@
 import { prisma } from '../../lib/prisma';
+import { ChatModerationService } from './moderation.service';
+import { oneSignalService } from '../push-notification/onesignal.service';
 
 export class ChatService {
   
@@ -329,6 +331,19 @@ export class ChatService {
 
   // Get private messages between two users
   static async getPrivateMessages(userId: string, otherUserId: string, options: { limit?: number; before?: string } = {}) {
+    // Check if either user has blocked the other
+    const blockExists = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: otherUserId },
+          { blockerId: otherUserId, blockedId: userId }
+        ]
+      }
+    });
+
+    if (blockExists) {
+      throw new Error('Cannot access messages with blocked users');
+    }
     const { limit = 50, before } = options;
     
     const whereClause: any = {
@@ -366,6 +381,20 @@ export class ChatService {
 
   // Send private message
   static async sendPrivateMessage(senderId: string, receiverId: string, message: string) {
+    // Check if either user has blocked the other
+    const blockExists = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: senderId, blockedId: receiverId },
+          { blockerId: receiverId, blockedId: senderId }
+        ]
+      }
+    });
+
+    if (blockExists) {
+      throw new Error('Cannot send messages to blocked users');
+    }
+
     // Check if users are friends (optional - remove if not needed)
     const friendship = await prisma.friendship.findFirst({
       where: {
@@ -409,6 +438,64 @@ export class ChatService {
         }
       }
     });
+
+    // Send push notification to receiver
+    try {
+      await oneSignalService.sendPrivateMessageNotification(senderId, receiverId, message);
+    } catch (notificationError) {
+      console.error('Failed to send private message notification:', notificationError);
+    }
+
+    return sentMessage;
+  }
+
+  // Send message to event chat
+  static async sendEventMessage(eventId: string, userId: string, userType: 'user' | 'organizer', message: string) {
+    // Check if user is muted in this event
+    if (userType === 'user') {
+      const isMuted = await ChatModerationService.isUserMuted(eventId, userId);
+      if (isMuted) {
+        throw new Error('You are muted in this event chat');
+      }
+    }
+
+    // Check if event exists
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, name: true }
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    // Check if user has access to this event chat
+    const hasAccess = await this.checkEventChatAccess(eventId, userId);
+    if (!hasAccess && userType === 'user') {
+      throw new Error('Access denied to this event chat');
+    }
+
+    const sentMessage = await prisma.chatMessage.create({
+      data: {
+        eventId,
+        senderId: userId,
+        senderType: userType === 'organizer' ? 'ORGANIZER' : 'USER',
+        message,
+        status: 'ACTIVE'
+      }
+    });
+
+    // Send push notification to all event participants
+    try {
+      await oneSignalService.sendEventMessageNotification(
+        userId, 
+        eventId, 
+        message, 
+        userType === 'organizer' ? 'ORGANIZER' : 'USER'
+      );
+    } catch (notificationError) {
+      console.error('Failed to send event message notification:', notificationError);
+    }
 
     return sentMessage;
   }

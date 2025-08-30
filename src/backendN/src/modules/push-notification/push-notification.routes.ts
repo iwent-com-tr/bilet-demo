@@ -80,8 +80,15 @@ router.post('/tags',
 // ======================
 
 /**
- * OneSignal webhooks
- * POST /api/v1/onesignal/{display|clicked|dismissed}
+ * OneSignal webhooks - These endpoints receive notifications from OneSignal
+ * when events occur (notification displayed, clicked, or dismissed)
+ * 
+ * Configure these URLs in your OneSignal dashboard:
+ * - Displayed: https://yourdomain.com/api/v1/onesignal/display
+ * - Clicked: https://yourdomain.com/api/v1/onesignal/clicked  
+ * - Dismissed: https://yourdomain.com/api/v1/onesignal/dismissed
+ * 
+ * Make sure to set ONESIGNAL_WEBHOOK_SECRET in your .env file for security
  */
 router.post('/onesignal/display',
   webhookLimiter,

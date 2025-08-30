@@ -107,3 +107,33 @@ export const sendPrivateMessage = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
+
+export const sendEventMessage = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { eventId } = req.params;
+    const userId = (req as any).user?.id;
+    const userType = (req as any).user?.userType; // USER or ORGANIZER
+    const { message } = req.body;
+
+    if (!message?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message content is required'
+      });
+    }
+
+    const sentMessage = await ChatService.sendEventMessage(
+      eventId, 
+      userId, 
+      userType === 'ORGANIZER' ? 'organizer' : 'user', 
+      message.trim()
+    );
+    
+    res.json({
+      success: true,
+      message: sentMessage
+    });
+  } catch (error) {
+    next(error);
+  }
+};

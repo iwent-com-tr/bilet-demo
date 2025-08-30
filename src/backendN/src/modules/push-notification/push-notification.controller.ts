@@ -144,17 +144,35 @@ export class PushNotificationController {
    */
   async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
+      // Get the signature from headers
+      const signature = req.get('X-OneSignal-Signature') || req.get('x-onesignal-signature');
+      const payload = JSON.stringify(req.body);
+
+      // Verify webhook signature if secret is configured
+      if (process.env.ONESIGNAL_WEBHOOK_SECRET && signature) {
+        const isValid = oneSignalService.verifyWebhookSignature(payload, signature);
+        if (!isValid) {
+          console.warn('[OneSignal Webhook] Invalid signature');
+          res.status(401).json({ error: 'Invalid signature' });
+          return;
+        }
+      }
+
       // Log webhook for debugging
       console.log('[OneSignal Webhook]', {
         url: req.url,
         body: req.body,
         timestamp: new Date().toISOString(),
       });
+
+      // TODO: Process webhook data (save to database, trigger notifications, etc.)
+      // For now, just acknowledge receipt
       
-      // Always return 200 to OneSignal
+      // Always return 200 to OneSignal to acknowledge receipt
       res.status(200).json({ success: true });
     } catch (error) {
       console.error('Webhook error:', error);
+      // Always return 200 to OneSignal even on error to prevent retries
       res.status(200).json({ success: true });
     }
   }

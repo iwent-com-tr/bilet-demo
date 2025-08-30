@@ -46,6 +46,10 @@ import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
 
 import Messages from './pages/chat/Messages';
+import PrivateChat from './pages/chat/PrivateChat';
+import UserProfile from './pages/user/UserProfile';
+import VenueProfile from './pages/venues/VenueProfile';
+import ArtistProfile from './pages/artists/ArtistProfile';
 
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
@@ -71,6 +75,10 @@ const App: React.FC = () => {
             <Route path='/search/:query' element={<Search />} />
 
             <Route path="/messages" element={<Messages />} />
+            <Route path="/chat/private/:userId" element={<PrivateChat />} />
+            <Route path="/profile/:userId" element={<UserProfile />} />
+            <Route path="/venue/:slug" element={<VenueProfile />} />
+            <Route path="/artist/:slug" element={<ArtistProfile />} />
 
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />
