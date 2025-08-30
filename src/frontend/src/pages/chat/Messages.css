@@ -200,9 +200,14 @@
 
 .chat-message-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.chat-message-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .chat-last-message {
@@ -212,7 +217,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  margin-bottom: 2px;
 }
 
 .chat-unread-badge {
@@ -228,6 +233,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 /* Empty State */

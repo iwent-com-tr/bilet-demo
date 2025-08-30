@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { UserService } from './user.service';
 import { FollowService } from './follow.service';
 import { UpdateProfileDTO, UpdateUserDTO } from '../auth/auth.dto'; 
@@ -409,4 +409,25 @@ export const checkFollowStatus = async (req: Request, res: Response, next: NextF
     );
     res.json(result);
   } catch (e) { next(e); }
+};
+
+// Get online status for multiple users
+export const getOnlineStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userIds } = req.body;
+    
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'userIds array is required' });
+    }
+
+    if (userIds.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 user IDs allowed' });
+    }
+
+    const onlineStatus = await UserService.getUsersOnlineStatus(userIds);
+    
+    res.json({ onlineStatus });
+  } catch (e) {
+    next(e);
+  }
 };

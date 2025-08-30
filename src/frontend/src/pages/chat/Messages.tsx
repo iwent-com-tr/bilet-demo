@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import MobileNavbar from '../../components/layouts/MobileNavbar';
+import OnlineIndicator from '../../components/OnlineIndicator';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import './Messages.css';
 
 interface ChatPreview {
@@ -19,6 +21,7 @@ interface ChatPreview {
   unreadCount: number;
   eventSlug?: string;
   userId?: string;
+  isOnline?: boolean;
 }
 
 interface FilterTab {
@@ -35,6 +38,7 @@ const Messages: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Hepsi');
   const [error, setError] = useState<string | null>(null);
+  const { updateOnlineStatus, isUserOnline } = useOnlineStatus();
 
   const filterTabs: FilterTab[] = [
     { id: 'all', label: 'Hepsi', active: activeFilter === 'Hepsi' },
@@ -52,6 +56,16 @@ const Messages: React.FC = () => {
   useEffect(() => {
     filterChats();
   }, [chats, activeFilter, searchQuery]);
+
+  // Update online status when chats change
+  useEffect(() => {
+    const privateChats = chats.filter(chat => chat.type === 'private' && chat.userId);
+    const userIds = privateChats.map(chat => chat.userId!);
+    
+    if (userIds.length > 0) {
+      updateOnlineStatus(userIds);
+    }
+  }, [chats, updateOnlineStatus]);
 
   const fetchChats = async () => {
     if (!user) return;
@@ -110,7 +124,8 @@ const Messages: React.FC = () => {
           senderName: chat.user?.firstName
         },
         unreadCount: chat.unreadCount || 0,
-        userId: chat.userId
+        userId: chat.userId,
+        isOnline: chat.user?.isOnline || false
       })) || [];
 
       const allChats = [...eventChats, ...privateChats].sort((a, b) => {
@@ -324,7 +339,17 @@ const Messages: React.FC = () => {
                   <span className="chat-time">{chat.lastMessage.time}</span>
                 </div>
                 <div className="chat-message-row">
-                  <p className="chat-last-message">{chat.lastMessage.text}</p>
+                  <div className="chat-message-content">
+                    <p className="chat-last-message">{chat.lastMessage.text}</p>
+                    {/* Show online status for private chats */}
+                    {chat.type === 'private' && chat.userId && (
+                      <OnlineIndicator 
+                        isOnline={isUserOnline(chat.userId)} 
+                        size="sm" 
+                        className="mt-1" 
+                      />
+                    )}
+                  </div>
                   {chat.unreadCount > 0 && (
                     <div className="chat-unread-badge">
                       {chat.unreadCount}

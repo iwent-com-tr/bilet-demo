@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import ChatMessage from '../../components/chat/ChatMessage';
 import ChatInput from '../../components/chat/ChatInput';
+import OnlineIndicator from '../../components/OnlineIndicator';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import './PrivateChat.css';
 
 interface PrivateMessage {
@@ -39,6 +41,7 @@ const PrivateChat: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { updateOnlineStatus, isUserOnline } = useOnlineStatus();
 
   useEffect(() => {
     if (!user) {
@@ -57,6 +60,13 @@ const PrivateChat: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Update online status when chatUser changes
+  useEffect(() => {
+    if (chatUser) {
+      updateOnlineStatus([chatUser.id]);
+    }
+  }, [chatUser, updateOnlineStatus]);
 
   const fetchChatData = async () => {
     if (!userId) return;
@@ -217,27 +227,23 @@ const PrivateChat: React.FC = () => {
   return (
     <div className="private-chat-page">
       {/* Header */}
-      <div className="chat-header">
-        <button 
-          onClick={() => navigate('/messages')} 
-          className="back-button"
-          aria-label="Geri"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path 
-              d="M19 12H5M12 19L5 12L12 5" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        
-        {chatUser && (
-          <div className="chat-user-info">
-            <Link to={`/profile/${chatUser.id}`} className="user-info-link">
-              {chatUser.avatar ? (
+      <div className="private-chat-header">
+        <div className="header-left">
+          <Link to="/messages" className="back-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path 
+                d="M19 12H5M12 19L5 12L12 5" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+          
+          <div className="user-info">
+            <div className="user-avatar-container">
+              {chatUser?.avatar ? (
                 <img 
                   src={chatUser.avatar} 
                   alt={`${chatUser.firstName} ${chatUser.lastName}`}
@@ -245,28 +251,29 @@ const PrivateChat: React.FC = () => {
                 />
               ) : (
                 <div className="user-avatar-placeholder">
-                  {chatUser.firstName.charAt(0)}
+                  {chatUser ? chatUser.firstName.charAt(0) : '?'}
                 </div>
               )}
-              <div className="user-details">
-                <h1 className="user-name">
-                  {chatUser.firstName} {chatUser.lastName}
-                </h1>
-                <span className="user-status">
-                  {chatUser.isOnline ? 'Çevrimiçi' : 'Çevrimdışı'}
-                </span>
-              </div>
-            </Link>
+            </div>
+            
+            <div className="user-details">
+              <h1 className="user-name">
+                {chatUser ? `${chatUser.firstName} ${chatUser.lastName}` : 'Yükleniyor...'}
+              </h1>
+              {chatUser && (
+                <OnlineIndicator 
+                  isOnline={isUserOnline(chatUser.id)} 
+                  size="sm" 
+                  className="user-status" 
+                />
+              )}
+            </div>
           </div>
-        )}
-
-        <button className="chat-options-button" aria-label="Seçenekler">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="1"/>
-            <circle cx="19" cy="12" r="1"/>
-            <circle cx="5" cy="12" r="1"/>
-          </svg>
-        </button>
+        </div>
+        
+        <div className="header-right">
+          {/* Menu button or other actions */}
+        </div>
       </div>
 
       {/* Messages */}

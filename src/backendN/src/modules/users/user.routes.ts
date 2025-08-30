@@ -51,4 +51,10 @@ r.get('/:id/profile', authGuard.optional, ctrl.getByIdWithRelationship);
 // Get user stats (self or admin access)
 r.get('/:id/stats', authGuard.required, rbac('ADMIN', 'USER'), ctrl.getUserStats);
 
+// Get online status for multiple users
+r.post('/online-status', 
+  authGuard.required,
+  ctrl.getOnlineStatus
+);
+
 export default r;

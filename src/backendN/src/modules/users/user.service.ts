@@ -386,4 +386,56 @@ export class UserService {
     });
     return rows.map((r: any) => r.event);
   }
+
+  // Update user's last seen timestamp
+  static async updateLastSeen(userId: string) {
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { lastSeenAt: new Date() }
+      });
+    } catch (error) {
+      console.error('Error updating lastSeenAt:', error);
+      // Don't throw error, this is not critical
+    }
+  }
+
+  // Check if user is considered online (seen within last 5 minutes)
+  static isUserOnline(lastSeenAt: Date | null): boolean {
+    if (!lastSeenAt) return false;
+    
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes ago
+    
+    return lastSeenAt > fiveMinutesAgo;
+  }
+
+  // Get multiple users' online status
+  static async getUsersOnlineStatus(userIds: string[]): Promise<Record<string, boolean>> {
+    const users = await prisma.user.findMany({
+      where: { 
+        id: { in: userIds },
+        deletedAt: null 
+      },
+      select: { 
+        id: true, 
+        lastSeenAt: true 
+      }
+    });
+
+    const onlineStatus: Record<string, boolean> = {};
+    
+    users.forEach(user => {
+      onlineStatus[user.id] = this.isUserOnline(user.lastSeenAt);
+    });
+
+    // Set offline for users not found
+    userIds.forEach(id => {
+      if (!(id in onlineStatus)) {
+        onlineStatus[id] = false;
+      }
+    });
+
+    return onlineStatus;
+  }
 }
