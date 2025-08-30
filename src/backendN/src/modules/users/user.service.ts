@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { isUserOnline as isSocketOnline } from '../../chat';
 
 export class UserService {
   static async list(params: { page: number; limit: number; q?: string }) {
@@ -400,18 +401,25 @@ export class UserService {
     }
   }
 
-  // Check if user is considered online (seen within last 5 minutes)
-  static isUserOnline(lastSeenAt: Date | null): boolean {
+  // Check if user is considered online (hybrid: socket connection + recent activity)
+  static isUserOnline(userId: string, lastSeenAt: Date | null): boolean {
+    // First check if user has active socket connection
+    if (isSocketOnline(userId)) {
+      return true;
+    }
+    
+    // If no socket connection, check recent activity (2 minutes)
     if (!lastSeenAt) return false;
     
     const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes ago
+    const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000); // 2 minutes ago
     
-    return lastSeenAt > fiveMinutesAgo;
+    return lastSeenAt > twoMinutesAgo;
   }
 
-  // Get multiple users' online status
+  // Get multiple users' online status with hybrid detection
   static async getUsersOnlineStatus(userIds: string[]): Promise<Record<string, boolean>> {
+    // Get users with their lastSeenAt timestamps
     const users = await prisma.user.findMany({
       where: { 
         id: { in: userIds },
@@ -426,7 +434,7 @@ export class UserService {
     const onlineStatus: Record<string, boolean> = {};
     
     users.forEach(user => {
-      onlineStatus[user.id] = this.isUserOnline(user.lastSeenAt);
+      onlineStatus[user.id] = this.isUserOnline(user.id, user.lastSeenAt);
     });
 
     // Set offline for users not found

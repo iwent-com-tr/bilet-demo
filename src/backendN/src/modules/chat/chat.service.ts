@@ -125,7 +125,7 @@ export class ChatService {
       ...(event?.organizer ? [event.organizer.id] : [])
     ];
 
-    // Get online status for all participants
+    // Get online status for all participants using hybrid method
     const onlineStatus = await UserService.getUsersOnlineStatus(allUserIds);
 
     const participants = [
@@ -311,7 +311,7 @@ export class ChatService {
       return { chats: [] };
     }
 
-    // Get online status for all friends
+    // Get online status for all friends using the hybrid method
     const onlineStatus = await UserService.getUsersOnlineStatus(friendIds);
 
     // Get last messages with each friend

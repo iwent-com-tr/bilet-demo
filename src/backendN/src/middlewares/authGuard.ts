@@ -3,6 +3,22 @@ import { verifyAccess } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
 import { UserService } from '../modules/users/user.service';
 
+// Endpoints that indicate active user activity (not background processes)
+const ACTIVE_ENDPOINTS = [
+  '/chat/',
+  '/messages',
+  '/events',
+  '/users/me',
+  '/users/search',
+  '/friendships',
+  '/tickets'
+];
+
+// Check if the request path indicates active user activity
+function isActiveEndpoint(path: string): boolean {
+  return ACTIVE_ENDPOINTS.some(endpoint => path.includes(endpoint));
+}
+
 class AuthGuard {
   required = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -40,10 +56,12 @@ class AuthGuard {
         adminRole: user.adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY'
       };
 
-      // Update lastSeenAt timestamp (non-blocking)
-      UserService.updateLastSeen(user.id).catch(err => {
-        console.error('Failed to update lastSeenAt:', err);
-      });
+      // Update lastSeenAt timestamp only for active endpoints (non-blocking)
+      if (isActiveEndpoint(req.path)) {
+        UserService.updateLastSeen(user.id).catch(err => {
+          console.error('Failed to update lastSeenAt:', err);
+        });
+      }
 
       next();
     } catch (error) {
@@ -84,10 +102,12 @@ class AuthGuard {
           adminRole: user.adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY'
         };
 
-        // Update lastSeenAt timestamp (non-blocking)
-        UserService.updateLastSeen(user.id).catch(err => {
-          console.error('Failed to update lastSeenAt:', err);
-        });
+        // Update lastSeenAt timestamp only for active endpoints (non-blocking)
+        if (isActiveEndpoint(req.path)) {
+          UserService.updateLastSeen(user.id).catch(err => {
+            console.error('Failed to update lastSeenAt:', err);
+          });
+        }
       }
 
       next();
