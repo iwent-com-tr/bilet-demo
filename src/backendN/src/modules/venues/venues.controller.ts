@@ -38,13 +38,13 @@ export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListVenuesQueryDTO.parse(req.query);
     const result = await VenuesService.list(query);
-    const refined = result.data.map((organizer: any) => {
+    const refined = result.data.map((venue: any) => {
       return {
-        ...organizer,
-        following: organizer.favoriteUsers.some((user: any) => user.id === (req as any).user?.id),
+        ...venue,
+        following: venue.favoriteUsers.some((user: any) => user.id === (req as any).user?.id),
       };
     });
-    res.json({ ...result, data: result.data.map(sanitizeVenue).filter(Boolean) });
+    res.json({ ...result, data: refined.map(sanitizeVenue).filter(Boolean) });
   } catch (e) { next(e); }
 }
 

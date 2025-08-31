@@ -7,6 +7,7 @@ import { eventIndex } from '../../lib/meili';
 import { oneSignalService } from '../push-notification/onesignal.service';
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
+import { SearchService } from '../search/search.service';
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) {
   // Try MeiliSearch first, with database fallback for reliability
@@ -270,44 +271,8 @@ async function generateUpdateInfos(input: UpdateEventInput) {
 
 export class EventService {
   static async list(filters: ListEventsQuery) {
-    const { page, limit } = filters;
-    
-    const [total, ids] = await getEventIdsWithFilters(filters);
-
-    if (ids.length === 0) {
-      return { page, limit, total, data: [] };
-    }
-
-    const data = await prisma.event.findMany({
-      where: { 
-        id: { in: ids as string[] },
-        deletedAt: null
-      },
-      orderBy: { startDate: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        category: true,
-        startDate: true,
-        endDate: true,
-        venue: true,
-        address: true,
-        city: true,
-        banner: true,
-        description: true,
-        status: true,
-        organizerId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    // Reorder to match the order from the search/filter query
-    const dataById = new Map(data.map(d => [d.id, d]));
-    const ordered = (ids as string[]).map(id => dataById.get(id)).filter(Boolean);
-
-    return { page, limit, total, data: ordered };
+    const results = SearchService.searchEvent(filters);
+    return results;
   }
 
   static async findById(id: string) {

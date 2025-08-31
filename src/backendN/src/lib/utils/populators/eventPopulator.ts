@@ -74,23 +74,29 @@ export const eventPopulatorChat = new Chat();
 
 export async function populateEvents(n: number) {
   if (n === 0) return;
-  await eventPopulatorChat.prompt("system", `Create a new event based on ${base}. Use a Turkish city and venue and a category from: ${EVENT_CATEGORIES.join(', ')}. Artists will be an array of objects of form {name: string, time: string }. pass [] for artists if field is not applicable. Pick dates from august 2025 to august 2026. Output only the JavaScript object as JSON, no backticks or extra text. Each time prompted, create another event.`)
+  await eventPopulatorChat.prompt("system", `Create a new event based on ${base}. Use Turkish cities and venue and a category from: ${EVENT_CATEGORIES.join(', ')}. Artists will be an array of objects of form {name: string, time: string }. pass [] for artists if field is not applicable. Pick dates from august 2025 to august 2026. Output only the JavaScript object as JSON, no backticks or extra text. Each time prompted, create another event.`)
   while(n > 0) {
     const response = await eventPopulatorChat.prompt("user", `Next event.`);
-    const organizerId = process.env.POPULATOR_ORGANIZER_ID || "baf5273a-2c2b-4fea-9b3f-d8c169ac6d7a";
+    const organizerId = process.env.POPULATOR_ORGANIZER_ID || "0710a797-c58b-4a44-bb34-e96d32b8df78";
     const query = JSON.parse(response.output_text);
 
     const artists = await Promise.all(query.artists.map(async (artist: any) => {
       const dbArtists = await MeiliService.getArtistHitsFromQuery({ q: artist.name });
-      const id = dbArtists.hits.length > 0 ? dbArtists.hits[0].id : artist.name;
-      return { id, time: artist.time };
+      if (dbArtists.hits.length > 0) {
+        return {
+          id: dbArtists.hits[0].id,
+          time: artist.time
+        }
+      } else {
+        return {
+          name: artist.name,
+          time: artist.time
+        }
+      }
     }))
 
     const dbVenue = await MeiliService.getVenueHitsFromQuery({ q: query.venue });
-    const venueId = dbVenue.hits.length > 0 ? dbVenue.hits[0].id : query.venue;
-
-
-    const createInfo = {...query, artists, venueId};
+    const createInfo = {...query, artists, ...(dbVenue.hits.length > 0 && { venueId: dbVenue.hits[0].id })};
 
     const newEvent = await EventService.create({ ...createInfo, organizerId });
     EventService.publish(newEvent.id);

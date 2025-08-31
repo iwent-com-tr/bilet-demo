@@ -35,8 +35,13 @@ export async function generateEventCreateInfos(input: CreateEventInput) {
     };
 
     if (input?.artists?.length) {
-      const artistCreateInfos = await Promise.all(input.artists.map(async (artist) => {
-        const artistData = await prisma.artist.findFirst({ where: { name: (artist as any).name } });
+      const artistCreateInfos = await Promise.all(input.artists.map(async (artist: any) => {
+        let artistData;
+        if (artist.hasOwnProperty('name')) {
+          artistData = await prisma.artist.findFirst({ where: { name: artist.name } });
+        } else {
+          artistData = await prisma.artist.findFirst({ where: { id: artist.id } });
+        }
         return artistData && {
           artistId: artistData.id,
           time: (artist as any).time || '',

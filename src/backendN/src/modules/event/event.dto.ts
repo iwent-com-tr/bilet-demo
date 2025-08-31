@@ -170,8 +170,8 @@ export const UpdateEventDTO = z.object({
     )
     .optional()
     .transform((arr) => {
-      const list = (arr || []) as Array<string | Record<string, any> | null | undefined>;
-      return list
+      if (!arr) return undefined; // <--- return undefined if input was undefined
+      return arr
         .map((item) => {
           if (typeof item === 'string') return item.trim();
           if (item && typeof item === 'object') {
