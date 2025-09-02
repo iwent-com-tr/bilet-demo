@@ -509,6 +509,7 @@ enum SettingInputType {
   TOGGLE
   SELECT
   MULTISELECT
+  BUTTON
 }
 
 enum NotificationCategory {

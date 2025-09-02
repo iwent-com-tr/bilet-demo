@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import SettingsService from './settings.service';
-import { PatchMeSettingsSchema, PutNotificationPrefSchema, SectionParamSchema, CategoryParamSchema, SocialConnectSchema, ProviderParamSchema } from './settings.dto';
+import { PatchMeSettingsSchema, PutNotificationPrefSchema, SectionParamSchema, SocialConnectSchema, ProviderParamSchema } from './settings.dto';
 
 export class SettingsController {
   // 5.1 Definitions
@@ -52,7 +52,7 @@ export class SettingsController {
 
   async putMyNotificationPref(req: Request, res: Response) {
     const userId = (req as any).user.id;
-    const { category } = CategoryParamSchema.parse(req.params);
+    const { category } = req.params;
     const body = PutNotificationPrefSchema.parse(req.body);
     const data = await SettingsService.putNotificationPref(userId, category, body);
     res.json({ ok: true, message: 'Notification preference saved.', data });
@@ -66,7 +66,7 @@ export class SettingsController {
 
   async putUserNotificationPref(req: Request, res: Response) {
     const { userId } = req.params;
-    const { category } = CategoryParamSchema.parse(req.params);
+    const { category } = req.params;
     const body = PutNotificationPrefSchema.parse(req.body);
     const data = await SettingsService.putNotificationPref(userId, category, body);
     res.json({ ok: true, message: 'Notification preference saved for user.', data });

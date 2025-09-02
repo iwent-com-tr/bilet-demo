@@ -4,8 +4,8 @@
   "description": "Iwent bilet satış platformu frontend",
   "scripts": {
 
-    "start": "react-scripts start",
-    "start:env": "dotenv -e .env react-scripts start",
+    "start": "PORT=5173 react-scripts start",
+    "start:env": "dotenv -e .env PORT=5173 react-scripts start",
 
     "build": "react-scripts build",
     "test": "react-scripts test",
