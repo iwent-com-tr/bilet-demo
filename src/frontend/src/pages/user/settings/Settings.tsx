@@ -19,6 +19,9 @@ import {
   Exit
 } from './SettingsIcon';
 
+// Language options constant
+export const LANGUAGE_OPTIONS: ('TR' | 'EN')[] = ['TR', 'EN'];
+
 interface SettingItem {
   key: string;
   inputType: 'SELECT' | 'TOGGLE' | 'BUTTON' | 'MULTISELECT';
@@ -584,14 +587,14 @@ const Settings: React.FC = () => {
                       <span className="settings-item__title">{language === 'TR' ? 'Dil Seçimi' : 'Language Selection'}</span>
                     </div>
                     <div className="settings-item__control">
-                      {['TR','EN'].map((option) => (
-                                      <button
-                key={option}
-                className={`settings-item__button ${language === option ? 'active' : ''}`}
-                onClick={() => handleLanguageChange(option)}
-              >
-                {option}
-              </button>
+                      {LANGUAGE_OPTIONS.map((option) => (
+                        <button
+                          key={option}
+                          className={`settings-item__button ${language === option ? 'active' : ''}`}
+                          onClick={() => handleLanguageChange(option)}
+                        >
+                          {option}
+                        </button>
                       ))}
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import SettingsService from './settings.service';
-import { PatchMeSettingsSchema, PutNotificationPrefSchema, SectionParamSchema, SocialConnectSchema, ProviderParamSchema } from './settings.dto';
+import { PatchMeSettingsSchema, PutNotificationPrefSchema, SectionParamSchema, SocialConnectSchema, ProviderParamSchema, CategoryParamSchema } from './settings.dto';
 
 export class SettingsController {
   // 5.1 Definitions
@@ -51,11 +51,18 @@ export class SettingsController {
   }
 
   async putMyNotificationPref(req: Request, res: Response) {
-    const userId = (req as any).user.id;
-    const { category } = req.params;
-    const body = PutNotificationPrefSchema.parse(req.body);
-    const data = await SettingsService.putNotificationPref(userId, category, body);
-    res.json({ ok: true, message: 'Notification preference saved.', data });
+    try {
+      const userId = (req as any).user.id;
+      const { category } = CategoryParamSchema.parse(req.params);
+      const body = PutNotificationPrefSchema.parse(req.body);
+      const data = await SettingsService.putNotificationPref(userId, category, body);
+      res.json({ ok: true, message: 'Notification preference saved.', data });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ ok: false, message: 'Invalid request parameters', errors: error.errors });
+      }
+      throw error;
+    }
   }
 
   async getUserNotificationPrefs(req: Request, res: Response) {
@@ -65,11 +72,18 @@ export class SettingsController {
   }
 
   async putUserNotificationPref(req: Request, res: Response) {
-    const { userId } = req.params;
-    const { category } = req.params;
-    const body = PutNotificationPrefSchema.parse(req.body);
-    const data = await SettingsService.putNotificationPref(userId, category, body);
-    res.json({ ok: true, message: 'Notification preference saved for user.', data });
+    try {
+      const { userId } = req.params;
+      const { category } = CategoryParamSchema.parse(req.params);
+      const body = PutNotificationPrefSchema.parse(req.body);
+      const data = await SettingsService.putNotificationPref(userId, category, body);
+      res.json({ ok: true, message: 'Notification preference saved for user.', data });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ ok: false, message: 'Invalid request parameters', errors: error.errors });
+      }
+      throw error;
+    }
   }
 
   // 5.5 Social accounts

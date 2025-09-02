@@ -249,6 +249,9 @@ const EventChat: React.FC = () => {
     );
   }
 
+  // Derived boolean to check if current user is the event organizer
+  const isEventOrganizer = !!(user?.userType === 'ORGANIZER' && event.organizer.id === user?.id);
+
             return (
     <div className="event-chat-page">
       <ChatHeader
@@ -284,7 +287,7 @@ const EventChat: React.FC = () => {
                 key={message.id}
                 message={message}
                 currentUserId={user?.id || ''}
-                currentUserType={user?.userType === 'ORGANIZER' ? 'organizer' : 'user'}
+                currentUserType={isEventOrganizer ? 'organizer' : 'user'}
               />
             ))
           )}
@@ -320,7 +323,7 @@ const EventChat: React.FC = () => {
           participants={participants}
           onClose={handleCloseGroupInfo}
           currentUserId={user?.id || ''}
-          isOrganizer={user?.userType === 'ORGANIZER' && event.organizer.id === user.id}
+          isOrganizer={isEventOrganizer}
         />
       )}
     </div>

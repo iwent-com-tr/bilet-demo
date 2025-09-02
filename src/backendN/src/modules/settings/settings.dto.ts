@@ -35,3 +35,4 @@ export type SocialConnectDTO = z.infer<typeof SocialConnectSchema>;
 
 export const SectionParamSchema = z.object({ sectionKey: z.string() });
 export const ProviderParamSchema = z.object({ provider: z.enum(["instagram","spotify","youtube"]) });
+export const CategoryParamSchema = z.object({ category: z.string().min(1) });
