@@ -4,7 +4,7 @@ import FilterScreen from "./SearchFilterScreen"
 import React, { createContext, useContext, useState, useEffect } from "react"
 import axios from "axios"
 import { toast } from "react-toastify"
-import { Link } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import './Search.css'
 
 interface Event {
@@ -56,7 +56,26 @@ export const IndexContext = createContext<[number, React.Dispatch<React.SetState
 const Search: React.FC = () => {
 
     const [isFilterScreenOn, setIsFilterScreenOn] = useState(false);
-    const [activeIndex, setActiveIndex] = useState<number>(0);
+
+    const { index_name } = useParams<{ index_name?: string }>();
+
+    const initialIndex = index_name
+      ? INDICES.indexOf(index_name.toLowerCase())
+      : -1;
+
+    const [activeIndex, setActiveIndex] = useState<number>(initialIndex >= 0 ? initialIndex : -1);
+
+
+    useEffect(() => {
+      if (!index_name) {
+        setActiveIndex(-1);
+        return;
+      }
+
+      // lower-case to ensure matching
+      const idx = INDICES.indexOf(index_name.toLowerCase());
+      setActiveIndex(idx >= 0 ? idx : -1);
+    }, [index_name]);
 
     // CONTENT
 

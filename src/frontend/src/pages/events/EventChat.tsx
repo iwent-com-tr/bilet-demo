@@ -284,6 +284,7 @@ const EventChat: React.FC = () => {
                 key={message.id}
                 message={message}
                 currentUserId={user?.id || ''}
+
                 currentUserType={user?.userType === 'ORGANIZER' ? 'organizer' : 'user'}
               />
             ))

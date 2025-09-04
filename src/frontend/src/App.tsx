@@ -72,7 +72,7 @@ const App: React.FC = () => {
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
             <Route path="/search" element={<Search />} />
-            <Route path='/search/:query' element={<Search />} />
+            <Route path='/search/:index_name' element={<Search />} />
 
             <Route path="/messages" element={<Messages />} />
             <Route path="/chat/private/:userId" element={<PrivateChat />} />

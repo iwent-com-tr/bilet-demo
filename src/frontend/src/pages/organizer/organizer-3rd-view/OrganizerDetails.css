@@ -1,0 +1,40 @@
+:root{
+  /* theme / tuning variables */
+  --surface: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.1);
+  --radius: 8px;
+  --header-padding: 24px;
+  --filter-size: 50px;               /* filter square size */
+  --accent: rgba(255,255,255,0.12);  /* hover/active subtle background */
+  --pill-padding-y: 8px;
+  --pill-padding-x: 14px;
+  --pill-padding-x-wide: 32px;       /* wider pill padding for visible scroll */
+  --gap: 12px;
+  --max-content-width: 1100px;
+  --active-green: rgba(5, 239, 126, 1);
+
+  /* responsive pill min/max using clamp(min, preferred, max) */
+  --pill-min: clamp(120px, 18vw, 220px);
+
+  /* Search-page scoped tokens (sensible defaults, can override elsewhere) */
+  --search-surface: var(--surface);
+  --search-border: var(--border);
+  --search-radius: 16px;
+  --search-accent: var(--active-green);
+  --search-avatar-size: clamp(88px, 18vw, 140px); /* default avatar size */
+}
+
+
+.follow-button-wrapper.following {
+    background: var(--surface);
+    display: flex;
+    justify-content: center; /* centers the button horizontally */
+    align-items: center;     /* centers the button vertically */
+    border: 1px solid var(--active-green); /* green border */
+}
+
+.follow-button.following {
+    color: white;
+    width: auto;                     /* shrink to fit content */
+    text-align: center;              /* center text inside button */
+}
