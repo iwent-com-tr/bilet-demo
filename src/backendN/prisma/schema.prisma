@@ -55,7 +55,11 @@ model User {
   notificationEvents      NotificationEvent[]
   loginEvents             LoginEvent[]
   auditLogsAsActor        AuditLog[]
- 
+
+  
+
+  
+
 
   @@index([email])
   @@index([externalId])
@@ -82,6 +86,7 @@ model Organizer {
   favoriteCount Int       @default(0)
   lastLogin     DateTime?
   approved      Boolean   @default(true)
+  approved      Boolean   @default(false)
   devices       Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -92,6 +97,7 @@ model Organizer {
   addedArtists  Artist[]
   addedVenues   Venue[]
   favoriteUsers FavoriteOrganizer[]
+  events        Event[]
 
   @@index([email])
 }
@@ -120,6 +126,7 @@ model Event {
   /* Relations */
   organizer          Organizer           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   tickets            Ticket[]
+  deletedAt          DateTime?
   chatMessages       ChatMessage[]
   favoriteUsers      FavoriteEvent[]
   artists            EventArtist[]
@@ -127,7 +134,14 @@ model Event {
 
   /* Detailed event-type relations (kept from both sources) */
   concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
+  conferenceDetails  ConferenceDetails?  @relation("EventToConferenceDetails")
+  educationDetails   EducationDetails?   @relation("EventToEducationDetails")
+  organizer          Organizer           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  favorites          Favorite[]
   festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
+  performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
+  sportDetails       SportDetails?       @relation("EventToSportDetails")
+  tickets            Ticket[]
   universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
   workshopDetails    WorkshopDetails?    @relation("EventToWorkshopDetails")
   conferenceDetails  ConferenceDetails?  @relation("EventToConferenceDetails")
@@ -155,6 +169,7 @@ model ConcertDetails {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   event      Event    @relation("EventToConcertDetails", fields: [eventId], references: [id], onDelete: Cascade)
+  event      Event    @relation("EventToConcertDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
 }
@@ -163,10 +178,13 @@ model FestivalDetails {
   id         String   @id @default(uuid())
   eventId    String   @unique
   lineup     Json     @default("[]")
+  lineup     Json     @default("[]")
   sponsors   Json     @default("[]")
+  activities String[]
   activities String[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  event      Event    @relation("EventToFestivalDetails", fields: [eventId], references: [id], onDelete: Cascade)
   event      Event    @relation("EventToFestivalDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
@@ -179,8 +197,10 @@ model UniversityDetails {
   department      String?
   studentDiscount Boolean  @default(false)
   facultyList     Json     @default("[]")
+  facultyList     Json     @default("[]")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  event           Event    @relation("EventToUniversityDetails", fields: [eventId], references: [id], onDelete: Cascade)
   event           Event    @relation("EventToUniversityDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
@@ -192,8 +212,11 @@ model WorkshopDetails {
   instructorList Json     @default("[]")
   materials      Json     @default("[]")
   skillLevel     String?
+  materials      Json     @default("[]")
+  skillLevel     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  event          Event    @relation("EventToWorkshopDetails", fields: [eventId], references: [id], onDelete: Cascade)
   event          Event    @relation("EventToWorkshopDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
@@ -209,6 +232,7 @@ model ConferenceDetails {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   event          Event    @relation("EventToConferenceDetails", fields: [eventId], references: [id], onDelete: Cascade)
+  event          Event    @relation("EventToConferenceDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
 }
@@ -217,11 +241,13 @@ model SportDetails {
   id            String   @id @default(uuid())
   eventId       String   @unique
   teams         Json     @default("[]")
+  teams         Json     @default("[]")
   league        String?
   scoreTracking Boolean  @default(false)
   rules         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  event         Event    @relation("EventToSportDetails", fields: [eventId], references: [id], onDelete: Cascade)
   event         Event    @relation("EventToSportDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
@@ -234,8 +260,10 @@ model PerformanceDetails {
   scriptSummary String?
   duration      String?
   genre         String?
+  genre         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  event         Event    @relation("EventToPerformanceDetails", fields: [eventId], references: [id], onDelete: Cascade)
   event         Event    @relation("EventToPerformanceDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
@@ -245,11 +273,13 @@ model EducationDetails {
   id            String   @id @default(uuid())
   eventId       String   @unique
   curriculum    Json     @default("[]")
+  curriculum    Json     @default("[]")
   instructors   Json     @default("[]")
   prerequisites String[]
   certification Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  event         Event    @relation("EventToEducationDetails", fields: [eventId], references: [id], onDelete: Cascade)
   event         Event    @relation("EventToEducationDetails", fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
@@ -271,12 +301,26 @@ model Ticket {
   updatedAt     DateTime     @updatedAt
   event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([userId])
   @@index([qrCode])
 }
 
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
 
 model ChatMessage {
   id         String            @id @default(uuid())
@@ -288,6 +332,7 @@ model ChatMessage {
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
   event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
 }
@@ -296,6 +341,7 @@ model Friendship {
   id         String           @id @default(uuid())
   fromUserId String
   toUserId   String
+  status     FriendshipStatus @default(PENDING)
   status     FriendshipStatus @default(PENDING)
   createdAt  DateTime         @default(now())
   fromUser   User             @relation("UserFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
@@ -312,9 +358,11 @@ model PrivateMessage {
   receiverId String
   message    String
   status     PrivateMessageStatus @default(SENT)
+  status     PrivateMessageStatus @default(SENT)
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   receiver   User                 @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User                 @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
   sender     User                 @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([senderId])
@@ -327,11 +375,172 @@ model Block {
   blockedId String
   createdAt DateTime @default(now())
   blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
   blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
+}
+
+model SettingSection {
+  id            String        @id @default(uuid())
+  key           String        @unique
+  titleTR       String
+  titleEN       String
+  descriptionTR String?
+  descriptionEN String?
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         SettingItem[]
+}
+
+model SettingItem {
+  id            String           @id @default(uuid())
+  sectionId     String
+  key           String           @unique
+  titleTR       String
+  titleEN       String
+  descriptionTR String?
+  descriptionEN String?
+  inputType     SettingInputType
+  options       Json             @default("[]")
+  defaultValue  Json             @default("null")
+  order         Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  section       SettingSection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  userSettings  UserSetting[]
+
+  @@index([sectionId])
+}
+
+model UserSetting {
+  id        String      @id @default(uuid())
+  userId    String
+  itemId    String
+  value     Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  item      SettingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
+}
+
+model UserNotificationPreference {
+  id        String               @id @default(uuid())
+  userId    String
+  category  NotificationCategory
+  enabled   Boolean              @default(true)
+  inApp     Boolean              @default(true)
+  email     Boolean              @default(false)
+  sms       Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+model UserSocialAccount {
+  id           String    @id @default(uuid())
+  userId       String
+  provider     String
+  handle       String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  scopes       String?
+  connected    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+enum Language {
+  TR
+  EN
+}
+
+enum SettingInputType {
+  TOGGLE
+  SELECT
+  MULTISELECT
+}
+
+enum NotificationCategory {
+  EVENT_TIME_CHANGE
+  EVENT_VENUE_CHANGE
+  TICKET_PURCHASED
+  TICKET_QR
+  FRIEND_JOINED_EVENT
+  FOLLOWED_VENUE_UPDATE
+  FOLLOWED_ARTIST_UPDATE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+enum EventCategory {
+  CONCERT
+  FESTIVAL
+  UNIVERSITY
+  WORKSHOP
+  CONFERENCE
+  SPORT
+  PERFORMANCE
+  EDUCATION
+}
+
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum TicketStatus {
+  ACTIVE
+  USED
+  CANCELLED
+}
+
+enum SenderType {
+  USER
+  ORGANIZER
+}
+
+enum ChatMessageStatus {
+  ACTIVE
+  DELETED
+}
+
+enum UserType {
+  USER
+  ADMIN
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum PrivateMessageStatus {
+  SENT
+  READ
+  DELETED
 }
 
 model SettingSection {
