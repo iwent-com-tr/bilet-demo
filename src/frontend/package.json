@@ -4,7 +4,7 @@
   "description": "Iwent bilet satış platformu frontend",
   "scripts": {
 
-    "start": "react-scripts start",
+    "start": "cross-env REACT_APP_API_URL=http://localhost:3001/api/v1 react-scripts start",
     "start:env": "dotenv -e .env react-scripts start",
 
     "build": "react-scripts build",

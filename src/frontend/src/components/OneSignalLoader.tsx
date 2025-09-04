@@ -32,7 +32,7 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
   // In production, check hostname
   if (isProduction) {
     const isValidDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-    const hasAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+    const hasAppId = process.env.REACT_APP_ONESIGNAL_APP_ID;
     
     if (!isValidDomain && !hasAppId) {
       return {
@@ -45,9 +45,9 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
   // Get app ID based on environment
   const getAppId = () => {
     if (isDevelopment) {
-      return process.env.REACT_APP_ONESIGNAL_DEV_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+      return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
     }
-    return process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
   };
   
   return {
@@ -58,6 +58,30 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
       environment: isDevelopment ? 'development' : 'production',
     },
   };
+}
+
+function shouldLoadOneSignal(): boolean {
+  const hostname = window.location.hostname;
+  
+  // Skip in development unless explicitly enabled
+  if (process.env.NODE_ENV === 'development') {
+    const isEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
+    if (!isEnabled) {
+      console.log('[OneSignalLoader] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
+      return false;
+    }
+  }
+
+  // In production, initialize based on domain or if explicitly configured
+  const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
+  const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
+  
+  return isProductionDomain || hasAppId;
+}
+
+function getOneSignalAppId(): string {
+  // Use the standard environment variable
+  return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
 }
 
 export interface OneSignalLoaderProps {
