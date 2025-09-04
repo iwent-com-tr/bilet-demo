@@ -2,14 +2,138 @@
   background-color: #1a1a1a;
   min-height: 100vh;
   color: white;
+  padding-top: 76px; /* PageHeader height (60px) + extra spacing (16px) */
 }
 
 .settings-container {
   padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .settings-section {
   margin-bottom: 24px;
+}
+
+/* Section gruplandırmaları için stiller */
+.settings-section.language-direct-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: rgba(0, 184, 148, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 184, 148, 0.3);
+}
+
+.settings-section.language-section {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.personal-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.privacy-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.notifications-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.messaging-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.social-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.help-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.account-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.personal-direct-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.7);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.settings-group-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-section.settings-group-section .settings-item {
+  margin-bottom: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.settings-section.settings-group-section .settings-item:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section.help-direct-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: rgba(38, 38, 38, 0.7);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Notification subsections */
+.settings-subsection {
+  margin-bottom: 16px;
+}
+
+.settings-subsection-title {
+  font-size: 14px;
+  color: #00b894;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .settings-item {
@@ -28,8 +152,35 @@
   gap: 16px;
 }
 
+.settings-item__icon {
+  color: #B3B3B3;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.settings-item__icon-container {
+  width: 40px;
+  height: 40px;
+  background-color: #000000;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-item__icon-container .settings-item__icon {
+  color: #FFFFFF;
+  margin: 0;
+}
+
 .settings-item__title {
   font-size: 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
 }
 
 .settings-item__control {
@@ -51,6 +202,107 @@
   border-color: #00b894;
 }
 
+.settings-item__button:not(.active) {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .settings-item__arrow {
   font-size: 20px;
+}
+
+.settings-item__toggle {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #444;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #00b894;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.settings-loading {
+  text-align: center;
+  padding: 40px 16px;
+  color: #888;
+  font-size: 16px;
+}
+
+.settings-error {
+  text-align: center;
+  padding: 40px 16px;
+  color: #ff6b6b;
+  font-size: 16px;
+  background-color: rgba(255, 107, 107, 0.1);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.settings-saving {
+  text-align: center;
+  padding: 20px 16px;
+  color: #4a90e2;
+  font-size: 14px;
+  background-color: rgba(74, 144, 226, 0.1);
+  border-radius: 8px;
+  margin: 16px 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
