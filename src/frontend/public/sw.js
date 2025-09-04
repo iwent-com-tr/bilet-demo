@@ -1,25 +1,30 @@
-// public/sw.js
+// public/sw.js - iWent Service Worker
+// OneSignal Service Worker
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
 // Cache name for static assets
 const CACHE_NAME = 'iwent-pwa-v1';
 
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing...');
   // Skip waiting to activate immediately
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating...');
   // Claim all clients immediately
   event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
+  // Simple network-first strategy for now
   event.respondWith(fetch(event.request));
 });
 
-// Push event handler for incoming notifications
+// Custom push event handler (works alongside OneSignal)
 self.addEventListener('push', (event) => {
-  console.log('Push event received:', event);
+  console.log('[SW] Push event received:', event);
   
   let notificationData;
   
@@ -37,7 +42,7 @@ self.addEventListener('push', (event) => {
       };
     }
   } catch (error) {
-    console.error('Error parsing push payload:', error);
+    console.error('[SW] Error parsing push payload:', error);
     // Fallback for malformed payload
     notificationData = {
       title: 'iWent Notification',
@@ -49,628 +54,126 @@ self.addEventListener('push', (event) => {
   
   // Validate required fields
   if (!notificationData.title || !notificationData.body) {
-    console.error('Invalid notification payload: missing title or body');
+    console.error('[SW] Invalid notification data:', notificationData);
     return;
   }
   
+  // Show the notification
   const notificationOptions = {
     body: notificationData.body,
     icon: notificationData.icon || '/android-chrome-192x192.png',
-    badge: notificationData.badge || '/favicon-32x32.png',
-    tag: notificationData.eventId || 'iwent-notification',
+    badge: notificationData.badge || '/android-chrome-192x192.png',
     data: {
       url: notificationData.url || '/',
-      eventId: notificationData.eventId,
-      type: notificationData.type,
-      change: notificationData.change
+      type: notificationData.type || 'general',
+      timestamp: Date.now()
     },
-    requireInteraction: notificationData.type === 'event_update',
+    tag: notificationData.tag || 'iwent-notification',
+    requireInteraction: notificationData.requireInteraction || false,
+    silent: notificationData.silent || false,
     actions: notificationData.actions || []
   };
   
-  // Add default actions based on notification type
-  if (notificationData.type === 'event_update' && notificationData.eventId) {
-    notificationOptions.actions = [
-      {
-        action: 'view_event',
-        title: 'View Event',
-        icon: '/android-chrome-192x192.png'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss'
-      }
-    ];
-  } else if (notificationData.type === 'new_event' && notificationData.eventId) {
-    notificationOptions.actions = [
-      {
-        action: 'view_event',
-        title: 'View Event',
-        icon: '/android-chrome-192x192.png'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss'
-      }
-    ];
-  }
-  
   event.waitUntil(
     self.registration.showNotification(notificationData.title, notificationOptions)
-      .catch(error => {
-        console.error('Error showing notification:', error);
-      })
   );
 });
 
-// Notification click handler for navigation and focus management
+// Notification click handler
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
+  console.log('[SW] Notification clicked:', event);
   
-  const notification = event.notification;
-  const action = event.action;
-  const data = notification.data || {};
+  event.notification.close();
   
-  // Log the interaction for analytics
-  logNotificationInteraction(action || 'click', data);
+  // Get the URL from notification data
+  const urlToOpen = event.notification.data?.url || '/';
   
-  // Close the notification
-  notification.close();
+  // Log notification interaction
+  logNotificationInteraction('click', {
+    tag: event.notification.tag,
+    type: event.notification.data?.type,
+    timestamp: Date.now(),
+    url: urlToOpen
+  });
   
-  // Resolve the target URL based on action and data
-  const targetUrl = resolveNotificationUrl(data, action);
-  
-  // If no URL to navigate to (e.g., dismiss action), just return
-  if (!targetUrl) {
-    return;
-  }
-  
-  // Handle the navigation
+  // Handle notification click - open the URL
   event.waitUntil(
-    handleNotificationClick(targetUrl)
-  );
-});
-
-// Helper function to handle notification click navigation and focus management
-async function handleNotificationClick(url) {
-  try {
-    // Get all window clients
-    const clients = await self.clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    });
-    
-    // Normalize the target URL for comparison
-    const targetUrl = new URL(url, self.location.origin);
-    
-    // Check if there's already a window open with the target URL
-    for (const client of clients) {
-      try {
-        const clientUrl = new URL(client.url);
-        if (clientUrl.href === targetUrl.href && 'focus' in client) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already a window open with this URL
+      for (const client of clientList) {
+        if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
-      } catch (e) {
-        // Skip invalid URLs
-        continue;
       }
-    }
-    
-    // Check if there's any window open to the app that we can navigate
-    for (const client of clients) {
-      try {
-        const clientUrl = new URL(client.url);
-        if (clientUrl.origin === self.location.origin) {
-          // Try to navigate existing window to the target URL
-          if ('navigate' in client) {
-            try {
-              await client.navigate(targetUrl.href);
-              return client.focus();
-            } catch (navError) {
-              console.warn('Navigation failed, will try to focus existing client:', navError);
-              // If navigation fails, just focus the existing client
-              if ('focus' in client) {
-                return client.focus();
-              }
-            }
-          } else if ('focus' in client) {
-            // If navigation is not supported, just focus the existing client
-            return client.focus();
-          }
-        }
-      } catch (e) {
-        // Skip invalid URLs
-        continue;
+      
+      // If no window is open, open a new one
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
       }
-    }
-    
-    // No existing window found or navigation failed, open a new one
-    if (self.clients.openWindow) {
-      return self.clients.openWindow(targetUrl.href);
-    }
-  } catch (error) {
-    console.error('Error handling notification click:', error);
-    // Fallback: try to open a new window
-    if (self.clients.openWindow) {
-      try {
-        const fallbackUrl = new URL(url, self.location.origin);
-        return self.clients.openWindow(fallbackUrl.href);
-      } catch (urlError) {
-        console.error('Failed to create fallback URL:', urlError);
-        // Last resort: open the app root
-        return self.clients.openWindow(self.location.origin);
-      }
-    }
-  }
-}
+    })
+  );
+});
 
-// Helper function to resolve URLs based on notification data and action
-function resolveNotificationUrl(data, action) {
-  let targetUrl = '/';
+// Notification close handler
+self.addEventListener('notificationclose', (event) => {
+  console.log('[SW] Notification closed:', event);
   
-  // Handle specific actions
-  switch (action) {
-    case 'view_event':
-      if (data.eventId) {
-        targetUrl = `/events/${data.eventId}`;
-      } else {
-        targetUrl = data.url || '/events';
-      }
-      break;
-    case 'view_tickets':
-      targetUrl = '/user/tickets';
-      break;
-    case 'view_profile':
-      targetUrl = '/user/profile';
-      break;
-    case 'dismiss':
-      // No navigation needed for dismiss
-      return null;
-    default:
-      // Default click behavior
-      if (data.eventId) {
-        targetUrl = `/events/${data.eventId}`;
-      } else {
-        targetUrl = data.url || '/';
-      }
-  }
-  
-  return targetUrl;
-}
+  // Log notification interaction
+  logNotificationInteraction('close', {
+    tag: event.notification.tag,
+    type: event.notification.data?.type,
+    timestamp: Date.now()
+  });
+});
 
-// Helper function to log notification interactions for analytics
-function logNotificationInteraction(action, notificationData) {
+// Background sync handler
+self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync:', event.tag);
+  
+  if (event.tag === 'background-sync') {
+    event.waitUntil(doBackgroundSync());
+  }
+});
+
+// Message handler for communication with main thread
+self.addEventListener('message', (event) => {
+  console.log('[SW] Message received:', event.data);
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// Helper function to log notification interactions
+function logNotificationInteraction(action, data) {
   try {
-    // Log to console for debugging
-    console.log('Notification interaction:', {
+    console.log(`[SW] Notification ${action}:`, data);
+    
+    // Store interaction data in IndexedDB or send to analytics
+    // For now, just log to console
+    const interactionData = {
       action,
-      type: notificationData.type,
-      eventId: notificationData.eventId,
-      timestamp: new Date().toISOString()
-    });
+      ...data,
+      userAgent: navigator.userAgent,
+      timestamp: Date.now()
+    };
     
     // In a real implementation, you might want to send this to an analytics service
     // or store it in IndexedDB for later synchronization
   } catch (error) {
-    console.error('Error logging notification interaction:', error);
+    console.error('[SW] Error logging notification interaction:', error);
   }
 }
-// public/sw.js// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
+// Background sync function
 function doBackgroundSync() {
-  // Background sync logic
+  console.log('[SW] Performing background sync...');
+  
+  // Implement your background sync logic here
+  // This could include:
+  // - Syncing offline data
+  // - Fetching latest content
+  // - Cleaning up old cache entries
+  
   return Promise.resolve();
 }
-self.addEventListener('install', (event) => {// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-    console.log('[SW] Installed');// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  });// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  // OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  self.addEventListener('activate', (event) => {// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-    console.log('[SW] Activated');// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  });// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  // OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  self.addEventListener('fetch', (event) => {// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-    event.respondWith(fetch(event.request));// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-// Existing service worker code
-self.addEventListener('push', function(event) {
-  console.log('Push received:', event);
-  
-  // OneSignal will handle push notifications automatically
-  // This is here for any custom push notification handling if needed
-});
-
-self.addEventListener('notificationclick', function(event) {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-  
-  // Handle notification click
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
-});
-
-self.addEventListener('notificationclose', function(event) {
-  console.log('Notification closed:', event);
-});
-
-// Handle background sync if needed
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // Background sync logic
-  return Promise.resolve();
-}
-  });

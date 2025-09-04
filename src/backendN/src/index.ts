@@ -84,6 +84,9 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+app.use(`${API_PREFIX}/push`, pushRoutes);
+app.use(`${API_PREFIX}/events`, notificationRoutes);
+app.use(`${API_PREFIX}/queue`, queueRoutes);
 
 app.use(`${API_PREFIX}/chat`, chatRoutes);
 

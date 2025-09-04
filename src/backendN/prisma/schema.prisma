@@ -55,34 +55,11 @@ model User {
   notificationEvents      NotificationEvent[]
   loginEvents             LoginEvent[]
   auditLogsAsActor        AuditLog[]
-  pushSubscriptions       PushSubscription[]
-  id                      String                       @id @default(uuid())
-  firstName               String
-  lastName                String
-  email                   String                       @unique
-  password                String
-  birthYear               Int
-  phone                   String                       @unique
-  phoneVerified           Boolean                      @default(false)
-  avatar                  String?
-  city                    String
-  lastLogin               DateTime?
-  userType                UserType                     @default(USER)
-  points                  Int                          @default(0)
-  createdAt               DateTime                     @default(now())
-  updatedAt               DateTime                     @updatedAt
-  deletedAt               DateTime?
-  blocksTo                Block[]                      @relation("Blocked")
-  blocksFrom              Block[]                      @relation("Blocker")
-  favorites               Favorite[]
-  friendshipsFrom         Friendship[]                 @relation("UserFrom")
-  friendshipsTo           Friendship[]                 @relation("UserTo")
-  receivedMessages        PrivateMessage[]             @relation("Receiver")
-  sentMessages            PrivateMessage[]             @relation("Sender")
-  tickets                 Ticket[]
-  notificationPreferences UserNotificationPreference[]
-  settings                UserSetting[]
-  socialAccounts          UserSocialAccount[]
+
+  
+
+  
+
 
   @@index([email])
   @@index([externalId])
@@ -734,6 +711,22 @@ model AuditLog {
 
   @@index([actorId])
   @@index([entity, entityId])
+}
+
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, enabled])
+  @@index([endpoint])
 }
 
 model PushSubscription {
