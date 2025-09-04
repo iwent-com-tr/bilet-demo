@@ -275,6 +275,11 @@ export class EventService {
     return results;
   }
 
+  static async getPopularEvents(filters: ListEventsQuery) {
+    const results = SearchService.searchEvent(filters, "popularity");
+    return results;
+  }
+
   static async findById(id: string) {
     const event = await prisma.event.findFirst({ where: { id, deletedAt: null } });
     if (!event) {

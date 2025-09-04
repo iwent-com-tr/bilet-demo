@@ -125,6 +125,6 @@ export function sanitizePublicOrganizer(o: any) {
     avatar: o.avatar || null,
     approved: o.approved,
     favoriteCount: o.favoriteCount || 0,
-    following: o.following || false,
+    following: o.following,
   };
 }

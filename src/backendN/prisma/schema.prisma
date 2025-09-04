@@ -32,6 +32,7 @@ model User {
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
   deletedAt               DateTime?
+  preferences             Json[]                       @default([]) // {keyword, rating} şeklinde objeler. şu an en fazla 50 entry. ratingi daha yüksek olan keywordler daha fazla aratılmış. 
 
   /* Relations */
   tickets                 Ticket[]

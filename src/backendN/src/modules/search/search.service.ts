@@ -5,18 +5,20 @@ import type { EventSearchQuery, ArtistSearchQuery, VenueSearchQuery, OrganizerSe
 import { eventIndex } from '../../lib/meili';
 import { MeiliService } from '../publicServices/meili.service';
 import { PrismaService } from '../publicServices/prisma.service';
+import { PreferencesService } from '../publicServices/preferences.service';
+import { sr_RS_latin } from '@faker-js/faker/.';
 
 
 export class SearchService {
-    static searchEvent = async function searchEvent(query: EventSearchQuery) {
-      const { estimatedTotalHits, hits } = await MeiliService.getEventHitsFromQuery(query);
+    static searchEvent = async function searchEvent(query: EventSearchQuery, sortBy?: string) {
+      const { estimatedTotalHits, hits } = await MeiliService.getEventHitsFromQuery(query, sortBy);
       const ids = hits.map(hit => hit.id);
       const data = await PrismaService.getEventsFromIds(ids, query.limit, query.page);
       return {page: query.page, limit: query.limit, total: estimatedTotalHits, data};
     }
 
-    static searchArtist = async function searchArtist(query: ArtistSearchQuery) {
-      const { estimatedTotalHits, hits } = await MeiliService.getArtistHitsFromQuery(query);
+    static searchArtist = async function searchArtist(query: ArtistSearchQuery, sortBy?: string) {
+      const { estimatedTotalHits, hits } = await MeiliService.getArtistHitsFromQuery(query, sortBy);
       const ids = hits.map(hit => hit.id);
       const data = await PrismaService.getArtistsFromIds(ids, query.limit, query.page);
       return {page: query.page, limit: query.limit, total: estimatedTotalHits, data};

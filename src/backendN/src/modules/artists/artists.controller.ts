@@ -5,6 +5,7 @@ import { resolveIsAdmin, resolveIsOrganizer } from '../publicServices/resolveRol
 import { resolveBannerPublicUrl } from '../publicServices/multer.service';
 import { sanitizeArtist } from '../publicServices/sanitizer.service';
 import { SearchService } from '../search/search.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function create(req: Request, res: Response, next: NextFunction) {
     
@@ -41,10 +42,30 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const val = result.data.map((artist: any) => {
       return {
         ...artist, 
-        following: artist.favoriteUsers.some((user: any) => user.id === (req as any).user?.id)
+        following: artist.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id)
       }
     })
-    res.json({ ...result, data: result.data.map(sanitizeArtist).filter(Boolean) });
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+
+    res.json({ ...result, data: val.map(sanitizeArtist).filter(Boolean) });
+  } catch (e) { next(e); }
+}
+
+export async function getPopularArtists(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = ListArtistsQueryDTO.parse(req.query);
+    const result = await SearchService.searchArtist(query as any, "popularity");
+    const val = result.data.map((artist: any) => {
+      return {
+        ...artist, 
+        following: req.user && artist.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      }
+    })
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+
+    res.json({ ...result, data: val.map(sanitizeArtist).filter(Boolean) });
   } catch (e) { next(e); }
 }
 
