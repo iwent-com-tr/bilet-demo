@@ -112,8 +112,13 @@
 }
 
 .search__title.venue-event-list-title {
-    color: var(--active-green);
-    margin: 12px 12px;
+    color: rgb(133, 133, 133);
+    justify-content: center;
+    align-self: center;
+    font-size: 24px;
+    font-weight: 900;
+    margin: 12px auto;
+    width: 100%;
 }
 
 .follow-button-wrapper {
@@ -141,6 +146,13 @@
 .follow-button-wrapper:hover {
     translate: 0px -2px;
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.venue-map-wrapper {
+    min-width: 800px;
+    justify-self: center;
+    align-self: center;
+    width: 70%;
 }
 
 @media (max-width: 768px) {
