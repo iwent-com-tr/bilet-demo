@@ -21,13 +21,14 @@ import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 import { populateDB } from './lib/utils/populators/populator';
-import settingsRoutes from './modules/settings/settings.routes';
+
 
 import chatRoutes from './modules/chat/chat.routes';
 import adminUserRoutes from './modules/admin/users.routes';
 import adminEventRoutes from './modules/admin/event.routes';
 import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
 import { adminApiLimiter } from './middlewares/rateLimiter';
+import settingsRoutes from './modules/settings/settings.routes';
 dotenv.config();
 
 const args = process.argv.slice(2);
@@ -85,6 +86,12 @@ app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
+app.use(`${API_PREFIX}/settings`, settingsRoutes);
+
+app.get(`${API_PREFIX}/health`, (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
     await prisma.$connect();
