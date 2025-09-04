@@ -173,7 +173,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
         setError(null);
 
         try {
-            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+            const apiUrl = process.env.REACT_APP_API_URL ;
             const response = await axios.post(`${apiUrl}/push/test`, {}, {
                 headers: {
                     'Content-Type': 'application/json',
