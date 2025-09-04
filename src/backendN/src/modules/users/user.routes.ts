@@ -32,10 +32,29 @@ r.get('/favorites', authGuard.required, ctrl.listFavorites);
 r.post('/favorites', authGuard.required, ctrl.addFavorite);
 r.delete('/favorites/:eventId', authGuard.required, ctrl.removeFavorite);
 
+// Follow/Unfollow routes (place BEFORE dynamic :id routes)
+r.get('/following', authGuard.required, ctrl.getFollowing);
+r.post('/follow/artist/:artistId', authGuard.required, ctrl.followArtist);
+r.delete('/follow/artist/:artistId', authGuard.required, ctrl.unfollowArtist);
+r.post('/follow/venue/:venueId', authGuard.required, ctrl.followVenue);
+r.delete('/follow/venue/:venueId', authGuard.required, ctrl.unfollowVenue);
+r.post('/follow/organizer/:organizerId', authGuard.required, ctrl.followOrganizer);
+r.delete('/follow/organizer/:organizerId', authGuard.required, ctrl.unfollowOrganizer);
+r.get('/follow-status/:entityType/:entityId', authGuard.optional, ctrl.checkFollowStatus);
+
 // Get user by ID (self or admin access)
 r.get('/:id', authGuard.required, rbac('ADMIN', 'USER'), ctrl.getById);
 
+// Get user by ID with relationship status (for profile views)
+r.get('/:id/profile', authGuard.optional, ctrl.getByIdWithRelationship);
+
 // Get user stats (self or admin access)
 r.get('/:id/stats', authGuard.required, rbac('ADMIN', 'USER'), ctrl.getUserStats);
+
+// Get online status for multiple users
+r.post('/online-status', 
+  authGuard.required,
+  ctrl.getOnlineStatus
+);
 
 export default r;

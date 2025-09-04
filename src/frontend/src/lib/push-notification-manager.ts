@@ -590,50 +590,25 @@ class PushNotificationManager {
   private shouldInitializeOneSignal(): boolean {
     const hostname = window.location.hostname;
     
-    // Only initialize on HTTPS or localhost
-    if (window.location.protocol !== 'https:' && hostname !== 'localhost') {
-      console.log('[PushManager] OneSignal requires HTTPS or localhost');
-      return false;
-    }
-
-    // Check if OneSignal should be initialized for this domain
-    const isDevelopment = (
-      hostname === 'localhost' ||
-      hostname.startsWith('192.168.') ||
-      hostname.includes('dev.') ||
-      process.env.NODE_ENV === 'development'
-    );
-
-    // In development, check if explicitly enabled OR if we're on localhost
-    if (isDevelopment) {
-      const isExplicitlyEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
-      const isLocalhost = hostname === 'localhost';
-      
-      // Allow initialization on localhost even without the env var for demo purposes
-      if (isLocalhost || isExplicitlyEnabled) {
-        console.log('[PushManager] OneSignal enabled for development environment');
-        return true;
+    // Skip in development unless explicitly enabled
+    if (process.env.NODE_ENV === 'development') {
+      const isEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
+      if (!isEnabled) {
+        console.log('[PushManager] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
+        return false;
       }
-      
-      console.log('[PushManager] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
-      return false;
     }
 
     // In production, initialize based on domain or if explicitly configured
     const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-    const hasAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+    const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
     
-    return isProductionDomain || !!hasAppId;
+    return isProductionDomain || hasAppId;
   }
 
   private getOneSignalAppId(): string {
-    // Use development app ID for dev environment
-    if (process.env.NODE_ENV === 'development') {
-      return process.env.REACT_APP_ONESIGNAL_DEV_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
-    }
-    
-    // Use production app ID for production
-    return process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    // Use the standard environment variable
+    return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
   }
 
   private async waitForOneSignal(): Promise<void> {

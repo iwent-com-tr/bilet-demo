@@ -1,100 +1,123 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccess } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
+import { UserService } from '../modules/users/user.service';
 
-function extractBearerToken(req: Request): string | null {
-  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-  if (!authHeader || typeof authHeader !== 'string') return null;
-  const [scheme, token] = authHeader.split(' ');
-  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null;
-  return token.trim();
+// Endpoints that indicate active user activity (not background processes)
+const ACTIVE_ENDPOINTS = [
+  '/chat/',
+  '/messages',
+  '/events',
+  '/users/me',
+  '/users/search',
+  '/friendships',
+  '/tickets'
+];
+
+// Check if the request path indicates active user activity
+function isActiveEndpoint(path: string): boolean {
+  return ACTIVE_ENDPOINTS.some(endpoint => path.includes(endpoint));
 }
 
-async function attachUser(req: Request): Promise<void> {
-  const token = extractBearerToken(req);
-  if (!token) return;
-  const payload = verifyAccess(token); // throws if invalid/expired
-  const userId = payload.sub;
-  if (!userId) return;
+class AuthGuard {
+  required = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token provided' });
+      }
 
-  // Try to resolve a regular User first
-  const dbUser = await prisma.user.findUnique({ where: { id: userId } });
-  if (dbUser) {
-    const fullName = [
-      (dbUser as any).firstName,
-      (dbUser as any).lastName,
-    ].filter(Boolean).join(' ');
-    const resolvedRole =
-      ((payload as any).role as string | undefined) ||
-      ((payload as any).userType as string | undefined) ||
-      ((dbUser as any).userType as string | undefined) ||
-      'USER';
-    
-    // Fallback: if adminRole is null but userType is 'ADMIN', use 'ADMIN' as adminRole
-    let adminRole = (dbUser as any).adminRole;
-    if (!adminRole && (dbUser as any).userType === 'ADMIN') {
-      adminRole = 'ADMIN';
+      const token = authHeader.split(' ')[1];
+      const payload = verifyAccess(token);
+      
+      if (!payload || !payload.sub) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+
+      // Find user in database
+      const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { 
+          id: true, 
+          userType: true, 
+          adminRole: true,
+          deletedAt: true 
+        }
+      });
+
+      if (!user || user.deletedAt) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Set user info on request
+      req.user = {
+        id: user.id,
+        role: user.userType as 'USER' | 'ADMIN' | 'ORGANIZER',
+        adminRole: user.adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY'
+      };
+
+      // Update lastSeenAt timestamp only for active endpoints (non-blocking)
+      if (isActiveEndpoint(req.path)) {
+        UserService.updateLastSeen(user.id).catch(err => {
+          console.error('Failed to update lastSeenAt:', err);
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Auth guard error:', error);
+      return res.status(401).json({ error: 'Authentication failed' });
     }
-    
-    (req as any).user = {
-      id: (dbUser as any).id,
-      email: (dbUser as any).email,
-      name: (dbUser as any).name ?? (fullName || undefined),
-      role: resolvedRole as any,
-      adminRole: adminRole,
-      avatarUrl: (dbUser as any).avatarUrl ?? (dbUser as any).avatar ?? undefined,
-    };
-    return;
-  }
+  };
 
-  // Fall back to Organizer principal
-  const dbOrganizer = await prisma.organizer.findUnique({ where: { id: userId } });
-  if (dbOrganizer) {
-    const fullName = [
-      (dbOrganizer as any).firstName,
-      (dbOrganizer as any).lastName,
-    ].filter(Boolean).join(' ');
-    (req as any).user = {
-      id: (dbOrganizer as any).id,
-      email: (dbOrganizer as any).email,
-      name: fullName || undefined,
-      role: ((payload as any).role as string | undefined) || ((payload as any).userType as string | undefined) || 'ORGANIZER',
-      avatarUrl: (dbOrganizer as any).avatar ?? undefined,
-    };
-    return;
-  }
+  optional = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return next(); // No token, continue without user
+      }
 
-  // Unknown principal — keep minimal context from token
-  (req as any).user = {
-    id: userId,
-    role: ((payload as any).role as string | undefined) || ((payload as any).userType as string | undefined) || 'USER',
+      const token = authHeader.split(' ')[1];
+      const payload = verifyAccess(token);
+      
+      if (!payload || !payload.sub) {
+        return next(); // Invalid token, continue without user
+      }
+
+      // Find user in database
+      const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { 
+          id: true, 
+          userType: true, 
+          adminRole: true,
+          deletedAt: true 
+        }
+      });
+
+      if (user && !user.deletedAt) {
+        req.user = {
+          id: user.id,
+          role: user.userType as 'USER' | 'ADMIN' | 'ORGANIZER',
+          adminRole: user.adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY'
+        };
+
+        // Update lastSeenAt timestamp only for active endpoints (non-blocking)
+        if (isActiveEndpoint(req.path)) {
+          UserService.updateLastSeen(user.id).catch(err => {
+            console.error('Failed to update lastSeenAt:', err);
+          });
+        }
+      }
+
+      next();
+    } catch (error) {
+      console.error('Optional auth guard error:', error);
+      next(); // Continue without user on error
+    }
   };
 }
 
-async function optional(req: Request, _res: Response, next: NextFunction) {
-  try {
-    await attachUser(req);
-  } catch {
-    // ignore errors, proceed without user context
-  } finally {
-    next();
-  }
-}
-
-async function required(req: Request, res: Response, next: NextFunction) {
-  try {
-    await attachUser(req);
-    if (!(req as any).user) {
-      return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
-    }
-    next();
-  } catch (err: any) {
-    const status = err?.status ?? 401;
-    const code = err?.code ?? 'UNAUTHORIZED';
-    return res.status(status).json({ error: 'unauthorized', code });
-  }
-}
-
-export const authGuard = { optional, required };
+export const authGuard = new AuthGuard();
 
 

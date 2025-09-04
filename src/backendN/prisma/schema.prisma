@@ -48,6 +48,8 @@ model User {
   notificationPreferences UserNotificationPreference[]
   settings                UserSetting[]
   socialAccounts          UserSocialAccount[]
+  eventMutes              EventMute[]
+  moderatedMutes          EventMute[]              @relation("MutedBy")
   pushSubscriptions       PushSubscription[]
   segmentTags             UserSegmentTag[]
   notificationEvents      NotificationEvent[]
@@ -120,6 +122,7 @@ model Event {
   chatMessages       ChatMessage[]
   favoriteUsers      FavoriteEvent[]
   artists            EventArtist[]
+  eventMutes         EventMute[]
 
   /* Detailed event-type relations (kept from both sources) */
   concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
@@ -699,6 +702,26 @@ model FavoriteOrganizer {
   @@unique([userId, organizerId])
   @@index([userId])
   @@index([organizerId])
+}
+
+model EventMute {
+  id        String    @id @default(uuid())
+  eventId   String
+  userId    String
+  muteUntil DateTime? // null means permanent ban
+  mutedById String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mutedBy User  @relation("MutedBy", fields: [mutedById], references: [id])
+
+  @@unique([eventId, userId], name: "eventId_userId")
+  @@index([eventId])
+  @@index([userId])
+  @@index([mutedById])
 }
 
 // Enums for Admin Panel
