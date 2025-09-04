@@ -646,7 +646,7 @@ const OrganizerEventCreate: React.FC = () => {
     latitude?: string;
     longitude?: string;
   }
-  const API_BASE_URL = process.env.REACT_APP_API_URL as string | undefined;
+  const API_BASE_URL = process.env.REACT_APP_API_URL as string ;
   useEffect(() => {
     const fetchCities = async () => {
       try {
