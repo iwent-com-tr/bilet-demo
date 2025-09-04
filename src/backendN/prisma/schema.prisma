@@ -55,7 +55,7 @@ model User {
   notificationEvents      NotificationEvent[]
   loginEvents             LoginEvent[]
   auditLogsAsActor        AuditLog[]
-  pushSubscriptions       PushSubscription[]
+ 
 
   @@index([email])
   @@index([externalId])
@@ -502,6 +502,22 @@ model AuditLog {
 
   @@index([actorId])
   @@index([entity, entityId])
+}
+
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, enabled])
+  @@index([endpoint])
 }
 
 model PushSubscription {
