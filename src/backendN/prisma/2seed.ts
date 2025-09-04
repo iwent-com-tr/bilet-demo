@@ -1,4 +1,4 @@
-// prisma/seed.ts
+
 import { PrismaClient, UserStatus, AdminRole, PushChannel, Browser, OS, DeviceType, SegmentSource, LoginMethod } from '@prisma/client';
 import { hashPassword } from '../src/lib/crypto';
 
@@ -65,6 +65,9 @@ async function seedUsers() {
   }
   console.log('Users seeded.');
 }
+
+
+// prisma/seed-settings.ts (özet)
 
 async function main() {
   // Sections
@@ -245,6 +248,7 @@ async function main() {
       } as any,
     });
   }
+
 
   await seedUsers();
 }

@@ -22,7 +22,7 @@ import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 import { populateDB } from './lib/utils/populators/populator';
-import settingsRoutes from './modules/settings/settings.routes';
+
 
 import chatRoutes from './modules/chat/chat.routes';
 import adminUserRoutes from './modules/admin/users.routes';
@@ -34,6 +34,7 @@ import notificationRoutes from './modules/push/notification.routes';
 import queueRoutes from './modules/queue/queue.routes';
 import { createNotificationWorker } from './lib/queue/notification.worker';
 import { closeQueue } from './lib/queue/index';
+import settingsRoutes from './modules/settings/settings.routes';
 dotenv.config();
 
 // Validate environment configuration on startup
@@ -97,6 +98,12 @@ app.use(`${API_PREFIX}/queue`, queueRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
+app.use(`${API_PREFIX}/settings`, settingsRoutes);
+
+app.get(`${API_PREFIX}/health`, (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
     await prisma.$connect();
