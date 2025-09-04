@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authGuard } from '../../middlewares/authGuard.js';
 import { PushController } from './push.controller.js';
 import { createHealthRoutes } from './health.routes.js';
-import { createDevRoutes } from './dev.routes.js';
+
 import { 
   subscriptionRateLimit, 
   csrfProtection, 
@@ -60,8 +60,7 @@ export function createPushRoutes(prisma: PrismaClient): Router {
   // Health and monitoring endpoints
   router.use('/health', createHealthRoutes(prisma));
 
-  // Development endpoints (only available in development)
-  router.use('/dev', createDevRoutes());
+  // Development endpoints removed for production
 
   return router;
 }

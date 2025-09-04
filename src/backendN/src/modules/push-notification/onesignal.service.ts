@@ -834,12 +834,7 @@ export class OneSignalService {
 
       await this.sendNotification({
         app_id: this.appId,
-        filters: userFilters.length === 1 ? userFilters : [
-          {
-            operator: 'OR',
-            filters: userFilters
-          }
-        ],
+        filters: userFilters,
         headings: { en: `${event.name}` },
         contents: { en: `${senderName}: ${truncatedMessage}` },
         data: {

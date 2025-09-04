@@ -61,7 +61,7 @@ export const subscriptionRateLimit = rateLimit({
   max: 10, // 10 requests per minute
   keyGenerator: (req: Request) => {
     const user = (req as any).user;
-    return user?.id || ipKeyGenerator(req); // Use user ID if authenticated, otherwise properly handled IP
+    return user?.id || req.ip || req.connection.remoteAddress || 'unknown';
   },
   message: {
     error: 'Too many subscription requests',
@@ -85,7 +85,7 @@ export const notificationRateLimit = rateLimit({
   max: 5, // 5 notification sends per minute
   keyGenerator: (req: Request) => {
     const user = (req as any).user;
-    return user?.id || ipKeyGenerator(req);
+    return user?.id || req.ip || req.connection.remoteAddress || 'unknown';
   },
   message: {
     error: 'Too many notification requests',
@@ -105,7 +105,7 @@ export const broadcastRateLimit = rateLimit({
   max: 2, // 2 broadcasts per hour
   keyGenerator: (req: Request) => {
     const user = (req as any).user;
-    return user?.id || ipKeyGenerator(req);
+    return user?.id || req.ip || req.connection.remoteAddress || 'unknown';
   },
   message: {
     error: 'Too many broadcast requests',

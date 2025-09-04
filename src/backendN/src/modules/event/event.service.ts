@@ -397,8 +397,9 @@ export class EventService {
       try {
         await notificationService.queueEventUpdateNotification({
           eventId: id,
-          changeType: changeDetection.changeType,
+          changeType: changeDetection.changeType === 'other' ? 'venue_change' : changeDetection.changeType as 'time_change' | 'venue_change' | 'cancellation',
           changes: changeDetection.changes,
+          timestamp: new Date(),
         });
         console.log(`Queued notification for event ${id} due to ${changeDetection.changeType}`);
       } catch (error) {
@@ -439,6 +440,7 @@ export class EventService {
       try {
         await notificationService.queueNewEventNotification({
           eventId: id,
+          timestamp: new Date(),
         });
         console.log(`Queued new event notification for event ${id}`);
       } catch (error) {

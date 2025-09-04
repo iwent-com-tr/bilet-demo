@@ -53,6 +53,11 @@ export class PushSubscriptionService {
           userAgent: data.userAgent,
           enabled: true,
           lastSeenAt: new Date(),
+          channel: 'WEB_PUSH',
+          onesignalUserId: 'temp-' + Date.now(),
+          browser: 'OTHER',
+          os: 'OTHER',
+          deviceType: 'DESKTOP',
         },
       });
     } catch (error: any) {
@@ -260,10 +265,10 @@ export class PushSubscriptionService {
    */
   toPushSubscriptionData(subscription: PushSubscription): PushSubscriptionData {
     return {
-      endpoint: subscription.endpoint,
+      endpoint: subscription.endpoint || '',
       keys: {
-        p256dh: subscription.p256dh,
-        auth: subscription.auth,
+        p256dh: subscription.p256dh || '',
+        auth: subscription.auth || '',
       },
     };
   }

@@ -235,6 +235,7 @@ export function setupChat(server: http.Server): SocketIOServer {
         const saved = await prisma.chatMessage.create({
           data: {
             eventId: event.id,
+            userId: principal.id,
             senderId: principal.id,
             senderType: principal.role === 'ORGANIZER' ? 'ORGANIZER' : 'USER',
             message: message.trim(),

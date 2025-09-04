@@ -51,11 +51,10 @@ model User {
   eventMutes              EventMute[]
   moderatedMutes          EventMute[]              @relation("MutedBy")
   pushSubscriptions       PushSubscription[]
-  auditLogs               AuditLog[]
-  chatMessages            ChatMessage[]
-  userSegmentTags         UserSegmentTag[]
+  segmentTags             UserSegmentTag[]
   notificationEvents      NotificationEvent[]
   loginEvents             LoginEvent[]
+  auditLogsAsActor        AuditLog[]
 
   @@index([email])
   @@index([externalId])
@@ -103,7 +102,7 @@ model Event {
   category           EventCategory
   startDate          DateTime
   endDate            DateTime
-  venue              String?             // textual venue name
+  venue              String?             // textual venue name (kept nullable because one source used non-null, other did)
   address            String
   city               String
   banner             String?
@@ -125,7 +124,7 @@ model Event {
   artists            EventArtist[]
   eventMutes         EventMute[]
 
-  /* Detailed event-type relations */
+  /* Detailed event-type relations (kept from both sources) */
   concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
   festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
   universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
@@ -135,7 +134,7 @@ model Event {
   performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
   educationDetails   EducationDetails?   @relation("EventToEducationDetails")
 
-  /* Optional venue relation to a Venue model */
+  /* Optional venue relation to a Venue model (kept as experimental in one input) */
   venueExperimental  Venue?              @relation(fields: [venueId], references: [id], onDelete: SetNull)
   venueId            String?
 
@@ -144,6 +143,7 @@ model Event {
   @@index([status])
   @@index([venueId])
 }
+
 
 model ConcertDetails {
   id         String   @id @default(uuid())
@@ -276,10 +276,10 @@ model Ticket {
   @@index([qrCode])
 }
 
+
 model ChatMessage {
   id         String            @id @default(uuid())
   eventId    String
-  userId     String
   senderId   String
   senderType SenderType
   message    String
@@ -287,11 +287,8 @@ model ChatMessage {
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
   event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
-  @@index([userId])
-  @@index([senderId])
 }
 
 model Friendship {
@@ -427,19 +424,14 @@ model PushSubscription {
   onesignalUserId String     // OneSignal player_id (required)
   onesignalSubId  String?    // OneSignal subscription_id (optional)
   subscriptionHash String?   // Hashed endpoint for security
-  endpoint        String?    @unique
-  p256dh          String?
-  auth            String?
-  userAgent       String?
   browser         Browser
   os              OS
   deviceType      DeviceType
-  pwa             Boolean    @default(false)
+  pwa             Boolean
   subscribed      Boolean    @default(true)
-  enabled         Boolean    @default(true)
   lastSeen        DateTime?  // Last activity timestamp
-  lastSeenAt      DateTime?  @default(now())
   ipAddress       String?    // Last known IP (hashed for privacy)
+  userAgent       String?    // User agent string (truncated)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -447,7 +439,6 @@ model PushSubscription {
   @@index([userId, browser, os, deviceType, pwa])
   @@index([onesignalUserId])
   @@index([subscribed, lastSeen])
-  @@index([endpoint])
   @@unique([userId, onesignalUserId]) // One subscription per user per OneSignal device
 }
 
@@ -493,7 +484,6 @@ model LoginEvent {
   ip     String? // Prisma doesn't have inet, use String
   ua     String?
   method LoginMethod
-  success Boolean   @default(true)
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, ts])
@@ -513,153 +503,6 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
-model FavoriteEvent {
-  id        String   @id @default(uuid())
-  userId    String
-  eventId   String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, eventId])
-  @@index([userId])
-  @@index([eventId])
-}
-
-// ADDITION OF ARTISTS
-
-model Artist {
-  id             String           @id @default(uuid())
-  name           String
-  slug           String           @unique
-  genres         String[]         @default([])
-  banner         String?
-  avatar         String?
-  socialMedia    Json             @default("{}")
-  bio            String?
-  approved       Boolean          @default(false) // Indicates if artist has been approved by admin
-  organizerId    String?
-  adderOrganizer Organizer?       @relation(fields: [organizerId], references: [id], onDelete: SetNull)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  favoriteUsers  FavoriteArtist[]
-  favoriteCount  Int              @default(0)
-  deletedAt      DateTime?
-  events         EventArtist[]
-
-  @@index([slug])
-  @@index([organizerId])
-}
-
-model FavoriteArtist {
-  id        String   @id @default(uuid())
-  userId    String
-  artistId  String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, artistId])
-  @@index([userId])
-  @@index([artistId])
-}
-
-model EventArtist {
-  id        String    @id @default(uuid())
-  time      DateTime?
-  eventId   String
-  artistId  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  artist    Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
-
-  @@unique([eventId, artistId])
-  @@index([eventId])
-  @@index([artistId])
-}
-
-// ADDITION OF VENUES
-
-model Venue {
-  id               String          @id @default(uuid())
-  name             String
-  slug             String          @unique
-  banner           String?
-  details          String?
-  capacity         Int?
-  seatedCapacity   Int?
-  standingCapacity Int?
-  socialMedia      Json?           @default("{}")
-  accessibility    Json? // {"wheelchair": true, "parking": true}
-  address          String?
-  city             String?
-  latitude         Decimal?        @db.Decimal(9, 6)
-  longitude        Decimal?        @db.Decimal(9, 6)
-  mapsLocation     String?
-  approved         Boolean         @default(false) // Indicates if venue has been approved by admin
-  organizerId      String?
-  adderOrganizer   Organizer?      @relation(fields: [organizerId], references: [id], onDelete: SetNull)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  favoriteUsers    FavoriteVenue[]
-  favoriteCount    Int             @default(0)
-  deletedAt        DateTime?
-  events           Event[]
-
-  @@index([slug])
-  @@index([organizerId])
-}
-
-model FavoriteVenue {
-  id        String   @id @default(uuid())
-  userId    String
-  venueId   String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, venueId])
-  @@index([userId])
-  @@index([venueId])
-}
-
-model FavoriteOrganizer {
-  id          String    @id @default(uuid())
-  userId      String
-  organizerId String
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizer   Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizerId])
-  @@index([userId])
-  @@index([organizerId])
-}
-
-model EventMute {
-  id        String    @id @default(uuid())
-  eventId   String
-  userId    String
-  muteUntil DateTime? // null means permanent ban
-  mutedById String
-  reason    String?
-  duration  Int?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relations
-  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mutedBy User  @relation("MutedBy", fields: [mutedById], references: [id])
-
-  @@unique([eventId, userId], name: "eventId_userId")
-  @@index([eventId])
-  @@index([userId])
-  @@index([mutedById])
-}
-
 enum Language {
   TR
   EN
@@ -669,13 +512,11 @@ enum SettingInputType {
   TOGGLE
   SELECT
   MULTISELECT
-  BUTTON
 }
 
 enum NotificationCategory {
   EVENT_TIME_CHANGE
   EVENT_VENUE_CHANGE
-  EVENT_UPDATE
   TICKET_PURCHASED
   TICKET_QR
   FRIEND_JOINED_EVENT
@@ -726,7 +567,19 @@ enum ChatMessageStatus {
 enum UserType {
   USER
   ADMIN
-  ORGANIZER
+}
+
+model FavoriteEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
 }
 
 enum FriendshipStatus {
@@ -739,6 +592,136 @@ enum PrivateMessageStatus {
   SENT
   READ
   DELETED
+}
+
+// ADDITION OF ARTISTS
+
+model Artist {
+  id             String           @id @default(uuid())
+  name           String
+  slug           String           @unique
+  genres         String[]         @default([])
+  banner         String?
+  socialMedia    Json             @default("{}")
+  bio            String?
+  organizerId    String?
+  adderOrganizer Organizer?       @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  approved       Boolean          @default(false) // Indicates if artist has been approved by admin
+  favoriteUsers  FavoriteArtist[]
+  favoriteCount  Int
+  deletedAt      DateTime?
+  events         EventArtist[]
+
+  @@index([slug])
+  @@index([organizerId])
+}
+
+model FavoriteArtist {
+  id        String   @id @default(uuid())
+  userId    String
+  artistId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@index([userId])
+  @@index([artistId])
+}
+
+model EventArtist {
+  id        String    @id @default(uuid())
+  time      DateTime?
+  eventId   String
+  artistId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  artist    Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, artistId])
+  @@index([eventId])
+  @@index([artistId])
+}
+
+// ADDITION OF VENUES
+
+model Venue {
+  id               String          @id @default(uuid())
+  name             String
+  slug             String          @unique
+  banner           String?
+  details          String?
+  capacity         Int?
+  seatedCapacity   Int?
+  standingCapacity Int?
+  socialMedia       Json?           @default("{}")
+  accessibility    Json? // {"wheelchair": true, "parking": true}
+  address          String?
+  city             String?
+  latitude         Decimal?        @db.Decimal(9, 6)
+  longitude        Decimal?        @db.Decimal(9, 6)
+  mapsLocation     String?
+  organizerId      String?
+  adderOrganizer   Organizer?      @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  approved         Boolean         @default(false) // Indicates if artist has been approved by admin
+  favoriteUsers    FavoriteVenue[]
+  favoriteCount    Int             @default(0)
+  deletedAt        DateTime?
+  events           Event[]
+
+  @@index([slug])
+  @@index([organizerId])
+}
+
+model FavoriteVenue {
+  id        String   @id @default(uuid())
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([userId])
+  @@index([venueId])
+}
+
+model FavoriteOrganizer {
+  id        String   @id @default(uuid())
+  userId    String
+  organizerId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizer     Organizer    @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizerId])
+  @@index([userId])
+  @@index([organizerId])
+}
+
+model EventMute {
+  id        String    @id @default(uuid())
+  eventId   String
+  userId    String
+  muteUntil DateTime? // null means permanent ban
+  mutedById String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mutedBy User  @relation("MutedBy", fields: [mutedById], references: [id])
+
+  @@unique([eventId, userId], name: "eventId_userId")
+  @@index([eventId])
+  @@index([userId])
+  @@index([mutedById])
 }
 
 // Enums for Admin Panel
@@ -794,4 +777,4 @@ enum LoginMethod {
   PASSWORD
   OAUTH
   MAGIC_LINK
-} 
+}

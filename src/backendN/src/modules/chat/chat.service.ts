@@ -517,6 +517,7 @@ export class ChatService {
     const sentMessage = await prisma.chatMessage.create({
       data: {
         eventId,
+        userId,
         senderId: userId,
         senderType: userType === 'organizer' ? 'ORGANIZER' : 'USER',
         message,

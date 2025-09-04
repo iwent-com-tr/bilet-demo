@@ -32,8 +32,8 @@ export class NotificationService {
         priority,
         // Use event ID as job ID to prevent duplicate jobs for same event
         jobId: `event_update_${validatedData.eventId}_${Date.now()}`,
-        // Set TTL for job relevance (24 hours)
-        ttl: 24 * 60 * 60 * 1000,
+        // Set delay for immediate processing
+        delay: 0,
       }
     );
   }
@@ -56,8 +56,8 @@ export class NotificationService {
       {
         priority: 5, // Medium priority for new events
         jobId: `new_event_${validatedData.eventId}`,
-        // Set TTL for job relevance (48 hours for new events)
-        ttl: 48 * 60 * 60 * 1000,
+        // Set delay for immediate processing
+        delay: 0,
       }
     );
   }
