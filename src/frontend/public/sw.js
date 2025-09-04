@@ -19,6 +19,18 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   // Simple network-first strategy for now
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // 1) POST/PUT/DELETE gibi GET olmayanları SW hiç ele almasın
+  if (req.method !== 'GET') return;
+
+  // 2) Cross-origin istekleri (api.iwent.com.tr) SW’de bırakma
+  if (url.origin !== self.location.origin) return;
+
+  // 3) Aynı origin’de bile /api/... isteklerine dokunma
+  if (url.pathname.startsWith('/api/')) return;
+
   event.respondWith(fetch(event.request));
 });
 
