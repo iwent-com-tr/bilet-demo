@@ -166,7 +166,8 @@ export class PrismaService {
             },
             _count: {
                 select: {
-                    favoriteUsers: true
+                    favoriteUsers: true,
+                    events: true
                 },
             },
             },

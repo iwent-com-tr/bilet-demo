@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authGuard } from '../../middlewares/authGuard';
 import { rbac } from '../../middlewares/rbac';
 import * as ctrl from './organizer.controller';
+import { noCacheUserDependent } from '../../middlewares/noCacheUserDependant';
 
 // ===== Router =====
 const r = Router();
@@ -9,17 +10,19 @@ const r = Router();
 // Public list organizers — Admin only
 r.get('/', authGuard.optional, rbac('ADMIN'), ctrl.list);
 
+r.get('/public/popular', noCacheUserDependent, authGuard.optional, ctrl.getPopularOrganizers);
+
 // Public get organizer public profile by id (safe information only)
-r.get('/public/:id', authGuard.optional, ctrl.getPublicById);
+r.get('/public/:id', noCacheUserDependent, authGuard.optional, ctrl.getPublicById);
 
 // Public get organizer for search
-r.get('/public/', authGuard.optional, ctrl.listPublic);
+r.get('/public/', noCacheUserDependent, authGuard.optional, ctrl.listPublic);
 
 // Admin creates an organizer account (separate from public register)
 r.post('/', authGuard.required, rbac('ADMIN'), ctrl.adminCreate);
 
 // Public get organizer profile by id
-r.get('/:id', ctrl.getById);
+r.get('/:id', noCacheUserDependent, ctrl.getById);
 
 // Update organizer (self or admin). Self allowed via rbac self-check.
 r.patch('/:id', authGuard.required, rbac('ADMIN', 'ORGANIZER'), ctrl.update);

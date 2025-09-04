@@ -7,6 +7,7 @@ const r = Router();
 
 // Public list and get
 r.get('/', authGuard.optional, ctrl.list);
+r.get('/popular/', authGuard.optional, ctrl.getPopularEvents);
 r.get('/slug/:slug', ctrl.getBySlug);
 r.get('/:id', ctrl.getById);
 

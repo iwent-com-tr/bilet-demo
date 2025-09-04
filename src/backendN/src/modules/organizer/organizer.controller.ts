@@ -12,6 +12,7 @@ import {
 } from './organizer.dto';
 
 import { sanitizeOrganizer, sanitizePublicOrganizer } from '../publicServices/sanitizer.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -28,10 +29,28 @@ export async function listPublic(req: Request, res: Response, next: NextFunction
     const refined = result.data.map((organizer: any) => {
       return {
         ...organizer,
-        following: organizer.favoriteUsers.some((user: any) => user.id === (req as any).user?.id),
+        following: organizer.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
       };
     });
-    res.json({ ...result, data: result.data.map(sanitizePublicOrganizer) });
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, q);
+
+    res.json({ ...result, data: refined.map(sanitizePublicOrganizer) });
+  } catch (e) { next(e); }
+}
+
+export async function getPopularOrganizers(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { page, limit, q } = ListOrganizersQueryDTO.parse(req.query);
+    const result = await OrganizerService.getPopularOrganizers({ page, limit, q });
+    const refined = result.data.map((organizer: any) => {
+      return {
+        ...organizer,
+        following: req.user && organizer.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      };
+    });
+
+    res.json({ ...result, data: refined.map(sanitizePublicOrganizer) });
   } catch (e) { next(e); }
 }
 

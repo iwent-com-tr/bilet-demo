@@ -7,11 +7,26 @@ import { resolveBannerPublicUrl } from '../publicServices/multer.service';
 import { SearchService } from '../search/search.service';
 import { resolveIsAdmin, resolveIsOrganizer } from '../publicServices/resolveRoles.service';
 import { sanitizeEvent } from '../publicServices/sanitizer.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListEventsQueryDTO.parse(req.query);
+
     const result = await EventService.list(query);
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+
+    res.json({ ...result, data: result.data.map(sanitizeEvent).filter(Boolean) });
+  } catch (e) { next(e); }
+}
+
+export async function getPopularEvents(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = ListEventsQueryDTO.parse(req.query);
+
+    const result = await EventService.getPopularEvents(query);
+
     res.json({ ...result, data: result.data.map(sanitizeEvent).filter(Boolean) });
   } catch (e) { next(e); }
 }

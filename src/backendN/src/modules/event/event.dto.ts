@@ -35,8 +35,8 @@ export const ListEventsQueryDTO = z.object({
     .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
   organizerId: z.string().uuid({ message: 'organizerId geçerli bir UUID olmalıdır.' }).optional(),
   status: z.enum(EventStatuses).optional(),
-  price: z.coerce.number().optional(),
-  distance: z.coerce.number().optional(),
+  price: z.coerce.number().optional().default(100000),
+  distance: z.coerce.number().optional().default(100000),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
 });
