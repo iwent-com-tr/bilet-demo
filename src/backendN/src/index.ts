@@ -8,6 +8,7 @@ import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
+import { validateEnvironmentOrExit } from './lib/push/environment-validator.js';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/user.routes';
 import organizerRoutes from './modules/organizer/organizer.routes';
@@ -21,14 +22,23 @@ import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 import { populateDB } from './lib/utils/populators/populator';
-import settingsRoutes from './modules/settings/settings.routes';
+
 
 import chatRoutes from './modules/chat/chat.routes';
 import adminUserRoutes from './modules/admin/users.routes';
 import adminEventRoutes from './modules/admin/event.routes';
 import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
 import { adminApiLimiter } from './middlewares/rateLimiter';
+import pushRoutes from './modules/push/push.routes';
+import notificationRoutes from './modules/push/notification.routes';
+import queueRoutes from './modules/queue/queue.routes';
+import { createNotificationWorker } from './lib/queue/notification.worker';
+import { closeQueue } from './lib/queue/index';
+import settingsRoutes from './modules/settings/settings.routes';
 dotenv.config();
+
+// Validate environment configuration on startup
+validateEnvironmentOrExit();
 
 const args = process.argv.slice(2);
 
@@ -74,6 +84,9 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+app.use(`${API_PREFIX}/push`, pushRoutes);
+app.use(`${API_PREFIX}/events`, notificationRoutes);
+app.use(`${API_PREFIX}/queue`, queueRoutes);
 
 app.use(`${API_PREFIX}/chat`, chatRoutes);
 
@@ -82,9 +95,18 @@ app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
 app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
+app.use(`${API_PREFIX}/push`, pushRoutes);
+app.use(`${API_PREFIX}/events`, notificationRoutes);
+app.use(`${API_PREFIX}/queue`, queueRoutes);
 
 // Server status check
 app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
+app.use(`${API_PREFIX}/settings`, settingsRoutes);
+
+app.get(`${API_PREFIX}/health`, (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
     await prisma.$connect();
@@ -125,6 +147,13 @@ if (args.includes('--populate')) {
   process.exit(0);
 }
 
+// Optionally start the notification worker in the same process
+let notificationWorker: any = null;
+if (process.env.START_WORKER === 'true') {
+  notificationWorker = createNotificationWorker(prisma);
+  console.log('🚀 Notification worker started in main process');
+}
+
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
   const protocol = process.env.HTTPS === 'true' ? 'https' : 'http';
@@ -135,3 +164,35 @@ server.listen(port, () => {
     console.log('HTTPS mode: Make sure SSL certificates (server.crt, server.key) are present');
   }
 });
+
+
+// Graceful shutdown
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n📴 Received ${signal}, shutting down gracefully...`);
+  
+  try {
+    // Close HTTP server
+    server.close();
+    
+    // Close notification worker if running
+    if (notificationWorker) {
+      await notificationWorker.close();
+    }
+    
+    // Close queue connections
+    await closeQueue();
+    
+    // Close Prisma connection
+    await prisma.$disconnect();
+    
+    console.log('✅ Graceful shutdown completed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

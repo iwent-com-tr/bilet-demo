@@ -62,6 +62,25 @@ export class FriendshipService {
   static async count(userId: string) {
     return prisma.friendship.count({ where: { status: 'ACCEPTED', OR: [{ fromUserId: userId }, { toUserId: userId }] } });
   }
+
+  static async removeExistingFriendship(userId: string, otherUserId: string) {
+    // Find any existing friendship between the two users
+    const existingFriendship = await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { fromUserId: userId, toUserId: otherUserId },
+          { fromUserId: otherUserId, toUserId: userId }
+        ]
+      }
+    });
+
+    if (existingFriendship) {
+      await prisma.friendship.delete({
+        where: { id: existingFriendship.id }
+      });
+      console.log(`Removed friendship between users ${userId} and ${otherUserId} due to blocking`);
+    }
+  }
 }
 
 export class BlockService {

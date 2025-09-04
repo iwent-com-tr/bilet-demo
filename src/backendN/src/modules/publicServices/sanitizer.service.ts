@@ -1,4 +1,4 @@
-import { id } from "zod/v4/locales/index.cjs";
+import { fa, id } from "zod/v4/locales/index.cjs";
 import { eventIndex } from "../../lib/meili";
 import { approve } from "../organizer/organizer.controller";
 
@@ -67,7 +67,8 @@ export function sanitizeVenue(e: any) {
     accessibility: e.accessibility ?? undefined,
     mapsLocation: e.mapsLocation ?? undefined,
     approved: e.approved,
-    favoriteCount: e.favoriteCount,
+    favoriteCount: e.favoriteCount || 0,
+    following: e.following || false,
     deletedAt: e.deletedAt,
     events: e.events.map((event: any) => event.id),
   };
@@ -85,7 +86,8 @@ export function sanitizeArtist(e: any) {
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
     approved: e.approved,
-    favoriteCount: e.favoriteCount,
+    favoriteCount: e.favoriteCount || 0,
+    following: e.following || false,
     deletedAt: e.deletedAt,
     genres: e.genres || [],
     socialMedia: e.socialMedia || {},
@@ -120,7 +122,9 @@ export function sanitizePublicOrganizer(o: any) {
     firstName: o.firstName,
     lastName: o.lastName,
     company: o.company,
-    avatar: o.avatar,
+    avatar: o.avatar || null,
     approved: o.approved,
+    favoriteCount: o.favoriteCount || 0,
+    following: o.following || false,
   };
 }

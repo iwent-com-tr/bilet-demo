@@ -76,11 +76,17 @@ export class OrganizerService {
         taxOffice: true,
         address: true,
         bankAccount: true,
+        socialMedia: true,
         events: {
           select: {
             id: true,
           },
-        }
+        },
+        favoriteUsers: {
+          select: {
+            userId: true,
+          },
+        },
       },
     });
     if (!organizer) {
@@ -174,6 +180,14 @@ export class OrganizerService {
         taxNumber: true, taxOffice: true, address: true, bankAccount: true,
       },
     });
+  }
+
+  static async sendFollowRequest(organizerId: string, userId: string) {
+    return prisma.favoriteOrganizer.create({ data: { userId, organizerId } });
+  }
+
+  static async cancelFollowRequest(organizerId: string, userId: string) {
+    return prisma.favoriteOrganizer.delete({ where: { userId_organizerId: { userId, organizerId } } });
   }
 
   static async generateEventReport(organizerId: string, eventId: string) {

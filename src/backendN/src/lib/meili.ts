@@ -55,6 +55,70 @@ async function setupIndexes() {
   
 
 async function syncDBToMeili() {
+  const dbArtists = await prisma.artist.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      bio: true,
+      genres: true,
+    },
+  });
+
+  const artists = dbArtists.map(a => ({
+    id: a.id,
+    name: a.name,
+    bio: a.bio,
+    genres: a.genres,
+  }));
+
+  await artistIndex.addDocuments(artists);
+
+  const dbOrganizers = await prisma.organizer.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      company: true,
+    },
+  });
+
+  const organizers = dbOrganizers.map(o => ({
+    id: o.id,
+    firstName: o.firstName,
+    lastName: o.lastName,
+    company: o.company,
+  }));
+
+  await organizerIndex.addDocuments(organizers);
+
+  const dbVenues = await prisma.venue.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      details: true,
+      city: true,
+      address: true,
+      accessibility: true,
+      latitude: true,
+      longitude: true,
+    },
+  });
+
+  const venues = dbVenues.map(v => ({
+    id: v.id,
+    name: v.name,
+    details: v.details,
+    city: v.city,
+    address: v.address,
+    accessibility: v.accessibility,
+    _geo: v.latitude && v.longitude ? { lat: v.latitude, lng: v.longitude } : undefined,
+  }));
+
+  await venueIndex.addDocuments(venues);
+
   const dbEvents = await prisma.event.findMany({
     where: { deletedAt: null },
     select: {
@@ -98,7 +162,7 @@ async function syncDBToMeili() {
       city: e.city,
       description: e.description,
       status: e.status,
-      ticketsPrices,
+      tickets: ticketsPrices,
     };
   });
 
@@ -110,3 +174,4 @@ export async function initMeili() {
   await syncDBToMeili();
   console.log("MeiliSearch is running.");
 }
+

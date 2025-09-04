@@ -38,21 +38,37 @@ export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListVenuesQueryDTO.parse(req.query);
     const result = await VenuesService.list(query);
-    res.json({ ...result, data: result.data.map(sanitizeVenue).filter(Boolean) });
+    const refined = result.data.map((venue: any) => {
+      return {
+        ...venue,
+        following: venue.favoriteUsers.some((user: any) => user.id === (req as any).user?.id),
+      };
+    });
+    res.json({ ...result, data: refined.map(sanitizeVenue).filter(Boolean) });
   } catch (e) { next(e); }
 }
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    const event = await VenuesService.findById(req.params.id);
-    res.json({ event: sanitizeVenue(event) });
+    const venue = await VenuesService.findById(req.params.id);
+    const publicInfo = {
+      ...venue,
+      favoriteCount: venue.favoriteUsers.length,
+      following: venue.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+    }
+    res.json({ event: sanitizeVenue(venue) });
   } catch (e) { next(e); }
 }
 
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const venue = await VenuesService.findBySlug(req.params.slug);
-    res.json(sanitizeVenue(venue));
+    const publicInfo = {
+      ...venue,
+      favoriteCount: venue.favoriteUsers.length,
+      following: venue.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+    }
+    res.json(sanitizeVenue(publicInfo));
   } catch (e) { next(e); }
 }
 
@@ -83,3 +99,14 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
+export async function sendFollowRequest(req: any, res: Response, next: NextFunction) {
+  const result = await VenuesService.sendFollowRequest(req.params.id, req.user.id);
+  if (result.id) return res.json(result);
+  return res.status(400).json(result);
+}
+
+export async function cancelFollowRequest(req: any, res: Response, next: NextFunction) {
+  const result = await VenuesService.cancelFollowRequest(req.params.id, req.user.id);
+  if (result.id) return res.json(result);
+  return res.status(400).json(result);
+}

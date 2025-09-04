@@ -9,21 +9,28 @@ import {
 } from './push-notification.types';
 
 export class OneSignalService {
-  private readonly client: AxiosInstance;
+  private readonly client: AxiosInstance | null = null;
   private readonly appId: string;
   private readonly apiKey: string;
   private readonly webhookSecret?: string;
 
   constructor() {
+    // Use standard environment variables
     this.appId = process.env.ONESIGNAL_APP_ID || '';
     this.apiKey = process.env.ONESIGNAL_API_KEY || '';
     this.webhookSecret = process.env.ONESIGNAL_WEBHOOK_SECRET;
 
-    if (!this.appId || !this.apiKey) {
-      throw new Error('OneSignal configuration missing: ONESIGNAL_APP_ID and ONESIGNAL_API_KEY are required');
+    if (!this.appId) {
+      console.warn(`⚠️  OneSignal configuration missing: ONESIGNAL_APP_ID is required. Push notifications will be disabled.`);
+      return; // Don't initialize client if config is missing
     }
 
-    this.client = axios.create({
+    if (!this.apiKey) {
+      console.warn(`⚠️  OneSignal configuration missing: ONESIGNAL_API_KEY is required. Push notifications will be disabled.`);
+      return; // Don't initialize client if config is missing
+    }
+
+    (this as any).client = axios.create({
       baseURL: 'https://api.onesignal.com/v1',
       headers: {
         'Authorization': `Basic ${this.apiKey}`,
@@ -33,22 +40,22 @@ export class OneSignalService {
     });
 
     // Add request/response interceptors for logging
-    this.client.interceptors.request.use(
-      (config) => {
+    (this as any).client.interceptors.request.use(
+      (config: any) => {
         console.log(`[OneSignal] ${config.method?.toUpperCase()} ${config.url}`, {
           data: config.data ? 'present' : 'none',
           timestamp: new Date().toISOString(),
         });
         return config;
       },
-      (error) => {
+      (error: any) => {
         console.error('[OneSignal] Request error:', error.message);
         return Promise.reject(error);
       }
     );
 
-    this.client.interceptors.response.use(
-      (response) => {
+    (this as any).client.interceptors.response.use(
+      (response: any) => {
         console.log(`[OneSignal] Response ${response.status}`, {
           url: response.config.url,
           data: response.data ? 'received' : 'empty',
@@ -56,7 +63,7 @@ export class OneSignalService {
         });
         return response;
       },
-      (error) => {
+      (error: any) => {
         console.error('[OneSignal] Response error:', {
           status: error.response?.status,
           message: error.message,
@@ -74,6 +81,10 @@ export class OneSignalService {
   async sendNotification(
     request: Partial<OneSignalCreateNotificationRequest>
   ): Promise<OneSignalNotificationResponse> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     // Ensure required fields are present
     if (!request.headings || !request.contents) {
       throw new Error('headings and contents are required for notifications');
@@ -87,7 +98,7 @@ export class OneSignalService {
       contents: request.contents,
     };
 
-    const response: AxiosResponse<OneSignalNotificationResponse> = await this.client.post(
+    const response: AxiosResponse<OneSignalNotificationResponse> = await this.client!.post(
       '/notifications',
       payload
     );
@@ -340,6 +351,10 @@ export class OneSignalService {
    * Get player (device) information
    */
   async getPlayer(playerId: string): Promise<OneSignalPlayerResponse> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     const response: AxiosResponse<OneSignalPlayerResponse> = await this.client.get(
       `/players/${playerId}?app_id=${this.appId}`
     );
@@ -354,6 +369,10 @@ export class OneSignalService {
     playerId: string,
     tags: Record<string, string>
   ): Promise<{ success: boolean }> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     const response = await this.client.put(`/players/${playerId}`, {
       app_id: this.appId,
       tags,
@@ -384,6 +403,10 @@ export class OneSignalService {
     playerId: string,
     externalUserId: string
   ): Promise<{ success: boolean }> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     const response = await this.client.put(`/players/${playerId}`, {
       app_id: this.appId,
       external_user_id: externalUserId,
@@ -403,6 +426,10 @@ export class OneSignalService {
     recipients: number;
     platform_delivery_stats: Record<string, any>;
   }> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     const response = await this.client.get(`/notifications/${notificationId}?app_id=${this.appId}`);
     return response.data;
   }
@@ -417,6 +444,10 @@ export class OneSignalService {
     messageable_players: number;
     updated_at: string;
   }> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     const response = await this.client.get(`/apps/${this.appId}`);
     return response.data;
   }
@@ -434,6 +465,10 @@ export class OneSignalService {
       operator?: 'AND' | 'OR';
     }>
   ): Promise<{ id: string; name: string }> {
+    if (!this.client) {
+      throw new Error('OneSignal client not initialized');
+    }
+
     const response = await this.client.post('/segments', {
       app_id: this.appId,
       name,
@@ -559,6 +594,276 @@ export class OneSignalService {
 
     // Default to Chrome Web for unknown browsers
     return ONESIGNAL_DEVICE_TYPES.CHROME_WEB;
+  }
+
+  /**
+   * Send friend request notification
+   */
+  async sendFriendRequestNotification(fromUserId: string, toUserId: string): Promise<void> {
+    if (!this.client || !this.appId) {
+      console.warn('OneSignal not configured, skipping friend request notification');
+      return;
+    }
+    
+    try {
+      // Get sender user info
+      const { prisma } = await import('../../lib/prisma');
+      const fromUser = await prisma.user.findUnique({
+        where: { id: fromUserId },
+        select: { firstName: true, lastName: true, avatar: true }
+      });
+
+      if (!fromUser) {
+        throw new Error('Sender user not found');
+      }
+
+      const senderName = `${fromUser.firstName} ${fromUser.lastName}`;
+
+      await this.sendNotification({
+        app_id: this.appId,
+        filters: [
+          { field: 'tag', key: 'user_id', relation: '=', value: toUserId }
+        ],
+        headings: { en: 'Yeni Arkadaşlık İsteği' },
+        contents: { en: `${senderName} size arkadaşlık isteği gönderdi` },
+        data: {
+          type: 'FRIEND_REQUEST',
+          fromUserId,
+          toUserId,
+          senderName
+        },
+        ios_badgeType: 'Increase',
+        ios_badgeCount: 1,
+        android_channel_id: 'friend_requests',
+        small_icon: 'ic_notification',
+        large_icon: fromUser.avatar || undefined,
+        ...DEFAULT_NOTIFICATION_OPTIONS,
+      });
+
+      console.log(`[OneSignal] Friend request notification sent from ${senderName} to user ${toUserId}`);
+    } catch (error) {
+      console.error('[OneSignal] Failed to send friend request notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send friend request accepted notification
+   */
+  async sendFriendRequestAcceptedNotification(acceptedByUserId: string, originalSenderUserId: string): Promise<void> {
+    if (!this.client || !this.appId) {
+      console.warn('OneSignal not configured, skipping friend request accepted notification');
+      return;
+    }
+    
+    try {
+      // Get accepter user info
+      const { prisma } = await import('../../lib/prisma');
+      const acceptedByUser = await prisma.user.findUnique({
+        where: { id: acceptedByUserId },
+        select: { firstName: true, lastName: true, avatar: true }
+      });
+
+      if (!acceptedByUser) {
+        throw new Error('Accepter user not found');
+      }
+
+      const accepterName = `${acceptedByUser.firstName} ${acceptedByUser.lastName}`;
+
+      await this.sendNotification({
+        app_id: this.appId,
+        filters: [
+          { field: 'tag', key: 'user_id', relation: '=', value: originalSenderUserId }
+        ],
+        headings: { en: 'Arkadaşlık İsteği Kabul Edildi' },
+        contents: { en: `${accepterName} arkadaşlık isteğinizi kabul etti` },
+        data: {
+          type: 'FRIEND_REQUEST_ACCEPTED',
+          acceptedByUserId,
+          originalSenderUserId,
+          accepterName
+        },
+        ios_badgeType: 'Increase',
+        ios_badgeCount: 1,
+        android_channel_id: 'friend_requests',
+        small_icon: 'ic_notification',
+        large_icon: acceptedByUser.avatar || undefined,
+        ...DEFAULT_NOTIFICATION_OPTIONS,
+      });
+
+      console.log(`[OneSignal] Friend request accepted notification sent from ${accepterName} to user ${originalSenderUserId}`);
+    } catch (error) {
+      console.error('[OneSignal] Failed to send friend request accepted notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send private message notification
+   */
+  async sendPrivateMessageNotification(senderId: string, receiverId: string, message: string): Promise<void> {
+    if (!this.client || !this.appId) {
+      console.warn('OneSignal not configured, skipping private message notification');
+      return;
+    }
+    
+    try {
+      // Get sender user info
+      const { prisma } = await import('../../lib/prisma');
+      const senderUser = await prisma.user.findUnique({
+        where: { id: senderId },
+        select: { firstName: true, lastName: true, avatar: true }
+      });
+
+      if (!senderUser) {
+        throw new Error('Sender user not found');
+      }
+
+      const senderName = `${senderUser.firstName} ${senderUser.lastName}`;
+      
+      // Truncate message if too long
+      const truncatedMessage = message.length > 100 ? `${message.substring(0, 100)}...` : message;
+
+      await this.sendNotification({
+        app_id: this.appId,
+        filters: [
+          { field: 'tag', key: 'user_id', relation: '=', value: receiverId }
+        ],
+        headings: { en: `${senderName}` },
+        contents: { en: truncatedMessage },
+        data: {
+          type: 'PRIVATE_MESSAGE',
+          senderId,
+          receiverId,
+          senderName,
+          messagePreview: truncatedMessage
+        },
+        ios_badgeType: 'Increase',
+        ios_badgeCount: 1,
+        android_channel_id: 'messages',
+        small_icon: 'ic_notification',
+        large_icon: senderUser.avatar || undefined,
+        ...DEFAULT_NOTIFICATION_OPTIONS,
+      });
+
+      console.log(`[OneSignal] Private message notification sent from ${senderName} to user ${receiverId}`);
+    } catch (error) {
+      console.error('[OneSignal] Failed to send private message notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send event message notification
+   */
+  async sendEventMessageNotification(senderId: string, eventId: string, message: string, senderType: 'USER' | 'ORGANIZER'): Promise<void> {
+    if (!this.client || !this.appId) {
+      console.warn('OneSignal not configured, skipping event message notification');
+      return;
+    }
+    
+    try {
+      const { prisma } = await import('../../lib/prisma');
+      
+      // Get event info
+      const event = await prisma.event.findUnique({
+        where: { id: eventId },
+        select: { 
+          name: true, 
+          banner: true,
+          organizer: {
+            select: { id: true }
+          }
+        }
+      });
+
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      // Get sender info
+      let senderName = 'Bilinmeyen';
+      let senderAvatar = null;
+
+      if (senderType === 'USER') {
+        const user = await prisma.user.findUnique({
+          where: { id: senderId },
+          select: { firstName: true, lastName: true, avatar: true }
+        });
+        if (user) {
+          senderName = `${user.firstName} ${user.lastName}`;
+          senderAvatar = user.avatar;
+        }
+      } else if (senderType === 'ORGANIZER') {
+        const organizer = await prisma.organizer.findUnique({
+          where: { id: senderId },
+          select: { firstName: true, lastName: true, avatar: true }
+        });
+        if (organizer) {
+          senderName = `${organizer.firstName} ${organizer.lastName}`;
+          senderAvatar = organizer.avatar;
+        }
+      }
+
+      // Get all ticket holders for this event (excluding the sender)
+      const ticketHolders = await prisma.ticket.findMany({
+        where: { 
+          eventId,
+          userId: { not: senderType === 'USER' ? senderId : undefined },
+          status: 'ACTIVE'
+        },
+        select: { userId: true },
+        distinct: ['userId']
+      });
+
+      if (ticketHolders.length === 0) {
+        console.log(`No ticket holders found for event ${eventId}, skipping notification`);
+        return;
+      }
+
+      // Create user ID filters for all ticket holders
+      const userFilters = ticketHolders.map(ticket => ({
+        field: 'tag' as const,
+        key: 'user_id',
+        relation: '=' as const,
+        value: ticket.userId
+      }));
+
+      // Truncate message if too long
+      const truncatedMessage = message.length > 100 ? `${message.substring(0, 100)}...` : message;
+
+      await this.sendNotification({
+        app_id: this.appId,
+        filters: userFilters.length === 1 ? userFilters : [
+          {
+            operator: 'OR',
+            filters: userFilters
+          }
+        ],
+        headings: { en: `${event.name}` },
+        contents: { en: `${senderName}: ${truncatedMessage}` },
+        data: {
+          type: 'EVENT_MESSAGE',
+          eventId,
+          senderId,
+          senderType,
+          senderName,
+          eventName: event.name,
+          messagePreview: truncatedMessage
+        },
+        ios_badgeType: 'Increase',
+        ios_badgeCount: 1,
+        android_channel_id: 'event_messages',
+        small_icon: 'ic_notification',
+        large_icon: senderAvatar || event.banner || undefined,
+        ...DEFAULT_NOTIFICATION_OPTIONS,
+      });
+
+      console.log(`[OneSignal] Event message notification sent for event ${event.name} to ${ticketHolders.length} users`);
+    } catch (error) {
+      console.error('[OneSignal] Failed to send event message notification:', error);
+      throw error;
+    }
   }
 }
 

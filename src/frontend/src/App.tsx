@@ -33,6 +33,7 @@ import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 import CalendarPage from './pages/Calendar';
+
 import UserList from './pages/admin/UserList';
 import UserDetail from './pages/admin/UserDetail';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -41,11 +42,16 @@ import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
 import { PushNotificationDemo } from './pages/PushNotificationDemo';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
+import NotificationsDemo from 'pages/NotificationsDemo';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
 
 import Messages from './pages/chat/Messages';
+import PrivateChat from './pages/chat/PrivateChat';
+import UserProfile from './pages/user/UserProfile';
+import VenueProfile from './pages/venues/VenueProfile';
+import ArtistProfile from './pages/artists/ArtistProfile';
 
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
@@ -67,10 +73,15 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
+            <Route path="/notifications-demo" element={<NotificationsDemo />} />
             <Route path="/search" element={<Search />} />
-            <Route path='/search/:query' element={<Search />} />
+            <Route path='/search/:index_name' element={<Search />} />
 
             <Route path="/messages" element={<Messages />} />
+            <Route path="/chat/private/:userId" element={<PrivateChat />} />
+            <Route path="/profile/:userId" element={<UserProfile />} />
+            <Route path="/venue/:slug" element={<VenueProfile />} />
+            <Route path="/artist/:slug" element={<ArtistProfile />} />
 
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />

@@ -287,7 +287,9 @@ const EventChat: React.FC = () => {
                 key={message.id}
                 message={message}
                 currentUserId={user?.id || ''}
+
                 currentUserType={isEventOrganizer ? 'organizer' : 'user'}
+
               />
             ))
           )}
@@ -323,7 +325,9 @@ const EventChat: React.FC = () => {
           participants={participants}
           onClose={handleCloseGroupInfo}
           currentUserId={user?.id || ''}
+
           isOrganizer={isEventOrganizer}
+
         />
       )}
     </div>

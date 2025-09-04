@@ -2,11 +2,27 @@ import { Request } from "express";
 import { CreateArtistInput, UpdateArtistInput } from "./artists.dto";
 import { prisma } from "../../lib/prisma";
 import { artistIndex } from "../../lib/meili";
-import { generateEventCreateInfos, generateArtistCreateInfos, generateArtistUpdateInfos } from "../publicServices/createInfo.service";
+import { generateArtistCreateInfos, generateArtistUpdateInfos } from "../publicServices/createInfo.service";
 
 export class ArtistsService {
     static async findById(id: string) {
-        const artist = await prisma.artist.findFirst({ where: { id, deletedAt: null } });
+        const artist = await prisma.artist.findFirst({ 
+          where: { 
+            id, deletedAt: null
+          },
+          include: {
+            events: {
+              select: {
+                eventId: true
+              }
+            },
+            favoriteUsers: {
+              select: {
+                userId: true
+              }
+            },
+          }
+        });
         if (!artist) {
           const e: any = new Error('artist not found');
           e.status = 404; e.code = 'NOT_FOUND';
@@ -26,7 +42,12 @@ export class ArtistsService {
               select: {
                 eventId: true
               }
-            }
+            },
+            favoriteUsers: {
+              select: {
+                userId: true
+              }
+            },
           } 
         });
         if (!artist) {
@@ -77,4 +98,12 @@ export class ArtistsService {
       
       await prisma.artist.update({ where: { id }, data: { deletedAt: new Date() } });
     }
+
+    static async sendFollowRequest(artistId: string, userId: string) {
+        return prisma.favoriteArtist.create({ data: { userId, artistId } });
+      }
+    
+      static async cancelFollowRequest(artistId: string, userId: string) {
+        return prisma.favoriteArtist.delete({ where: { userId_artistId: { userId, artistId } } });
+      }
 }

@@ -27,10 +27,10 @@ const Navbar: React.FC = () => {
             <Link to="/calendar" className="navbar__link">
               Takvim
             </Link>
-            <Link to="/artists" className="navbar__link">
+            <Link to="/search/artists" className="navbar__link">
               Sanatçılar
             </Link>
-            <Link to="/venues" className="navbar__link">
+            <Link to="/search/venues" className="navbar__link">
               Mekanlar
             </Link>
             

@@ -8,18 +8,29 @@ import { URL } from "url";
 /**
  * Node 18+ compatible fetch
  */
- async function fetchFirstImage(keyword: string): Promise<string | null> {
+async function fetchFirstImage(keyword: string): Promise<string | null> {
+  let width, height;
+
+  switch (keyword) {
+    case "event":
+      width = 1280;
+      height = 768;
+      break;
+    case "artist":
+      width = 600;
+      height = 600;
+      break;
+    case "venue":
+      width = 1280;
+      height = 768;
+      break;
+    default:
+      width = 600;
+      height = 600;
+  }
+
   try {
-    const res = await fetch(
-      `https://api.openverse.engineering/v1/images/?q=${encodeURIComponent(keyword)}&limit=1`,
-      {
-        headers: {
-          "User-Agent": "Node.js Fetch",
-          Accept: "application/json",
-        },
-        redirect: "follow", // follow redirects automatically
-      }
-    );
+    const res = await fetch(`https://picsum.photos/${width}/${height}`);
 
     if (!res.ok) return null;
     const data = await res.json();
@@ -30,6 +41,7 @@ import { URL } from "url";
   }
 }
 
+
 /**
  * Search for images on DuckDuckGo and add them to the events.
  */
@@ -37,18 +49,17 @@ async function addImagesToEvents() {
   const events = await prisma.event.findMany({
     select: {
       id: true,
-      name: true,
     },
   });
 
   for (const event of events) {
     try {
-      console.log(`🔍 Searching image for event: ${event.name}`);
-      const image = await fetchFirstImage(event.name);
+      console.log(`🔍 Searching image for event: ${event.id}`);
+      const image = await fetchFirstImage("event");
       await EventService.update(event.id, { banner: image as any });
-      console.log(`✅ Updated event ${event.id} (${event.name}) with image`);
+      console.log(`✅ Updated event ${event.id} with image`);
     } catch (err) {
-      console.error(`❌ Failed to update event ${event.id} (${event.name}):`, err);
+      console.error(`❌ Failed to update event ${event.id}:`, err);
     }
   }
 }
@@ -57,18 +68,17 @@ async function addImagesToArtists() {
   const artists = await prisma.artist.findMany({
     select: {
       id: true,
-      name: true,
     },
   });
 
   for (const artist of artists) {
     try {
-      console.log(`🔍 Searching image for artist: ${artist.name}`);
-      const image = await fetchFirstImage(artist.name);
+      console.log(`🔍 Searching image for artist: ${artist.id}`);
+      const image = await fetchFirstImage("artist");
       await ArtistsService.update(artist.id, { banner: image as any });
-      console.log(`✅ Updated artist ${artist.id} (${artist.name}) with image`);
+      console.log(`✅ Updated artist ${artist.id} with image`);
     } catch (err) {
-      console.error(`❌ Failed to update artist ${artist.id} (${artist.name}):`, err);
+      console.error(`❌ Failed to update artist ${artist.id}:`, err);
     }
   }
 }
@@ -77,18 +87,17 @@ async function addImagesToVenues() {
   const venues = await prisma.venue.findMany({
     select: {
       id: true,
-      name: true,
     },
   });
 
   for (const venue of venues) {
     try {
-      console.log(`🔍 Searching image for venue: ${venue.name}`);
-      const image = await fetchFirstImage(venue.name);
+      console.log(`🔍 Searching image for venue: ${venue.id}`);
+      const image = await fetchFirstImage("venue");
       await VenuesService.update(venue.id, { banner: image as any });
-      console.log(`✅ Updated venue ${venue.id} (${venue.name}) with image`);
+      console.log(`✅ Updated venue ${venue.id} with image`);
     } catch (err) {
-      console.error(`❌ Failed to update venue ${venue.id} (${venue.name}):`, err);
+      console.error(`❌ Failed to update venue ${venue.id}:`, err);
     }
   }
 }
