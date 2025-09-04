@@ -3,6 +3,11 @@ import './Settings.css';
 import PageHeader from 'components/layouts/PageHeader';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
+
+export interface SettingsProps {
+  onLogout?: () => void;
+}
 import {
   Tickets,
   FavoriteEvents,
@@ -41,9 +46,22 @@ interface SettingSection {
   items: SettingItem[];
 }
 
-const Settings: React.FC = () => {
+const Settings: React.FC<SettingsProps> = ({ onLogout }) => {
   const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuth();
   const [settings, setSettings] = useState<SettingSection[]>([]);
+
+  // Helper function to get authentication headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return null;
+    }
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  };
   const [userSettings, setUserSettings] = useState<any[]>([]);
   const [notificationPrefs, setNotificationPrefs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,13 +72,27 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     const fetchSettings = async () => {
+      // Check authentication before fetching
+      if (!isAuthenticated) {
+        setError('Oturum açmanız gerekiyor.');
+        navigate('/login');
+        return;
+      }
+
+      const headers = getAuthHeaders();
+      if (!headers) {
+        setError('Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+        navigate('/login');
+        return;
+      }
+
       setLoading(true);
       try {
         // Hem definitions, kullanıcı ayarlarını hem de notification preferences'leri çek
         const [definitionsResponse, userSettingsResponse, notificationResponse] = await Promise.all([
-          axios.get(`${process.env.REACT_APP_API_URL}/settings/definitions`),
-          axios.get(`${process.env.REACT_APP_API_URL}/settings/me`),
-          axios.get(`${process.env.REACT_APP_API_URL}/settings/me/notifications`)
+          axios.get(`${process.env.REACT_APP_API_URL}/settings/definitions`, { headers }),
+          axios.get(`${process.env.REACT_APP_API_URL}/settings/me`, { headers }),
+          axios.get(`${process.env.REACT_APP_API_URL}/settings/me/notifications`, { headers })
         ]);
 
         let definitionsData = definitionsResponse.data;
@@ -228,6 +260,20 @@ const Settings: React.FC = () => {
 
   // Ayar değişikliğini handle eden fonksiyon
   const handleSettingChange = async (itemKey: string, value: any) => {
+    // Check authentication before making the request
+    if (!isAuthenticated) {
+      setError('Oturum açmanız gerekiyor.');
+      navigate('/login');
+      return;
+    }
+
+    const headers = getAuthHeaders();
+    if (!headers) {
+      setError('Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+      navigate('/login');
+      return;
+    }
+
     setSaving(true);
     try {
       // Önce local state'i güncelle
@@ -246,7 +292,7 @@ const Settings: React.FC = () => {
           itemKey,
           value
         }]
-      });
+      }, { headers });
 
     } catch (err) {
       setError('Ayar kaydedilemedi.');
@@ -318,9 +364,29 @@ const Settings: React.FC = () => {
 
   // Notification değişikliğini handle eden fonksiyon
   const handleNotificationChange = async (category: string, updates: any) => {
+    // Check authentication before making the request
+    if (!isAuthenticated) {
+      setError('Oturum açmanız gerekiyor.');
+      navigate('/login');
+      return;
+    }
+
+    // Get token from localStorage as backup
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+      navigate('/login');
+      return;
+    }
+
     setSaving(true);
     try {
-      await axios.put(`${process.env.REACT_APP_API_URL}/settings/me/notifications/${category}`, updates);
+      await axios.put(`${process.env.REACT_APP_API_URL}/settings/me/notifications/${category}`, updates, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
       // Local state'i güncelle
       setNotificationPrefs(prev =>
@@ -340,8 +406,14 @@ const Settings: React.FC = () => {
 
   // Notification preferences'leri yeniden yükleme fonksiyonu
   const fetchNotificationPrefs = async () => {
+    const headers = getAuthHeaders();
+    if (!headers) {
+      setError('Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+      return;
+    }
+
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/settings/me/notifications`);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/settings/me/notifications`, { headers });
       let data = response.data;
 
       if (typeof data === 'string') {
@@ -366,11 +438,17 @@ const Settings: React.FC = () => {
 
   // Ayarları yeniden yükleme fonksiyonu
   const fetchSettings = async () => {
+    const headers = getAuthHeaders();
+    if (!headers) {
+      setError('Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+      return;
+    }
+
     try {
       const [definitionsResponse, userSettingsResponse, notificationResponse] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_API_URL}/settings/definitions`),
-        axios.get(`${process.env.REACT_APP_API_URL}/settings/me`),
-        axios.get(`${process.env.REACT_APP_API_URL}/settings/me/notifications`)
+        axios.get(`${process.env.REACT_APP_API_URL}/settings/definitions`, { headers }),
+        axios.get(`${process.env.REACT_APP_API_URL}/settings/me`, { headers }),
+        axios.get(`${process.env.REACT_APP_API_URL}/settings/me/notifications`, { headers })
       ]);
 
       let definitionsData = definitionsResponse.data;
@@ -457,7 +535,16 @@ const Settings: React.FC = () => {
         navigate('/help/support');
         break;
       case 'logout':
-        // Logout logic will be handled by the parent component
+        // Perform logout using AuthContext
+        logout();
+
+        // Call parent onLogout callback if provided
+        if (onLogout) {
+          onLogout();
+        }
+
+        // Navigate to login page
+        navigate('/login');
         break;
       default:
         break;
@@ -602,7 +689,7 @@ const Settings: React.FC = () => {
 
                 {/* Kişisel Ayarlar - Direkt Görüntülenen */}
                 <div className="settings-section personal-direct-section">
-                  <div className="settings-item" onClick={() => handleButtonClick('my_tickets')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Tickets className="settings-item__icon" />
@@ -617,7 +704,7 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="settings-item" onClick={() => handleButtonClick('favorite_events')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <FavoriteEvents className="settings-item__icon" />
@@ -632,7 +719,7 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="settings-item" onClick={() => handleButtonClick('my_reviews')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Evaluations className="settings-item__icon" />
@@ -647,7 +734,7 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="settings-item" onClick={() => handleButtonClick('blocked_profiles')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Blocked className="settings-item__icon" />
@@ -665,7 +752,12 @@ const Settings: React.FC = () => {
 
                 {/* Ayarlar Bölümü - Gizlilik, Bildirimler, Mesajlaşma, Sosyal Medya */}
                 <div className="settings-section settings-group-section">
-                  <div className="settings-item" onClick={() => handleSectionClick(settings.find(s => s.key === 'privacy')!)}>
+                  <div className="settings-item" onClick={() => {
+                    const section = settings.find(s => s.key === 'privacy');
+                    if (section) {
+                      handleSectionClick(section);
+                    }
+                  }}>
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Privacy className="settings-item__icon" />
@@ -675,7 +767,12 @@ const Settings: React.FC = () => {
                     <div className="settings-item__arrow">&gt;</div>
                   </div>
 
-                  <div className="settings-item" onClick={() => handleSectionClick(settings.find(s => s.key === 'notifications')!)}>
+                  <div className="settings-item" onClick={() => {
+                    const section = settings.find(s => s.key === 'notifications');
+                    if (section) {
+                      handleSectionClick(section);
+                    }
+                  }}>
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Notification className="settings-item__icon" />
@@ -685,7 +782,12 @@ const Settings: React.FC = () => {
                     <div className="settings-item__arrow">&gt;</div>
                 </div>
 
-                  <div className="settings-item" onClick={() => handleSectionClick(settings.find(s => s.key === 'messaging')!)}>
+                  <div className="settings-item" onClick={() => {
+                    const section = settings.find(s => s.key === 'messaging');
+                    if (section) {
+                      handleSectionClick(section);
+                    }
+                  }}>
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Message className="settings-item__icon" />
@@ -695,7 +797,12 @@ const Settings: React.FC = () => {
                     <div className="settings-item__arrow">&gt;</div>
               </div>
 
-                  <div className="settings-item" onClick={() => handleSectionClick(settings.find(s => s.key === 'social')!)}>
+                  <div className="settings-item" onClick={() => {
+                    const section = settings.find(s => s.key === 'social');
+                    if (section) {
+                      handleSectionClick(section);
+                    }
+                  }}>
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <SocialMedia className="settings-item__icon" />
@@ -708,7 +815,7 @@ const Settings: React.FC = () => {
 
                 {/* Yardım Bölümü - Direkt Görüntülenen */}
                 <div className="settings-section help-direct-section">
-                  <div className="settings-item" onClick={() => handleButtonClick('faq')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Faq className="settings-item__icon" />
@@ -723,7 +830,7 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="settings-item" onClick={() => handleButtonClick('about_app')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <AppInfo className="settings-item__icon" />
@@ -738,7 +845,7 @@ const Settings: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="settings-item" onClick={() => handleButtonClick('support')}>
+                  <div className="settings-item">
                     <div className="settings-item__info">
                       <div className="settings-item__icon-container">
                         <Support className="settings-item__icon" />
