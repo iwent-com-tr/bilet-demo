@@ -4,6 +4,31 @@ import type { CreateEventInput, ListEventsQuery, UpdateEventInput, EventStats } 
 import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
+import { EventChangeDetector } from '../../lib/event-change-detector';
+import { notificationService } from '../../lib/queue/notification.service';
+import { fi } from 'zod/v4/locales/index.cjs';
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+}
+
+async function generateUniqueSlug(base: string): Promise<string> {
+  const initial = slugify(base);
+  const existing = await prisma.event.findMany({
+    where: { slug: { startsWith: initial } },
+    select: { slug: true },
+  });
+  if (existing.length === 0) return initial;
+  const taken = new Set(existing.map((e: { slug: string }) => e.slug));
+  let i = 1;
+  while (taken.has(`${initial}-${i}`)) i += 1;
+  return `${initial}-${i}`;
+}
 import { oneSignalService } from '../push-notification/onesignal.service';
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
@@ -354,6 +379,9 @@ export class EventService {
       }
     }
 
+    // Detect changes for notification purposes
+    const changeDetection = EventChangeDetector.detectChanges(existing, input);
+
     const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
 
     const updated = await prisma.event.update({
@@ -363,6 +391,21 @@ export class EventService {
 
     // Update the event in the meilisearch index
     eventIndex.updateDocuments([{id, ...updateInfoMeili}]);
+
+    // Queue notification if significant changes detected and event is published
+    if (changeDetection.requiresNotification && existing.status === 'ACTIVE') {
+      try {
+        await notificationService.queueEventUpdateNotification({
+          eventId: id,
+          changeType: changeDetection.changeType,
+          changes: changeDetection.changes,
+        });
+        console.log(`Queued notification for event ${id} due to ${changeDetection.changeType}`);
+      } catch (error) {
+        console.error(`Failed to queue notification for event ${id}:`, error);
+        // Don't fail the update if notification queuing fails
+      }
+    }
 
     if (input.details) await upsertCategoryDetails(id, updated.category, input.details as any);
     const details = await loadCategoryDetails(id, updated.category);
@@ -378,11 +421,31 @@ export class EventService {
   }
 
   static async publish(id: string) {
+    const existingEvent = await prisma.event.findFirst({ where: { id, deletedAt: null } });
+    if (!existingEvent) {
+      const e: any = new Error('event not found');
+      e.status = 404; e.code = 'NOT_FOUND';
+      throw e;
+    }
+
     const event = await prisma.event.update({ where: { id }, data: { status: 'ACTIVE' } });
     const details = await loadCategoryDetails(id, event.category);
 
     // Update the event in the meilisearch index
     await eventIndex.updateDocuments([{id, status: 'ACTIVE'}]);
+
+    // Queue new event notification if this is the first time publishing
+    if (EventChangeDetector.shouldNotifyForPublication(existingEvent.status, 'ACTIVE')) {
+      try {
+        await notificationService.queueNewEventNotification({
+          eventId: id,
+        });
+        console.log(`Queued new event notification for event ${id}`);
+      } catch (error) {
+        console.error(`Failed to queue new event notification for event ${id}:`, error);
+        // Don't fail the publish if notification queuing fails
+      }
+    }
 
     // Notify chat system that event is published and chat room should be available
     try { 

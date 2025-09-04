@@ -41,6 +41,7 @@ import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
 import { PushNotificationDemo } from './pages/PushNotificationDemo';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
+import NotificationsDemo from 'pages/NotificationsDemo';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
@@ -71,6 +72,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
+            <Route path="/notifications-demo" element={<NotificationsDemo />} />
             <Route path="/search" element={<Search />} />
             <Route path='/search/:index_name' element={<Search />} />
 
