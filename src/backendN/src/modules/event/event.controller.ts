@@ -41,7 +41,6 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const event = await EventService.findBySlug(req.params.slug);
-    console.log(`Event Response from getBySlug: ${JSON.stringify(event)}`);
     res.json(event);
   } catch (e) { next(e); }
 }
