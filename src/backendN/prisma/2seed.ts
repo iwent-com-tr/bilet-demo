@@ -1,5 +1,6 @@
 // prisma/seed.ts
-import { PrismaClient, UserStatus, AdminRole, PushChannel, Browser, OS, DeviceType, SegmentSource, LoginMethod, Prisma, EventStatus, EventCategory } from '@prisma/client';
+import pkg, { Prisma } from '@prisma/client';
+const { PrismaClient, UserStatus, AdminRole, PushChannel, Browser, OS, DeviceType, SegmentSource, LoginMethod, EventStatus, EventCategory } = pkg;
 import { hashPassword } from '../src/lib/crypto';
 import { faker } from '@faker-js/faker';
 import crypto from 'crypto';

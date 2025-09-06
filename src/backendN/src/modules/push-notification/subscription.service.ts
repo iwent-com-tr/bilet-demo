@@ -1,4 +1,7 @@
-import { PrismaClient, PushSubscription, Browser, OS, DeviceType, SegmentSource } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient, Browser, OS, DeviceType, SegmentSource } = pkg;
+import type { PushSubscription } from '@prisma/client';
+
 import * as crypto from 'crypto';
 import { oneSignalService } from './onesignal.service';
 import {
@@ -9,7 +12,7 @@ import {
 } from './push-notification.types';
 
 export class SubscriptionService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: InstanceType<typeof PrismaClient>) {}
 
   /**
    * Sync subscription with OneSignal and store in database
@@ -128,9 +131,9 @@ export class SubscriptionService {
   async getSubscriptions(options: {
     page?: number;
     limit?: number;
-    browser?: Browser;
-    os?: OS;
-    deviceType?: DeviceType;
+    browser?: typeof Browser[keyof typeof Browser];
+    os?: typeof OS[keyof typeof OS];
+    deviceType?: typeof DeviceType[keyof typeof DeviceType];
     pwa?: boolean;
   } = {}): Promise<{
     subscriptions: PushSubscription[];
@@ -220,12 +223,12 @@ export class SubscriptionService {
     const browserStats = byBrowser.reduce((acc, item) => {
       acc[item.browser] = item._count._all;
       return acc;
-    }, {} as Record<Browser, number>);
+    }, {} as Record<any, number>);
 
     const osStats = byOS.reduce((acc, item) => {
       acc[item.os] = item._count._all;
       return acc;
-    }, {} as Record<OS, number>);
+    }, {} as Record<any, number>);
 
     const platformStats = byDeviceType.reduce(
       (acc, item) => {
@@ -278,7 +281,7 @@ export class SubscriptionService {
     const ua = userAgent.toLowerCase();
 
     // Detect browser
-    let browser: Browser = Browser.OTHER;
+    let browser: any = Browser.OTHER;
     if (ua.includes('chrome') && !ua.includes('edg')) {
       browser = Browser.CHROME;
     } else if (ua.includes('firefox')) {
@@ -292,7 +295,7 @@ export class SubscriptionService {
     }
 
     // Detect OS
-    let os: OS = OS.OTHER;
+    let os: any = OS.OTHER;
     if (ua.includes('windows')) {
       os = OS.WINDOWS;
     } else if (ua.includes('mac') && !ua.includes('iphone') && !ua.includes('ipad')) {
@@ -308,7 +311,7 @@ export class SubscriptionService {
     }
 
     // Detect device type
-    let deviceType: DeviceType = DeviceType.DESKTOP;
+    let deviceType: any = DeviceType.DESKTOP;
     if (ua.includes('mobile')) {
       deviceType = DeviceType.MOBILE;
     } else if (ua.includes('tablet') || ua.includes('ipad')) {
@@ -370,7 +373,7 @@ export class SubscriptionService {
   private async updateUserTags(
     userId: string,
     tags: Record<string, string>,
-    source: SegmentSource = SegmentSource.INTERNAL
+    source: any = SegmentSource.INTERNAL
   ): Promise<void> {
     for (const [key, value] of Object.entries(tags)) {
       // Try to find existing tag first

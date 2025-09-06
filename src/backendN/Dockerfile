@@ -29,12 +29,16 @@
   COPY --from=deps /app/node_modules ./node_modules
   
   # build çıktıları
-  COPY --from=build-deps /app/dist ./dist
-  COPY --from=build-deps /app/prisma ./prisma
-  COPY --from=build-deps /app/package*.json ./
+COPY --from=build-deps /app/dist ./dist
+COPY --from=build-deps /app/prisma ./prisma
+COPY --from=build-deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build-deps /app/package*.json ./
   
   # upload klasörleri
-  RUN mkdir -p uploads/banners uploads/avatars uploads/events
+RUN mkdir -p uploads/banners uploads/avatars uploads/events
+
+# Prisma generate (güvenlik için)
+RUN npx prisma generate
   
   # güvenlik
   RUN chown -R appuser:nodejs /app

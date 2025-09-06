@@ -77,11 +77,17 @@ export class WebPushService {
     
     // Configure web-push with VAPID details only if available
     if (this.vapidConfig) {
-      webpush.setVapidDetails(
-        this.vapidConfig.subject,
-        this.vapidConfig.publicKey,
-        this.vapidConfig.privateKey
-      );
+      try {
+        webpush.setVapidDetails(
+          this.vapidConfig.subject || 'https://iwent.com.tr',
+          this.vapidConfig.publicKey,
+          this.vapidConfig.privateKey
+        );
+      } catch (error: any) {
+        console.warn('⚠️  VAPID setup failed:', error.message);
+        console.warn('⚠️  Web push notifications will be disabled');
+        this.vapidConfig = null as any;
+      }
     }
   }
 
