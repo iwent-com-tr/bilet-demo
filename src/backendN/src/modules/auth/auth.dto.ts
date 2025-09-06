@@ -1,6 +1,6 @@
 import { z } from 'zod';
 // Import cities data
-import citiesData from '../../lib/cities.json';
+import citiesData from '../../lib/cities.json' with { type: 'json' };
 
 // Ortak şifre politikası
 const passwordPolicy = z

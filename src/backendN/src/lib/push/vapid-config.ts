@@ -80,7 +80,8 @@ export function getVapidConfig(): VapidConfig {
   if (!config.subject) missingVars.push('VAPID_SUBJECT');
 
   if (missingVars.length > 0) {
-    throw new Error(`Missing required VAPID environment variables: ${missingVars.join(', ')}`);
+    console.warn(`VAPID configuration missing: ${missingVars.join(', ')}. Web push notifications will be disabled.`);
+    return null as any; // Return null when VAPID is not configured
   }
 
   try {

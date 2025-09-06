@@ -21,7 +21,8 @@ import venueRoutes from './modules/venues/venues.routes';
 import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
-import { populateDB } from './lib/utils/populators/populator';
+// Development-only import (excluded in production)
+// import { populateDB } from './lib/utils/populators/populator';
 
 
 import chatRoutes from './modules/chat/chat.routes';
@@ -35,10 +36,15 @@ import queueRoutes from './modules/queue/queue.routes';
 import { createNotificationWorker } from './lib/queue/notification.worker';
 import { closeQueue } from './lib/queue/index';
 import settingsRoutes from './modules/settings/settings.routes';
+
 dotenv.config();
 
-// Validate environment configuration on startup
-validateEnvironmentOrExit();
+// Validate environment configuration on startup (optional in production)
+if (process.env.NODE_ENV !== 'production') {
+  validateEnvironmentOrExit();
+} else {
+  console.log('⚠️  Environment validation skipped in production mode');
+}
 
 const args = process.argv.slice(2);
 
@@ -140,10 +146,9 @@ setupChat(server);
 // Initialize MeiliSearch indexes
 initMeili();
 
-// Populate if ran with --populate
-if (args.includes('--populate')) {
-  await populateDB(ARTIST_POPULATE_COUNT, VENUE_POPULATE_COUNT, EVENT_POPULATE_COUNT);
-  console.log(`Database populated with ${EVENT_POPULATE_COUNT} random events, ${ARTIST_POPULATE_COUNT} random artists, and ${VENUE_POPULATE_COUNT} random venues.`);
+// Populate if ran with --populate (disabled in production)
+if (args.includes('--populate') && process.env.NODE_ENV !== 'production') {
+  console.log('Database population is disabled in production mode');
   process.exit(0);
 }
 

@@ -7,25 +7,43 @@ const MEILI_SETUP = {
   ...(process.env.MEILI_API_KEY && { apiKey: process.env.MEILI_API_KEY }), // Optional
 };
 
-export const meili = new MeiliSearch(MEILI_SETUP);
+let meili: MeiliSearch | null = null;
+let eventIndex: any = null;
+let artistIndex: any = null;
+let venueIndex: any = null;
+let organizerIndex: any = null;
 
-// INDEXES
+try {
+  meili = new MeiliSearch(MEILI_SETUP);
+  
+  // INDEXES - only create if MeiliSearch is available
+  await meili.createIndex('events', { primaryKey: 'id' });
+  eventIndex = meili.index('events');
 
-await meili.createIndex('events', { primaryKey: 'id' });
-export const eventIndex = meili.index('events');
+  await meili.createIndex('artists', { primaryKey: 'id' });
+  artistIndex = meili.index('artists');
 
-await meili.createIndex('artists', { primaryKey: 'id' });
-export const artistIndex = meili.index('artists');
+  await meili.createIndex('venues', { primaryKey: 'id' });
+  venueIndex = meili.index('venues');
 
-await meili.createIndex('venues', { primaryKey: 'id' });
-export const venueIndex = meili.index('venues');
+  await meili.createIndex('organizers', { primaryKey: 'id' });
+  organizerIndex = meili.index('organizers');
+  
+  console.log('MeiliSearch initialized successfully');
+} catch (error: any) {
+  console.warn('MeiliSearch initialization failed:', error?.message || 'Unknown error');
+  console.warn('Search functionality will be disabled');
+}
 
-await meili.createIndex('organizers', { primaryKey: 'id' });
-export const organizerIndex = meili.index('organizers');
+export { meili, eventIndex, artistIndex, venueIndex, organizerIndex };
 
 // initialization functions
 
 async function setupIndexes() {
+  if (!eventIndex || !artistIndex || !venueIndex || !organizerIndex) {
+    console.warn("MeiliSearch indexes not available, skipping setup");
+    return;
+  }
 
   await eventIndex.updateSettings({
     searchableAttributes: ['name', 'category', 'venue', 'address', 'city', 'description', 'artists'],
@@ -55,6 +73,11 @@ async function setupIndexes() {
   
 
 async function syncDBToMeili() {
+  if (!eventIndex || !artistIndex || !venueIndex) {
+    console.warn("MeiliSearch indexes not available, skipping sync");
+    return;
+  }
+
   const dbArtists = await prisma.artist.findMany({
     where: { deletedAt: null },
     select: {
@@ -170,8 +193,17 @@ async function syncDBToMeili() {
 }
 
 export async function initMeili() {
-  await setupIndexes();
-  await syncDBToMeili();
-  console.log("MeiliSearch is running.");
+  if (!meili || !eventIndex) {
+    console.log("MeiliSearch not available, skipping initialization.");
+    return;
+  }
+  
+  try {
+    await setupIndexes();
+    await syncDBToMeili();
+    console.log("MeiliSearch is running.");
+  } catch (error: any) {
+    console.warn("MeiliSearch initialization error:", error?.message);
+  }
 }
 

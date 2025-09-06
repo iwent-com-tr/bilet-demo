@@ -75,12 +75,14 @@ export class WebPushService {
       this.errorTracker = new ErrorTrackingService(prisma);
     }
     
-    // Configure web-push with VAPID details
-    webpush.setVapidDetails(
-      this.vapidConfig.subject,
-      this.vapidConfig.publicKey,
-      this.vapidConfig.privateKey
-    );
+    // Configure web-push with VAPID details only if available
+    if (this.vapidConfig) {
+      webpush.setVapidDetails(
+        this.vapidConfig.subject,
+        this.vapidConfig.publicKey,
+        this.vapidConfig.privateKey
+      );
+    }
   }
 
   /**
