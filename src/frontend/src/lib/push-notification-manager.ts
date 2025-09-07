@@ -53,13 +53,26 @@ class PushNotificationManager {
 
   private async _initialize(): Promise<void> {
     try {
+      console.log('[PushManager] Starting initialization...');
+      
       // Check if OneSignal is supported
-      if (!this.isPushNotificationSupported()) {
+      const isSupported = this.isPushNotificationSupported();
+      console.log('[PushManager] Push notification support check:', {
+        isSupported,
+        hasNotification: 'Notification' in window,
+        hasServiceWorker: 'serviceWorker' in navigator,
+        hasPushManager: 'PushManager' in window
+      });
+      
+      if (!isSupported) {
         throw new Error('Push notifications are not supported in this browser');
       }
 
       // Check if we should initialize OneSignal for this environment
-      if (!this.shouldInitializeOneSignal()) {
+      const shouldInit = this.shouldInitializeOneSignal();
+      console.log('[PushManager] Should initialize OneSignal:', shouldInit);
+      
+      if (!shouldInit) {
         console.log('[PushManager] OneSignal initialization skipped for this environment');
         // Mark as initialized but with limited functionality
         this.isInitialized = true;
@@ -67,17 +80,25 @@ class PushNotificationManager {
       }
 
       // Wait for OneSignal to be available
+      console.log('[PushManager] Waiting for OneSignal to be available...');
       await this.waitForOneSignal();
+      console.log('[PushManager] OneSignal is available');
 
       // Initialize OneSignal
+      const appId = this.getOneSignalAppId();
+      console.log('[PushManager] Initializing OneSignal with App ID:', appId);
+      
       await window.OneSignal.init({
-        appId: this.getOneSignalAppId(),
+        appId: appId,
         allowLocalhostAsSecureOrigin: true, // Allow localhost for testing
         requiresUserPrivacyConsent: false, // Changed to false for demo purposes
         notificationClickHandlerAction: 'focus',
         notificationClickHandlerMatch: 'origin',
         autoRegister: false, // We'll handle registration manually
         autoResubscribe: true,
+        serviceWorkerPath: '/OneSignalSDKWorker.js',
+        serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
+        path: '/OneSignalSDKWorker.js'
       });
 
       this.oneSignal = window.OneSignal;
@@ -590,6 +611,13 @@ class PushNotificationManager {
   private shouldInitializeOneSignal(): boolean {
     const hostname = window.location.hostname;
     
+    console.log('[PushManager] shouldInitializeOneSignal check:', {
+      hostname,
+      nodeEnv: process.env.NODE_ENV,
+      appId: process.env.REACT_APP_ONESIGNAL_APP_ID,
+      enablePushNotifications: process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS
+    });
+    
     // Skip in development unless explicitly enabled
     if (process.env.NODE_ENV === 'development') {
       const isEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
@@ -599,11 +627,17 @@ class PushNotificationManager {
       }
     }
 
-    // In production, initialize based on domain or if explicitly configured
-    const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
+    // Always initialize if we have an App ID (for localhost testing in production builds)
     const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
+    if (hasAppId) {
+      console.log('[PushManager] OneSignal enabled - App ID found');
+      return true;
+    }
+
+    // In production, also check for production domains
+    const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
     
-    return isProductionDomain || hasAppId;
+    return isProductionDomain;
   }
 
   private getOneSignalAppId(): string {

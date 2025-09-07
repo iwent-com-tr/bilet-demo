@@ -101,37 +101,54 @@ export function OneSignalLoader({ children }: OneSignalLoaderProps): JSX.Element
   const featureFlag = usePushNotificationFeatureFlag();
   
   useEffect(() => {
+    console.log('[OneSignalLoader] useEffect triggered', {
+      featureFlagEnabled: featureFlag.enabled,
+      reason: featureFlag.reason,
+      windowOneSignal: !!window.OneSignal,
+      hostname: window.location.hostname,
+      nodeEnv: process.env.NODE_ENV
+    });
+
     // If push notifications are disabled, don't load OneSignal
     if (!featureFlag.enabled) {
+      console.log('[OneSignalLoader] Push notifications disabled:', featureFlag.reason);
       setIsLoaded(true);
       return;
     }
     
     // If OneSignal is already loaded, mark as loaded
     if (window.OneSignal) {
+      console.log('[OneSignalLoader] OneSignal already loaded');
       setIsLoaded(true);
       return;
     }
     
     // Load OneSignal SDK
+    console.log('[OneSignalLoader] Loading OneSignal SDK...');
     loadOneSignalSDK();
   }, [featureFlag.enabled]);
   
   const loadOneSignalSDK = async () => {
-    if (isLoading) return;
+    if (isLoading) {
+      console.log('[OneSignalLoader] Already loading, skipping...');
+      return;
+    }
     
     try {
+      console.log('[OneSignalLoader] Starting to load OneSignal SDK...');
       setIsLoading(true);
       setError(null);
       
       // Check if script is already added
       if (document.querySelector('script[src*="onesignal"]')) {
+        console.log('[OneSignalLoader] OneSignal script already exists, waiting...');
         await waitForOneSignal();
         setIsLoaded(true);
         return;
       }
       
       // Add OneSignal script
+      console.log('[OneSignalLoader] Adding OneSignal script to DOM...');
       const script = document.createElement('script');
       script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
       script.async = true;
@@ -139,23 +156,29 @@ export function OneSignalLoader({ children }: OneSignalLoaderProps): JSX.Element
       
       script.onload = async () => {
         try {
+          console.log('[OneSignalLoader] OneSignal script loaded, waiting for initialization...');
           await waitForOneSignal();
+          console.log('[OneSignalLoader] OneSignal ready!');
           setIsLoaded(true);
         } catch (err) {
+          console.error('[OneSignalLoader] Error waiting for OneSignal:', err);
           setError(err instanceof Error ? err.message : 'Failed to load OneSignal');
         } finally {
           setIsLoading(false);
         }
       };
       
-      script.onerror = () => {
+      script.onerror = (error) => {
+        console.error('[OneSignalLoader] Failed to load OneSignal SDK:', error);
         setError('Failed to load OneSignal SDK');
         setIsLoading(false);
       };
       
       document.head.appendChild(script);
+      console.log('[OneSignalLoader] OneSignal script added to DOM');
       
     } catch (err) {
+      console.error('[OneSignalLoader] Error in loadOneSignalSDK:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
       setIsLoading(false);
     }

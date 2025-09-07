@@ -7,6 +7,7 @@ import './utils/axios'; // Configure axios interceptors
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
 import ProtectedRoute from './components/layouts/ProtectedRoute';
+import { OneSignalLoader } from './components/OneSignalLoader';
 
 // Pages
 import Home from './pages/Home';
@@ -61,8 +62,9 @@ import OrganizerDetails from 'pages/organizer/organizer-3rd-view/OrganizerDetail
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <OneSignalLoader>
+      <AuthProvider>
+        <Router>
         <Routes>
           {/* Public Routes */}
           <Route element={<MainLayout />}>
@@ -238,6 +240,7 @@ const App: React.FC = () => {
         pauseOnHover
       />
     </AuthProvider>
+    </OneSignalLoader>
   );
 };
 
