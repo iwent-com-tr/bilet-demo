@@ -118,7 +118,11 @@ const EventChat: React.FC = () => {
       const messagesResponse = await axios.get(
         `${process.env.REACT_APP_API_URL}/chat/event/${eventData.id}/messages`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         }
       );
 
@@ -128,7 +132,11 @@ const EventChat: React.FC = () => {
       const participantsResponse = await axios.get(
         `${process.env.REACT_APP_API_URL}/chat/event/${eventData.id}/participants`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         }
       );
 

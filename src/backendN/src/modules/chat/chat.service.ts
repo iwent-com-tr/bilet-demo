@@ -308,7 +308,7 @@ export class ChatService {
     const friendIds = friendships.map(f => f.fromUserId === userId ? f.toUserId : f.fromUserId);
     
     if (friendIds.length === 0) {
-      return { chats: [] };
+      return [];
     }
 
     // Get online status for all friends using the hybrid method
@@ -365,7 +365,7 @@ export class ChatService {
       return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
 
-    return { chats };
+    return chats;
   }
 
   // Get private messages between two users

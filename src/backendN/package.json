@@ -8,7 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "dev:https": "dotenv -e .env.https -- tsx watch src/index.ts",
     "build": "tsc && tsc-esm-fix dist --ext .js",
-    "start": "node --env-file=.env --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./json-loader.mjs\", pathToFileURL(\"./\"));' dist/src/index.js",
+    "start": "node --env-file=.env dist/src/index.js",
     
     "docker:build": "docker build -t iwent-backend .",
     "docker:run": "docker run -p 3000:3000 --env-file .env iwent-backend",

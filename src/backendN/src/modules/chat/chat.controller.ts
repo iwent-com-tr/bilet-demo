@@ -10,6 +10,14 @@ export const getEventMessages = async (req: Request, res: Response, next: NextFu
 
     const messages = await ChatService.getEventMessages(eventId, userId, { limit, before });
     
+    // Set cache control headers to prevent caching of user-specific data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Vary': 'Authorization'
+    });
+    
     res.json({
       success: true,
       messages
@@ -42,6 +50,14 @@ export const getMyEventChats = async (req: Request, res: Response, next: NextFun
 
     const chats = await ChatService.getMyEventChats(userId, userType);
     
+    // Set cache control headers to prevent caching of user-specific data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Vary': 'Authorization'
+    });
+    
     res.json({
       success: true,
       chats
@@ -56,6 +72,14 @@ export const getMyPrivateChats = async (req: Request, res: Response, next: NextF
     const userId = (req as any).user?.id;
 
     const chats = await ChatService.getMyPrivateChats(userId);
+    
+    // Set cache control headers to prevent caching of user-specific data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Vary': 'Authorization'
+    });
     
     res.json({
       success: true,
@@ -74,6 +98,14 @@ export const getPrivateMessages = async (req: Request, res: Response, next: Next
     const before = req.query.before as string;
 
     const messages = await ChatService.getPrivateMessages(userId, otherUserId, { limit, before });
+    
+    // Set cache control headers to prevent caching of user-specific data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Vary': 'Authorization'
+    });
     
     res.json({
       success: true,

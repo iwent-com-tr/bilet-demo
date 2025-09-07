@@ -62,7 +62,7 @@ async function pickPexelsLandscape(query: string): Promise<string | null> {
   return chosen?.src?.landscape || chosen?.src?.large || chosen?.src?.large2x || null;
 }
 
-const pexelsQueries: Record<EventCategory, string[]> = {
+const pexelsQueries: Record<keyof typeof EventCategory, string[]> = {
   CONCERT:      ['live concert', 'music stage lights', 'crowd concert', 'indie concert'],
   FESTIVAL:     ['music festival crowd', 'summer festival', 'outdoor festival'],
   UNIVERSITY:   ['university campus', 'students campus', 'college campus'],
@@ -91,7 +91,7 @@ const venuesByCity: Record<string, string[]> = {
   'Trabzon': ['KTÜ AKM','Hamamizade Kültür Merkezi'],
 };
 
-const namesByCategory: Record<EventCategory, string[]> = {
+const namesByCategory: Record<keyof typeof EventCategory, string[]> = {
   CONCERT: ['Gece Melodileri','Şehir Senfonisi','Elektrik Akımı','Akustik Akşam'],
   FESTIVAL: ['Yaz Rüzgarı Fest','Renkli Günler','Sahil Ritmi','Gastro Fest'],
   UNIVERSITY: ['Kariyer Zirvesi','Kulüpler Tanışma','Ar-Ge Günü','Teknofikir'],
@@ -110,7 +110,7 @@ function randFutureWindow() {
   return { start, end };
 }
 
-function makeTicketTypes(category: EventCategory) {
+function makeTicketTypes(category: keyof typeof EventCategory) {
   const base = [
     { name: 'Genel Giriş', price: faker.number.int({ min: 100, max: 750 }) },
     { name: 'VIP', price: faker.number.int({ min: 500, max: 2000 }) },

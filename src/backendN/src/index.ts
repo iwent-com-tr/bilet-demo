@@ -59,9 +59,9 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3001';
 // Support multiple origins for HTTPS development
 const allowedOrigins = [
   CLIENT_ORIGIN,
+  'http://localhost:3000',  // Frontend port
   'http://localhost:5173',
   'https://localhost:5173',
-  
   'https://192.168.1.46:5173'
 ];
 
@@ -69,8 +69,17 @@ app.use(helmet());
 app.use(cors({
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cache-Control', 
+    'Pragma', 
+    'Expires',
+    'X-Requested-With'
+  ],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -122,6 +131,37 @@ app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   }
 });
 
+// Error handling middleware (must be after all routes)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('API Error:', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    query: req.query,
+    params: req.params,
+    timestamp: new Date().toISOString()
+  });
+
+  // Handle specific error types
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation error',
+      details: err.issues
+    });
+  }
+
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+  
+  res.status(status).json({
+    success: false,
+    error: message,
+    code: err.code || 'UNKNOWN_ERROR'
+  });
+});
 
 // Create server (HTTP or HTTPS based on environment)
 let server;
