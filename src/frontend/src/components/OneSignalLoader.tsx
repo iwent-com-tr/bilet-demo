@@ -72,11 +72,17 @@ function shouldLoadOneSignal(): boolean {
     }
   }
 
-  // In production, initialize based on domain or if explicitly configured
-  const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
+  // Always initialize if we have an App ID (for localhost testing in production builds)
   const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
+  if (hasAppId) {
+    console.log('[OneSignalLoader] OneSignal enabled - App ID found');
+    return true;
+  }
+
+  // In production, also check for production domains
+  const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
   
-  return isProductionDomain || hasAppId;
+  return isProductionDomain;
 }
 
 function getOneSignalAppId(): string {

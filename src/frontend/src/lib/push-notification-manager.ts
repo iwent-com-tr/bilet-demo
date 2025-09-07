@@ -72,7 +72,7 @@ class PushNotificationManager {
       // Initialize OneSignal
       await window.OneSignal.init({
         appId: this.getOneSignalAppId(),
-        allowLocalhostAsSecureOrigin: process.env.NODE_ENV === 'development',
+        allowLocalhostAsSecureOrigin: true, // Allow localhost for testing
         requiresUserPrivacyConsent: false, // Changed to false for demo purposes
         notificationClickHandlerAction: 'focus',
         notificationClickHandlerMatch: 'origin',
