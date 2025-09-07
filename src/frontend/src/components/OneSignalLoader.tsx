@@ -1,4 +1,5 @@
 import React, { ReactNode, useEffect, useState } from 'react';
+import { pushNotificationManager } from '../lib/push-notification-manager';
 
 export interface PushNotificationFeatureFlag {
   enabled: boolean;
@@ -29,16 +30,22 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
     }
   }
   
-  // In production, check hostname
+  // In production, check hostname or app ID
   if (isProduction) {
     const isValidDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-    const hasAppId = process.env.REACT_APP_ONESIGNAL_APP_ID;
+    const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
     
+    // Allow if we have App ID (for testing) or valid domain
     if (!isValidDomain && !hasAppId) {
       return {
         enabled: false,
-        reason: `Push notifications not configured for domain: ${hostname}`,
+        reason: `Push notifications not configured for domain: ${hostname}. App ID: ${hasAppId}`,
       };
+    }
+    
+    // If we have App ID, enable even on localhost/other domains
+    if (hasAppId) {
+      console.log('[FeatureFlag] Push notifications enabled - App ID found for domain:', hostname);
     }
   }
   
@@ -143,6 +150,17 @@ export function OneSignalLoader({ children }: OneSignalLoaderProps): JSX.Element
       if (document.querySelector('script[src*="onesignal"]')) {
         console.log('[OneSignalLoader] OneSignal script already exists, waiting...');
         await waitForOneSignal();
+        
+        // Initialize push notification manager
+        try {
+          console.log('[OneSignalLoader] Initializing push notification manager...');
+          await pushNotificationManager.initialize();
+          console.log('[OneSignalLoader] Push notification manager initialized successfully!');
+        } catch (managerError) {
+          console.error('[OneSignalLoader] Failed to initialize push notification manager:', managerError);
+          // Don't fail the loader if manager fails, just log it
+        }
+        
         setIsLoaded(true);
         return;
       }
@@ -154,19 +172,30 @@ export function OneSignalLoader({ children }: OneSignalLoaderProps): JSX.Element
       script.async = true;
       script.defer = true;
       
-      script.onload = async () => {
-        try {
-          console.log('[OneSignalLoader] OneSignal script loaded, waiting for initialization...');
-          await waitForOneSignal();
-          console.log('[OneSignalLoader] OneSignal ready!');
-          setIsLoaded(true);
-        } catch (err) {
-          console.error('[OneSignalLoader] Error waiting for OneSignal:', err);
-          setError(err instanceof Error ? err.message : 'Failed to load OneSignal');
-        } finally {
-          setIsLoading(false);
-        }
-      };
+              script.onload = async () => {
+          try {
+            console.log('[OneSignalLoader] OneSignal script loaded, waiting for initialization...');
+            await waitForOneSignal();
+            console.log('[OneSignalLoader] OneSignal ready!');
+            
+            // Initialize push notification manager
+            try {
+              console.log('[OneSignalLoader] Initializing push notification manager...');
+              await pushNotificationManager.initialize();
+              console.log('[OneSignalLoader] Push notification manager initialized successfully!');
+            } catch (managerError) {
+              console.error('[OneSignalLoader] Failed to initialize push notification manager:', managerError);
+              // Don't fail the loader if manager fails, just log it
+            }
+            
+            setIsLoaded(true);
+          } catch (err) {
+            console.error('[OneSignalLoader] Error waiting for OneSignal:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load OneSignal');
+          } finally {
+            setIsLoading(false);
+          }
+        };
       
       script.onerror = (error) => {
         console.error('[OneSignalLoader] Failed to load OneSignal SDK:', error);
