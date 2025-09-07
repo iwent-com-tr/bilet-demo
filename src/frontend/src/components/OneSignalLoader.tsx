@@ -30,23 +30,18 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
     }
   }
   
-  // In production, check hostname or app ID
+  // In production, allow on any domain if we have App ID
   if (isProduction) {
-    const isValidDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
     const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
     
-    // Allow if we have App ID (for testing) or valid domain
-    if (!isValidDomain && !hasAppId) {
+    if (!hasAppId) {
       return {
         enabled: false,
-        reason: `Push notifications not configured for domain: ${hostname}. App ID: ${hasAppId}`,
+        reason: `Push notifications not configured - missing REACT_APP_ONESIGNAL_APP_ID`,
       };
     }
     
-    // If we have App ID, enable even on localhost/other domains
-    if (hasAppId) {
-      console.log('[FeatureFlag] Push notifications enabled - App ID found for domain:', hostname);
-    }
+    console.log('[FeatureFlag] Push notifications enabled - App ID found for domain:', hostname);
   }
   
   // Get app ID based on environment
@@ -79,17 +74,15 @@ function shouldLoadOneSignal(): boolean {
     }
   }
 
-  // Always initialize if we have an App ID (for localhost testing in production builds)
+  // Always initialize if we have an App ID (works on any domain)
   const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
   if (hasAppId) {
-    console.log('[OneSignalLoader] OneSignal enabled - App ID found');
+    console.log('[OneSignalLoader] OneSignal enabled - App ID found for hostname:', hostname);
     return true;
   }
 
-  // In production, also check for production domains
-  const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-  
-  return isProductionDomain;
+  console.log('[OneSignalLoader] OneSignal disabled - no App ID found');
+  return false;
 }
 
 function getOneSignalAppId(): string {

@@ -627,17 +627,15 @@ class PushNotificationManager {
       }
     }
 
-    // Always initialize if we have an App ID (for localhost testing in production builds)
+    // Always initialize if we have an App ID (works on any domain)
     const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
     if (hasAppId) {
-      console.log('[PushManager] OneSignal enabled - App ID found');
+      console.log('[PushManager] OneSignal enabled - App ID found for hostname:', hostname);
       return true;
     }
 
-    // In production, also check for production domains
-    const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-    
-    return isProductionDomain;
+    console.log('[PushManager] OneSignal disabled - no App ID found');
+    return false;
   }
 
   private getOneSignalAppId(): string {
