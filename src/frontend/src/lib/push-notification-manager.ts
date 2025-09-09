@@ -61,7 +61,9 @@ class PushNotificationManager {
         isSupported,
         hasNotification: 'Notification' in window,
         hasServiceWorker: 'serviceWorker' in navigator,
-        hasPushManager: 'PushManager' in window
+        hasPushManager: 'PushManager' in window,
+        userAgent: navigator.userAgent,
+        isMobile: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent)
       });
       
       if (!isSupported) {
@@ -79,16 +81,16 @@ class PushNotificationManager {
         return;
       }
 
-      // Wait for OneSignal to be available
+      // Wait for OneSignal to be available with longer timeout for mobile
       console.log('[PushManager] Waiting for OneSignal to be available...');
       await this.waitForOneSignal();
       console.log('[PushManager] OneSignal is available');
 
-      // Initialize OneSignal
+      // Initialize OneSignal with mobile-friendly configuration
       const appId = this.getOneSignalAppId();
       console.log('[PushManager] Initializing OneSignal with App ID:', appId);
       
-      await window.OneSignal.init({
+      const initConfig = {
         appId: appId,
         allowLocalhostAsSecureOrigin: true, // Allow localhost for testing
         requiresUserPrivacyConsent: false, // Changed to false for demo purposes
@@ -98,8 +100,18 @@ class PushNotificationManager {
         autoResubscribe: true,
         serviceWorkerPath: '/OneSignalSDKWorker.js',
         serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
-        path: '/OneSignalSDKWorker.js'
-      });
+        path: '/OneSignalSDKWorker.js',
+        // Mobile-specific configurations
+        persistNotification: false, // Better for mobile
+        welcomeNotification: {
+          disable: true // Disable welcome notification
+        },
+        // Add timeout for initialization
+        initializationTimeout: 30000 // 30 seconds
+      };
+      
+      console.log('[PushManager] OneSignal init config:', initConfig);
+      await window.OneSignal.init(initConfig);
 
       this.oneSignal = window.OneSignal;
       this.isInitialized = true;
@@ -618,19 +630,19 @@ class PushNotificationManager {
       enablePushNotifications: process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS
     });
     
-    // Skip in development unless explicitly enabled
+    // Check if explicitly disabled in development
     if (process.env.NODE_ENV === 'development') {
-      const isEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
-      if (!isEnabled) {
-        console.log('[PushManager] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
+      const explicitlyDisabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'false';
+      if (explicitlyDisabled) {
+        console.log('[PushManager] OneSignal explicitly disabled in development.');
         return false;
       }
     }
 
-    // Always initialize if we have an App ID (works on any domain)
+    // Initialize if we have an App ID (works on any domain, any environment)
     const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
     if (hasAppId) {
-      console.log('[PushManager] OneSignal enabled - App ID found for hostname:', hostname);
+      console.log('[PushManager] OneSignal enabled - App ID found for hostname:', hostname, 'environment:', process.env.NODE_ENV);
       return true;
     }
 
@@ -646,17 +658,22 @@ class PushNotificationManager {
   private async waitForOneSignal(): Promise<void> {
     return new Promise((resolve, reject) => {
       let attempts = 0;
-      const maxAttempts = 50; // 5 seconds timeout
+      const maxAttempts = 200; // 20 seconds timeout (increased for mobile)
       
       const checkOneSignal = () => {
+        console.log(`[PushManager] Checking OneSignal availability, attempt ${attempts + 1}/${maxAttempts}`);
+        
         if (window.OneSignal) {
+          console.log('[PushManager] OneSignal is now available!');
           resolve();
           return;
         }
         
         attempts++;
         if (attempts >= maxAttempts) {
-          reject(new Error('OneSignal SDK failed to load'));
+          const errorMsg = `OneSignal SDK failed to load within ${maxAttempts / 10} seconds. This may be due to network connectivity issues or script blocking.`;
+          console.error(`[PushManager] ${errorMsg}`);
+          reject(new Error(errorMsg));
           return;
         }
         
