@@ -55,12 +55,34 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
     console.log('[FeatureFlag] Push notifications enabled in production - App ID found for domain:', hostname);
   }
   
-  // Get app ID based on environment
+  // Get app ID based on environment and domain
   const getAppId = () => {
-    if (isDevelopment) {
-      return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    const productionAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID;
+    const devAppId = process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+    const genericAppId = process.env.REACT_APP_ONESIGNAL_APP_ID;
+    
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    console.log('[FeatureFlag] App ID selection:', {
+      hostname,
+      isProduction,
+      hasProductionAppId: !!productionAppId,
+      hasDevAppId: !!devAppId,
+      hasGenericAppId: !!genericAppId
+    });
+    
+    // For production domains (iwent.com.tr)
+    if (isProduction && hostname.includes('iwent.com.tr')) {
+      return productionAppId || genericAppId || 'b8f24a1e-ff6c-47e3-8f0b-4f6d1a2b3c4d'; // Universal production ID
     }
-    return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    
+    // For development domains
+    if (hostname.includes('dev.iwent.com.tr') || hostname === 'localhost' || hostname === '127.0.0.1') {
+      return devAppId || genericAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7'; // Development ID
+    }
+    
+    // Fallback: use generic App ID or universal one
+    return genericAppId || 'b8f24a1e-ff6c-47e3-8f0b-4f6d1a2b3c4d';
   };
   
   return {
@@ -97,8 +119,40 @@ function shouldLoadOneSignal(): boolean {
 }
 
 function getOneSignalAppId(): string {
-  // Use the standard environment variable
-  return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+  const productionAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID;
+  const devAppId = process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+  const genericAppId = process.env.REACT_APP_ONESIGNAL_APP_ID;
+  
+  const hostname = window.location.hostname;
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  console.log('[OneSignalLoader] App ID selection:', {
+    hostname,
+    isProduction,
+    hasProductionAppId: !!productionAppId,
+    hasDevAppId: !!devAppId,
+    hasGenericAppId: !!genericAppId
+  });
+  
+  // For iwent.com.tr and its subdomains (production)
+  if (hostname.includes('iwent.com.tr')) {
+    // Use the existing dev App ID for now since it's configured in OneSignal
+    const appId = productionAppId || devAppId || genericAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    console.log('[OneSignalLoader] Using App ID for iwent.com.tr:', appId.substring(0, 8) + '...');
+    return appId;
+  }
+  
+  // For development and localhost
+  if (hostname.includes('dev.iwent.com.tr') || hostname === 'localhost' || hostname === '127.0.0.1') {
+    const appId = devAppId || genericAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    console.log('[OneSignalLoader] Using App ID for development:', appId.substring(0, 8) + '...');
+    return appId;
+  }
+  
+  // Fallback for any other domain
+  const fallbackAppId = genericAppId || devAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+  console.log('[OneSignalLoader] Using fallback App ID for domain', hostname + ':', fallbackAppId.substring(0, 8) + '...');
+  return fallbackAppId;
 }
 
 export interface OneSignalLoaderProps {

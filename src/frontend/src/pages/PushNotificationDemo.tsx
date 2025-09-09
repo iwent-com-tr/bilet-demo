@@ -33,6 +33,33 @@ export function PushNotificationDemo() {
   const [testBody, setTestBody] = useState('This is a test push notification from bilet-demo! Your notifications are working perfectly.');
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [hasShownInitialPrompt, setHasShownInitialPrompt] = useState(false);
+
+  // Auto-trigger permission request after initialization if permission is default
+  useEffect(() => {
+    const tryAutoPermissionRequest = async () => {
+      // Only run once and only if we haven't shown the prompt yet
+      if (hasShownInitialPrompt || !isInitialized || !isSupported) {
+        return;
+      }
+
+      // Check if we should auto-request permission
+      const currentPermission = permissionState.permission;
+      console.log('[Demo] Current permission state:', currentPermission, 'canRequest:', canRequestPermission);
+      
+      if (currentPermission === 'default' && canRequestPermission) {
+        console.log('[Demo] Auto-requesting notification permission...');
+        setHasShownInitialPrompt(true);
+        
+        // Give user a moment to read the page before showing permission prompt
+        setTimeout(() => {
+          requestPermission();
+        }, 2000); // 2 second delay
+      }
+    };
+
+    tryAutoPermissionRequest();
+  }, [isInitialized, isSupported, permissionState.permission, canRequestPermission, requestPermission, hasShownInitialPrompt]);
 
   // Send test notification with default demo content
   const sendTestNotification = async () => {
@@ -144,6 +171,52 @@ export function PushNotificationDemo() {
               </p>
             )}
           </div>
+
+          {/* Permission Request Banner - Show prominently when permission is needed */}
+          {isSupported && canRequestPermission && !subscriptionStatus?.isSubscribed && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">🔔</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-blue-900 text-lg mb-2">
+                    Enable Push Notifications
+                  </h3>
+                  <p className="text-blue-700 mb-3">
+                    Click the button below to enable push notifications and receive demo notifications.
+                    Your browser will ask for permission.
+                  </p>
+                  <button
+                    onClick={requestPermission}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg"
+                  >
+                    🔔 Enable Notifications Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Permission Denied Banner */}
+          {permissionState.permission === 'denied' && (
+            <div className="mb-6 p-6 bg-red-50 border-2 border-red-200 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">🚫</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-red-900 text-lg mb-2">
+                    Notifications Blocked
+                  </h3>
+                  <p className="text-red-700 mb-3">
+                    You have blocked notifications for this site. To enable them:
+                  </p>
+                  <ol className="text-sm text-red-600 ml-4 list-decimal">
+                    <li>Click the lock icon in your browser's address bar</li>
+                    <li>Change notifications from "Block" to "Allow"</li>
+                    <li>Refresh this page</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* System Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

@@ -63,7 +63,10 @@ class PushNotificationManager {
         hasServiceWorker: 'serviceWorker' in navigator,
         hasPushManager: 'PushManager' in window,
         userAgent: navigator.userAgent,
-        isMobile: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent)
+        isMobile: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent),
+        isSecureContext: window.isSecureContext,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname
       });
       
       if (!isSupported) {
@@ -86,31 +89,53 @@ class PushNotificationManager {
       await this.waitForOneSignal();
       console.log('[PushManager] OneSignal is available');
 
-      // Initialize OneSignal with mobile-friendly configuration
+      // Initialize OneSignal with universal configuration
       const appId = this.getOneSignalAppId();
-      console.log('[PushManager] Initializing OneSignal with App ID:', appId);
+      console.log('[PushManager] Initializing OneSignal with App ID:', appId, 'for domain:', window.location.hostname);
       
       const initConfig = {
         appId: appId,
         allowLocalhostAsSecureOrigin: true, // Allow localhost for testing
-        requiresUserPrivacyConsent: false, // Changed to false for demo purposes
+        requiresUserPrivacyConsent: false, // Simplified for demo
         notificationClickHandlerAction: 'focus',
         notificationClickHandlerMatch: 'origin',
-        autoRegister: false, // We'll handle registration manually
-        autoResubscribe: true,
+        autoRegister: false, // We'll handle registration manually for better control
+        autoResubscribe: false, // Disable auto resubscribe to have full control
         serviceWorkerPath: '/OneSignalSDKWorker.js',
         serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js',
         path: '/OneSignalSDKWorker.js',
-        // Mobile-specific configurations
+        // Enhanced configuration for production
         persistNotification: false, // Better for mobile
         welcomeNotification: {
           disable: true // Disable welcome notification
         },
-        // Add timeout for initialization
-        initializationTimeout: 30000 // 30 seconds
+        // Remove subdomain restriction for universal domain support
+        subdomainName: undefined,
+        // Add timeout for initialization  
+        initializationTimeout: 30000, // 30 seconds
+        // Enhanced slidedown prompt configuration
+        promptOptions: {
+          slidedown: {
+            enabled: true,
+            autoPrompt: false, // We'll control when to prompt manually
+            timeDelay: 0,
+            pageViews: 1,
+            actionMessage: 'İWent bildirimlerini açmak ister misiniz?',
+            acceptButtonText: 'İzin Ver',
+            cancelButtonText: 'Şimdi Değil'
+          },
+          native: {
+            enabled: true,
+            autoPrompt: false // We'll manually trigger the native prompt
+          }
+        }
       };
       
-      console.log('[PushManager] OneSignal init config:', initConfig);
+      console.log('[PushManager] OneSignal init config:', {
+        ...initConfig,
+        appId: `${appId.substring(0, 8)}...` // Log partial App ID for security
+      });
+      
       await window.OneSignal.init(initConfig);
 
       this.oneSignal = window.OneSignal;
@@ -120,9 +145,17 @@ class PushNotificationManager {
       this.setupEventListeners();
 
       console.log('[PushManager] OneSignal initialized successfully');
+      
+      // Check initial permission state
+      const permission = await this.oneSignal.getNotificationPermission();
+      console.log('[PushManager] Initial permission state:', permission);
+      
+      // Log support status for debugging
+      const isPushSupported = await this.oneSignal.isPushNotificationsSupported();
+      console.log('[PushManager] OneSignal push support check:', isPushSupported);
+      
     } catch (error) {
       console.error('[PushManager] Failed to initialize OneSignal:', error);
-      // Don't throw the error, just mark as failed initialization
       this.isInitialized = false;
       throw error;
     }
@@ -133,34 +166,60 @@ class PushNotificationManager {
    */
   async requestPermissionAndSubscribe(): Promise<SubscriptionStatus> {
     try {
+      console.log('[PushManager] Starting permission request and subscription process...');
+      
       await this.initialize();
 
       if (!this.oneSignal) {
         throw new Error('OneSignal not initialized');
       }
 
-      // For demo purposes, skip marketing consent check
-      // const hasMarketingConsent = this.checkMarketingConsent();
-      // if (!hasMarketingConsent) {
-      //   throw new Error('Marketing consent required for push notifications');
-      // }
+      // Check if browser supports push notifications
+      const isPushSupported = await this.oneSignal.isPushNotificationsSupported();
+      if (!isPushSupported) {
+        throw new Error('Push notifications are not supported on this device/browser');
+      }
 
-      // Provide user consent to OneSignal (not needed if requiresUserPrivacyConsent is false)
-      // await this.oneSignal.provideUserConsent(true);
+      // Check current permission state
+      const currentPermission = await this.oneSignal.getNotificationPermission();
+      console.log('[PushManager] Current permission state:', currentPermission);
 
-      // Request permission using the simpler method
+      if (currentPermission === 'denied') {
+        throw new Error('Notification permission was denied. Please enable notifications in your browser settings.');
+      }
+
+      // Use OneSignal's slidedown prompt for better UX
+      console.log('[PushManager] Showing slidedown prompt...');
+      
+      try {
+        // Show the slidedown prompt first (better UX)
+        await this.oneSignal.showSlidedownPrompt();
+      } catch (slidedownError) {
+        console.warn('[PushManager] Slidedown prompt failed, falling back to native prompt:', slidedownError);
+      }
+
+      // Request permission using OneSignal's method which handles the flow better
+      console.log('[PushManager] Requesting notification permission...');
       const permissionResult = await this.oneSignal.requestPermission();
+      console.log('[PushManager] Permission request result:', permissionResult);
 
       if (!permissionResult) {
         throw new Error('Permission denied by user');
       }
 
+      // Wait a moment for OneSignal to process the subscription
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Get subscription status
       const subscriptionStatus = await this.getSubscriptionStatus();
+      console.log('[PushManager] Subscription status after permission:', subscriptionStatus);
       
       if (subscriptionStatus.isSubscribed && subscriptionStatus.onesignalUserId) {
+        console.log('[PushManager] User successfully subscribed, syncing with backend...');
         // Sync with backend
         await this.syncWithBackend(subscriptionStatus.onesignalUserId);
+      } else {
+        console.warn('[PushManager] User granted permission but subscription status unclear:', subscriptionStatus);
       }
 
       // Notify callbacks
@@ -530,11 +589,62 @@ class PushNotificationManager {
    * Check if push notifications are supported
    */
   isPushNotificationSupported(): boolean {
-    return (
-      'Notification' in window &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window
-    );
+    try {
+      // Basic browser support checks
+      const hasNotification = 'Notification' in window;
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      const hasPushManager = 'PushManager' in window;
+      
+      console.log('[PushManager] Browser support check:', {
+        hasNotification,
+        hasServiceWorker,
+        hasPushManager,
+        isSecureContext: window.isSecureContext,
+        protocol: window.location.protocol,
+        userAgent: navigator.userAgent
+      });
+      
+      // All three are required for push notifications
+      if (!hasNotification || !hasServiceWorker || !hasPushManager) {
+        console.log('[PushManager] Browser missing required push notification APIs');
+        return false;
+      }
+      
+      // Check if we're in a secure context (HTTPS or localhost)
+      const isSecureContext = window.isSecureContext || 
+                             window.location.protocol === 'https:' || 
+                             window.location.hostname === 'localhost' ||
+                             window.location.hostname === '127.0.0.1';
+      
+      if (!isSecureContext) {
+        console.log('[PushManager] Push notifications require HTTPS or localhost');
+        return false;
+      }
+      
+      // Additional checks for specific browsers
+      const userAgent = navigator.userAgent.toLowerCase();
+      
+      // Safari checks (iOS Safari has specific requirements)
+      if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+        // For Safari, check if we're in a PWA context or support push
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                     (window.navigator as any).standalone === true;
+        
+        console.log('[PushManager] Safari detected, PWA status:', isPWA);
+        
+        // Safari on iOS requires PWA installation for push notifications
+        if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+          console.log('[PushManager] iOS Safari - PWA installation may be required for push notifications');
+          // Still return true, but user will need to install PWA
+        }
+      }
+      
+      console.log('[PushManager] Push notifications are supported');
+      return true;
+    } catch (error) {
+      console.error('[PushManager] Error checking push notification support:', error);
+      return false;
+    }
   }
 
   /**
@@ -651,8 +761,43 @@ class PushNotificationManager {
   }
 
   private getOneSignalAppId(): string {
-    // Use the standard environment variable
-    return process.env.REACT_APP_ONESIGNAL_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    // Check if production-specific App ID is available
+    const productionAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID;
+    const devAppId = process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
+    const genericAppId = process.env.REACT_APP_ONESIGNAL_APP_ID;
+    
+    // Use appropriate App ID based on environment and domain
+    const hostname = window.location.hostname;
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    console.log('[PushManager] App ID selection:', {
+      hostname,
+      isProduction,
+      hasProductionAppId: !!productionAppId,
+      hasDevAppId: !!devAppId,
+      hasGenericAppId: !!genericAppId
+    });
+    
+    // For iwent.com.tr and its subdomains (production)
+    if (hostname.includes('iwent.com.tr')) {
+      // Use the existing dev App ID for now since it's configured in OneSignal
+      // TODO: Create a proper production App ID configured for iwent.com.tr domain
+      const appId = productionAppId || devAppId || genericAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+      console.log('[PushManager] Using App ID for iwent.com.tr:', appId.substring(0, 8) + '...');
+      return appId;
+    }
+    
+    // For development and localhost
+    if (hostname.includes('dev.iwent.com.tr') || hostname === 'localhost' || hostname === '127.0.0.1') {
+      const appId = devAppId || genericAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+      console.log('[PushManager] Using App ID for development:', appId.substring(0, 8) + '...');
+      return appId;
+    }
+    
+    // Fallback for any other domain
+    const fallbackAppId = genericAppId || devAppId || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
+    console.log('[PushManager] Using fallback App ID for domain', hostname + ':', fallbackAppId.substring(0, 8) + '...');
+    return fallbackAppId;
   }
 
   private async waitForOneSignal(): Promise<void> {
