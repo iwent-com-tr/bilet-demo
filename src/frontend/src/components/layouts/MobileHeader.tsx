@@ -38,6 +38,9 @@ function formatMessage(index: number, name: string, city?: string) {
     .replace("{isim}", name)
     .replace("{şehir}", city || "");
 
+  // Split into before / after parts
+  const [before, after] = text.split("→").map(s => s.trim());
+
   // Decide link destinations per index
   let link = "/";
   switch (index) {
@@ -58,8 +61,16 @@ function formatMessage(index: number, name: string, city?: string) {
     default: link = "/";
   }
 
-  return <Link to={link}>{text}</Link>;
+  return (
+    <span>
+      {before}{" "}
+      <Link to={link} className="mobile-header__greeting-link">
+        <br />{"->" + after}
+      </Link>
+    </span>
+  );
 }
+
 
 
 function resetStamp() {
@@ -105,7 +116,7 @@ const MobileHeader: React.FC = () => {
   };
 
   const randomMessage = formatMessage(
-    getMessageIndex(),
+    7,
     firstName,
     city
   );
