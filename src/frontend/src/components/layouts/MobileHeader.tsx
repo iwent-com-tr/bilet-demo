@@ -2,6 +2,18 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import greetingEmoji from '../../assets/greeting-emoji.svg';
 import './MobileHeader.css';
+import { number } from 'yup';
+import { Link } from 'react-router-dom';
+
+interface StampObject {
+  time: number;
+  index: number;
+}
+
+const GREETING_STAMP = "greeting_message_stamp";
+const FIVE_MINUTES = 5 * 60 * 1000;
+
+
 
 const messages = [
   "{isim}, anı defterini açalım mı? → Keşfet",
@@ -20,10 +32,60 @@ const messages = [
   "Dostlarını etiketle {isim}, toplu indirim kapıda. → Paylaş",
 ];
 
-function formatMessage(template: string, name: string, city?: string) {
-  return template
-    .replaceAll("{isim}", name)
-    .replaceAll("{şehir}", city ?? "");
+function formatMessage(index: number, name: string, city?: string) {
+  // Fill placeholders
+  let text = messages[index]
+    .replace("{isim}", name)
+    .replace("{şehir}", city || "");
+
+  // Decide link destinations per index
+  let link = "/";
+  switch (index) {
+    case 0: link = "/search"; break;
+    case 1: link = "/search/events"; break;
+    case 2: link = "/search/events"; break;
+    case 3: link = "/search/events"; break;
+    case 4: link = "/calendar"; break;
+    case 5: link = "/search/events"; break;
+    case 6: link = "/search/organizer"; break;
+    case 7: link = "/search/events"; break;
+    case 8: link = "/search/events"; break;
+    case 9: link = "/search/events"; break;
+    case 10: link = "/search/events"; break;
+    case 11: link = "/search/events"; break;
+    case 12: link = "/search/events"; break;
+    case 13: link = "/calendar"; break;
+    default: link = "/";
+  }
+
+  return <Link to={link}>{text}</Link>;
+}
+
+
+function resetStamp() {
+  const stamp: StampObject = {
+      time: Date.now(),
+      index: Math.floor(Math.random() * messages.length),
+    }
+
+    localStorage.setItem(GREETING_STAMP, JSON.stringify(stamp));
+    return stamp.index;
+}
+
+function getMessageIndex() {
+  const currentStamp = localStorage.getItem(GREETING_STAMP);
+  
+  if (currentStamp) {
+    const now = Date.now();
+    const currentStampObject: StampObject = JSON.parse(currentStamp);
+
+    if (now - currentStampObject.time < FIVE_MINUTES) {
+      localStorage.setItem(GREETING_STAMP, JSON.stringify({...currentStampObject, time: now}));
+      return currentStampObject.index;
+    }
+  }
+
+  return resetStamp(); 
 }
 
 const MobileHeader: React.FC = () => {
@@ -43,7 +105,7 @@ const MobileHeader: React.FC = () => {
   };
 
   const randomMessage = formatMessage(
-    messages[Math.floor(Math.random() * messages.length)],
+    getMessageIndex(),
     firstName,
     city
   );
