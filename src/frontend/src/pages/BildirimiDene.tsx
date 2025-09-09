@@ -20,6 +20,7 @@ export function BildirimiDene() {
   // Check notification support and permission on component mount
   useEffect(() => {
     checkNotificationSupport();
+    checkExistingSubscription();
   }, []);
 
   const checkNotificationSupport = () => {
@@ -28,12 +29,61 @@ export function BildirimiDene() {
                      'PushManager' in window &&
                      (window.isSecureContext || window.location.hostname === 'localhost');
 
+    console.log('[BildirimiDene] Checking support:', {
+      hasNotification: 'Notification' in window,
+      hasServiceWorker: 'serviceWorker' in navigator,
+      hasPushManager: 'PushManager' in window,
+      isSecureContext: window.isSecureContext,
+      permission: supported ? Notification.permission : 'denied'
+    });
+
     setStatus(prev => ({
       ...prev,
       supported,
       permission: supported ? Notification.permission : 'denied',
       error: supported ? undefined : 'Tarayıcınız push bildirimleri desteklemiyor'
     }));
+  };
+
+  const checkExistingSubscription = async () => {
+    try {
+      // Check if we have a stored subscription state
+      const storedSubscription = localStorage.getItem('bildirimi-dene-subscription');
+      if (storedSubscription) {
+        const subscriptionData = JSON.parse(storedSubscription);
+        console.log('[BildirimiDene] Found stored subscription:', subscriptionData);
+        
+        // Verify the subscription is still valid
+        if (Notification.permission === 'granted') {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) {
+            setStatus(prev => ({
+              ...prev,
+              subscribed: true,
+              permission: 'granted'
+            }));
+            return;
+          }
+        }
+        
+        // Clear invalid stored subscription
+        localStorage.removeItem('bildirimi-dene-subscription');
+      }
+      
+      // Check current permission state
+      if (Notification.permission === 'granted') {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          setStatus(prev => ({
+            ...prev,
+            subscribed: true,
+            permission: 'granted'
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('[BildirimiDene] Error checking existing subscription:', error);
+    }
   };
 
   const requestNotificationPermission = async () => {
@@ -48,13 +98,41 @@ export function BildirimiDene() {
     try {
       console.log('[BildirimiDene] Requesting notification permission...');
       
+      // For Safari/iOS, we need to be more careful with service worker registration
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
+      console.log('[BildirimiDene] Platform detection:', { isIOS, isSafari });
+      
       // Request permission using native browser API
       const permission = await Notification.requestPermission();
       console.log('[BildirimiDene] Permission result:', permission);
 
       if (permission === 'granted') {
         // Try to register service worker for push notifications
-        await registerServiceWorker();
+        let registration;
+        try {
+          registration = await registerServiceWorker();
+        } catch (swError) {
+          console.warn('[BildirimiDene] Service worker registration failed, continuing with basic notifications:', swError);
+          // For Safari/iOS, we can still show basic notifications without service worker
+          if (isIOS || isSafari) {
+            console.log('[BildirimiDene] Using basic notifications for Safari/iOS');
+            registration = null;
+          } else {
+            throw swError;
+          }
+        }
+        
+        const subscriptionData = {
+          granted: true,
+          timestamp: Date.now(),
+          platform: isIOS ? 'ios' : isSafari ? 'safari' : 'other',
+          hasServiceWorker: !!registration
+        };
+        
+        // Store subscription state for persistence
+        localStorage.setItem('bildirimi-dene-subscription', JSON.stringify(subscriptionData));
         
         setStatus(prev => ({ 
           ...prev, 
@@ -63,7 +141,9 @@ export function BildirimiDene() {
         }));
         
         // Send a test notification immediately
-        showTestNotification();
+        setTimeout(() => {
+          showTestNotification();
+        }, 500);
       } else {
         setStatus(prev => ({ 
           ...prev, 
@@ -94,44 +174,94 @@ export function BildirimiDene() {
           return existingRegistration;
         }
 
+        // For Safari, try a more conservative approach
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        if (isSafari) {
+          console.log('[BildirimiDene] Safari detected, using conservative SW registration');
+          // Safari is stricter about service worker paths and timing
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
         // Register a simple service worker for push notifications
         const registration = await navigator.serviceWorker.register('/sw.js', {
           scope: '/'
         });
         
+        // Wait for the service worker to be ready
+        await navigator.serviceWorker.ready;
+        
         console.log('[BildirimiDene] Service worker registered successfully');
         return registration;
+      } else {
+        console.warn('[BildirimiDene] Service Worker not supported');
+        return null;
       }
     } catch (error) {
       console.error('[BildirimiDene] Service worker registration failed:', error);
+      // Don't throw the error for Safari/iOS - they can work without SW for basic notifications
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
+      if (isSafari || isIOS) {
+        console.log('[BildirimiDene] Continuing without service worker for Safari/iOS');
+        return null;
+      }
+      
       throw error;
     }
   };
 
   const showTestNotification = () => {
-    if (Notification.permission === 'granted') {
+    if (Notification.permission !== 'granted') {
+      console.warn('[BildirimiDene] Cannot show notification - permission not granted');
+      setTestResult('❌ Bildirim izni verilmemiş');
+      return;
+    }
+
+    try {
       console.log('[BildirimiDene] Showing test notification...');
       
-      const notification = new Notification('🎉 Bildirimi Dene - Başarılı!', {
+      // Enhanced notification options for better cross-platform support
+      const notificationOptions = {
         body: 'Tebrikler! Push bildirimleri başarıyla çalışıyor. Bu test bildirimidir.',
         icon: '/favicon.ico',
         badge: '/favicon.ico',
         tag: 'bildirimi-dene-test',
         requireInteraction: false,
-        silent: false
-      });
+        silent: false,
+        vibrate: [200, 100, 200], // For Android
+        renotify: true // Ensure notification shows even if tag exists
+      };
+      
+      const notification = new Notification('🎉 Bildirimi Dene - Başarılı!', notificationOptions);
 
       notification.onclick = () => {
+        console.log('[BildirimiDene] Notification clicked');
         window.focus();
         notification.close();
       };
 
+      notification.onerror = (error) => {
+        console.error('[BildirimiDene] Notification error:', error);
+        setTestResult('❌ Bildirim gösterilirken hata oluştu');
+      };
+
+      notification.onshow = () => {
+        console.log('[BildirimiDene] Notification shown successfully');
+        setTestResult('✅ Test bildirimi başarıyla gönderildi!');
+      };
+
       // Auto close after 5 seconds
       setTimeout(() => {
-        notification.close();
+        if (notification) {
+          notification.close();
+        }
       }, 5000);
 
-      setTestResult('✅ Test bildirimi başarıyla gönderildi!');
+    } catch (error) {
+      console.error('[BildirimiDene] Failed to show notification:', error);
+      setTestResult('❌ Bildirim gösterilirken hata: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
     }
   };
 
@@ -172,12 +302,28 @@ export function BildirimiDene() {
   };
 
   const resetNotifications = () => {
+    // Clear stored subscription data
+    localStorage.removeItem('bildirimi-dene-subscription');
+    
     setStatus({
       supported: 'Notification' in window,
       permission: 'default',
       subscribed: false
     });
     setTestResult(null);
+    
+    // Unregister service worker if it exists
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+          console.log('[BildirimiDene] Unregistering service worker');
+          registration.unregister();
+        });
+      }).catch(error => {
+        console.warn('[BildirimiDene] Error unregistering service workers:', error);
+      });
+    }
+    
     checkNotificationSupport();
   };
 
@@ -307,7 +453,77 @@ export function BildirimiDene() {
             <strong>Not:</strong> Bu test bileşeni OneSignal kullanmadan doğrudan browser API'leri ile çalışır.
             HTTPS bağlantı veya localhost gereklidir.
           </div>
+
+          {/* Platform-specific information */}
+          <div className="bildirimi-dene__platform-info">
+            <h4>Platform Bilgileri:</h4>
+            <div className="bildirimi-dene__debug-info">
+              <div><strong>User Agent:</strong> {navigator.userAgent}</div>
+              <div><strong>Platform:</strong> {navigator.platform}</div>
+              <div><strong>Is iOS:</strong> {/iPad|iPhone|iPod/.test(navigator.userAgent) ? 'Yes' : 'No'}</div>
+              <div><strong>Is Safari:</strong> {/^((?!chrome|android).)*safari/i.test(navigator.userAgent) ? 'Yes' : 'No'}</div>
+              <div><strong>Is PWA:</strong> {window.matchMedia('(display-mode: standalone)').matches ? 'Yes' : 'No'}</div>
+              <div><strong>Service Worker Support:</strong> {'serviceWorker' in navigator ? 'Yes' : 'No'}</div>
+              <div><strong>Notification Support:</strong> {'Notification' in window ? 'Yes' : 'No'}</div>
+              <div><strong>Push Manager Support:</strong> {'PushManager' in window ? 'Yes' : 'No'}</div>
+              <div><strong>Secure Context:</strong> {window.isSecureContext ? 'Yes' : 'No'}</div>
+              <div><strong>Stored Subscription:</strong> {localStorage.getItem('bildirimi-dene-subscription') ? 'Yes' : 'No'}</div>
+            </div>
+          </div>
         </div>
+
+        {/* Platform-specific troubleshooting */}
+        {(() => {
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+          const isAndroid = /Android/.test(navigator.userAgent);
+          const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+          
+          if (isIOS && !isPWA) {
+            return (
+              <div className="bildirimi-dene__troubleshooting bildirimi-dene__troubleshooting--ios">
+                <h3>📱 iOS Kullanıcıları İçin</h3>
+                <p>iOS'ta push bildirimlerin çalışması için:</p>
+                <ol>
+                  <li>Bu sayfayı Ana Ekran'a ekleyin (Safari {'>'}  Paylaş {'>'} Ana Ekrana Ekle)</li>
+                  <li>PWA olarak açılan uygulamada bildirimleri etkinleştirin</li>
+                  <li>Safari'de doğrudan çalışmayabilir</li>
+                </ol>
+              </div>
+            );
+          }
+          
+          if (isSafari && !isIOS) {
+            return (
+              <div className="bildirimi-dene__troubleshooting bildirimi-dene__troubleshooting--safari">
+                <h3>🦀 Safari Kullanıcıları İçin</h3>
+                <p>Safari'de sorun yaşıyorsanız:</p>
+                <ol>
+                  <li>Safari {'>'} Tercihler {'>'} Web Siteleri {'>'} Bildirimler'i kontrol edin</li>
+                  <li>Chrome veya Firefox ile deneyin</li>
+                  <li>Sayfa yüklenme sorunu varsa, sayfa kaynağını görüntüleyin</li>
+                </ol>
+              </div>
+            );
+          }
+          
+          if (isAndroid) {
+            return (
+              <div className="bildirimi-dene__troubleshooting bildirimi-dene__troubleshooting--android">
+                <h3>🤖 Android Kullanıcıları İçin</h3>
+                <p>Android'de bildirimler çalışmıyorsa:</p>
+                <ol>
+                  <li>Tarayıcı ayarlarından bildirim izinlerini kontrol edin</li>
+                  <li>Android sistem ayarlarından tarayıcı bildirimlerini etkinleştirin</li>
+                  <li>Chrome tarayıcısı kullanmayı deneyin</li>
+                  <li>Cihazın sesini ve titroşimi kontrol edin</li>
+                </ol>
+              </div>
+            );
+          }
+          
+          return null;
+        })()}
       </div>
     </div>
   );
