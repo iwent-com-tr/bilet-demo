@@ -116,7 +116,7 @@ const MobileHeader: React.FC = () => {
   };
 
   const randomMessage = formatMessage(
-    7,
+    getMessageIndex(),
     firstName,
     city
   );
