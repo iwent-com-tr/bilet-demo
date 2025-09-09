@@ -42,11 +42,11 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const refined = result.data.map((venue: any) => {
       return {
         ...venue,
-        following: venue.favoriteUsers.some((user: any) => user.id === (req as any).user?.id),
+        following: venue.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
       };
     });
 
-    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+    if (req.user && query.q) PreferencesService.addPreferences(req.user.id, query.q);
 
     res.json({ ...result, data: refined.map(sanitizeVenue).filter(Boolean) });
   } catch (e) { next(e); }

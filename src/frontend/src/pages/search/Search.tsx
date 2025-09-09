@@ -4,8 +4,10 @@ import FilterScreen from "./SearchFilterScreen"
 import React, { createContext, useContext, useState, useEffect } from "react"
 import axios from "axios"
 import { toast } from "react-toastify"
-import { Link, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import './Search.css'
+import { useAuth } from "context/AuthContext"
+import DiscoverGrid from "components/user-recommendations/DiscoverGrid"
 
 interface Event {
   id: string;
@@ -55,7 +57,9 @@ export const IndexContext = createContext<[number, React.Dispatch<React.SetState
 
 const Search: React.FC = () => {
 
+    const { isAuthenticated, user } = useAuth();
     const [isFilterScreenOn, setIsFilterScreenOn] = useState(false);
+    const navigate = useNavigate();
 
     const { index_name } = useParams<{ index_name?: string }>();
 
@@ -107,6 +111,74 @@ const Search: React.FC = () => {
       longitude: 0, 
       distance: 50000
     });
+
+    async function handleVenueFollow(id: string) {
+    if (!isAuthenticated) {
+      toast.error('Takip etmek için giriş yapmalısınız');
+      navigate('/login');
+      return;
+    }
+
+    if (user?.userType !== 'USER') {
+      toast.error('Sadece kullanıcılar takip edebilir');
+      return;
+    }
+
+    const venue = venues.find((a: any) => a.id === id);
+    if (!venue) return;
+
+    try {
+      if (venue.following) {
+        const res = await axios.delete(`${process.env.REACT_APP_API_URL}/venues/follow/${venue.id}`);
+        if (res.status === 200) {
+          setVenues((prev: any) => prev.map((a: any) => (a.id === id ? { ...a, following: false } : a)));
+        }
+      } else {
+        const res = await axios.post(`${process.env.REACT_APP_API_URL}/venues/follow/${venue.id}`);
+        if (res.status === 200) {
+          setVenues((prev: any) => prev.map((a: any) => (a.id === id ? { ...a, following: true } : a)));
+        }
+      }
+    } catch (error) {
+      toast.error('Takip isteği sırasında bir hata oluştu.');
+      console.error(error);
+      setVenues((prev: any) => prev.map((a: any) => (a.id === id ? { ...a, following: !(a.following) } : a)));
+    }
+  }
+
+    async function handleArtistFollow(id: string) {
+    if (!isAuthenticated) {
+      toast.error('Takip etmek için giriş yapmalısınız');
+      navigate('/login');
+      return;
+    }
+
+    if (user?.userType !== 'USER') {
+      toast.error('Sadece kullanıcılar takip edebilir');
+      return;
+    }
+
+    const artist = artists.find((a: any) => a.id === id);
+    if (!artist) return;
+
+    try {
+      if (artist.following) {
+        const res = await axios.delete(`${process.env.REACT_APP_API_URL}/artists/follow/${artist.id}`);
+        if (res.status === 200) {
+          setArtists((prev: any) => prev.map((a: any) => (a.id === id ? { ...a, following: false } : a)));
+        }
+      } else {
+        const res = await axios.post(`${process.env.REACT_APP_API_URL}/artists/follow/${artist.id}`);
+        if (res.status === 200) {
+          setArtists((prev: any) => prev.map((a: any) => (a.id === id ? { ...a, following: true } : a)));
+        }
+      }
+    } catch (error) {
+      toast.error('Takip isteği sırasında bir hata oluştu.');
+      console.error(error);
+      setArtists((prev: any) => prev.map((a: any) => (a.id === id ? { ...a, following: !(a.following) } : a)));
+    }
+  }
 
     // get location
     useEffect(() => {
@@ -249,6 +321,8 @@ const fetchOrganizers = async () => {
   }
 };
 
+  
+
 
     const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR', {
@@ -269,9 +343,11 @@ const fetchOrganizers = async () => {
         <FilterScreen />
         <SearchHeader />
         
+        {/* Discover Grid */}
+        { activeIndex === -1 ? <DiscoverGrid /> : null}
 
         {/* Event Grid */}
-        { activeIndex === 0 || activeIndex == -1 ? (events.length > 0 ? (
+        { activeIndex === 0 ? (events.length > 0 ? (
             <div className="event-list__grid-container search__grid-container">
                 <h1 className="search__title">
                     Etkinlikler
@@ -312,18 +388,18 @@ const fetchOrganizers = async () => {
         )) : null}
 
         {/* Venue Grid */}
-        { activeIndex === 2 || activeIndex == -1 ? (venues.length > 0 ? (
+        { activeIndex === 2 ? (venues.length > 0 ? (
             <div className="venue-list__grid-container search__grid-container">
                 <h1 className="search__title">
                     Mekanlar
                 </h1>
             <div className="venue-list__grid search__grid">
                 {venues.map((venue: any) => (
-                <Link
-                    key={venue.id}
-                    to={`/venues/${venue.slug}`}
-                    className="venue-list__card search__card"
-                >
+                <div className="veneu-list__card search__card">
+                    <Link
+                        key={venue.id}
+                        to={`/venues/${venue.slug}`}
+                    >
                     <div className="venue-list__image-container">
                     <img
                         src={venue.banner || '/placeholder-venue.jpg'}
@@ -337,7 +413,14 @@ const fetchOrganizers = async () => {
                         {venue.address + ', ' + venue.city}
                     </div>
                     </div>
-                </Link>
+                    </Link>
+                    <button
+                      className={'featured-artists__follow-button search-venue-follow-button' + (venue.following ? ' following' : '')}
+                      onClick={async () => handleVenueFollow(venue.id)}
+                    >
+                      {venue.following ? 'Takip ediyorsun' : 'Takip Et'}
+                    </button>
+                </div>
                 ))}
             </div>
             <div>
@@ -352,36 +435,48 @@ const fetchOrganizers = async () => {
         )) : null}
 
         {/* Artists Grid */}
-        { activeIndex === 1 || activeIndex == -1 ? (artists.length > 0 ? (
+        { activeIndex === 1 ? (artists.length > 0 ? (
             <div className="artist-list__grid-container search__grid-container">
                 <h1 className="search__title">
                     Sanatçılar
                 </h1>
             <div className="artist-list__grid search__grid">
-                {artists.map((artist: any) => (
-                <Link
-                    key={artist.id}
+              {artists.map((artist: any) => (
+                <div key={artist.id} className="artist-list__card search__card">
+                  <Link
                     to={`/artists/${artist.slug}`}
-                    className="artist-list__card search__card"
-                >
-                    <div className="artist-list__image-container">
+                    className="artist-list__image-container"
+                  >
                     <img
-                        src={artist.banner || '/placeholder-artist.jpg'}
-                        alt={artist.name}
-                        className="artist-list__image"
+                      src={artist.banner || '/placeholder-artist.jpg'}
+                      alt={artist.name}
+                      className="artist-list__image"
                     />
+                  </Link>
+
+                  <div className="artist-list__stripe">
+                    <div className="artist-list__left">
+                      <div className="artist-list__content">
+                        <h3 className="artist-list__title">{artist.name}</h3>
+                        <div className="artist-list__bio">{artist.bio}</div>
+                        <div className="artist-list__genres">{artist.genres.join(', ')}</div>
+                      </div>
                     </div>
-                    <div className="artist-list__content">
-                    <h3 className="artist-list__title">{artist.name}</h3>
-                    <div className="artist-list__bio">
-                        {artist.bio}
-                    </div>
-                    <div className="artist-list__genres">
-                        {artist.genres.join(', ')}
-                    </div>
-                    </div>
-                </Link>
-                ))}
+                    <button
+                      className={
+                        'featured-artists__follow-button search-artist-follow-button' +
+                        (artist.following ? ' following' : '')
+                      }
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await handleArtistFollow(artist.id);
+                      }}
+                    >
+                      {artist.following ? 'Takip ediyorsun' : 'Takip Et'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
             <div>
                 <button className="load-more" onClick={() => setArtistsPage(artistsPage + 1)}>Daha fazla sanatçı</button>
@@ -395,7 +490,7 @@ const fetchOrganizers = async () => {
         )) : null}
 
         {/* Organizers Grid */}
-        { activeIndex === 3 || activeIndex == -1 ? (organizers.length > 0 ? (
+        { activeIndex === 3 ? (organizers.length > 0 ? (
             <div className="organizer-list__grid-container search__grid-container">
                 <h1 className="search__title">
                     Organizatörler
