@@ -1,218 +1,182 @@
 import React, { useState, useEffect } from 'react';
 import './BildirimiDene.css';
+import { PushSubscriptionManager, type SubscriptionResult, type BrowserSupport } from '../lib/push-subscription-manager';
 
 interface NotificationStatus {
   supported: boolean;
   permission: NotificationPermission;
   subscribed: boolean;
+  vapidSubscribed: boolean;
   error?: string;
+  vapidEndpoint?: string;
+  browserInfo?: BrowserSupport;
 }
 
 export function BildirimiDene() {
   const [status, setStatus] = useState<NotificationStatus>({
     supported: false,
     permission: 'default',
-    subscribed: false
+    subscribed: false,
+    vapidSubscribed: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [pushManager] = useState(() => new PushSubscriptionManager());
 
   // Check notification support and permission on component mount
   useEffect(() => {
     checkNotificationSupport();
-    checkExistingSubscription();
+    checkExistingVapidSubscription();
   }, []);
 
   const checkNotificationSupport = () => {
-    const supported = 'Notification' in window && 
-                     'serviceWorker' in navigator && 
-                     'PushManager' in window &&
-                     (window.isSecureContext || window.location.hostname === 'localhost');
+    const browserSupport = pushManager.getBrowserSupport();
+    const permission = pushManager.getPermissionStatus();
 
-    console.log('[BildirimiDene] Checking support:', {
-      hasNotification: 'Notification' in window,
-      hasServiceWorker: 'serviceWorker' in navigator,
-      hasPushManager: 'PushManager' in window,
-      isSecureContext: window.isSecureContext,
-      permission: supported ? Notification.permission : 'denied'
+    console.log('[BildirimiDene] Browser support check:', {
+      browserSupport,
+      permission,
+      isAndroid: /Android/.test(navigator.userAgent)
     });
 
     setStatus(prev => ({
       ...prev,
-      supported,
-      permission: supported ? Notification.permission : 'denied',
-      error: supported ? undefined : 'Tarayıcınız push bildirimleri desteklemiyor'
+      supported: browserSupport.isSupported,
+      permission,
+      browserInfo: browserSupport,
+      error: browserSupport.isSupported ? undefined : 'Tarayıcınız VAPID push bildirimleri desteklemiyor'
     }));
   };
 
-  const checkExistingSubscription = async () => {
+  const checkExistingVapidSubscription = async () => {
     try {
-      // Check if we have a stored subscription state
-      const storedSubscription = localStorage.getItem('bildirimi-dene-subscription');
-      if (storedSubscription) {
-        const subscriptionData = JSON.parse(storedSubscription);
-        console.log('[BildirimiDene] Found stored subscription:', subscriptionData);
-        
-        // Verify the subscription is still valid
-        if (Notification.permission === 'granted') {
-          const registration = await navigator.serviceWorker.getRegistration();
-          if (registration) {
-            setStatus(prev => ({
-              ...prev,
-              subscribed: true,
-              permission: 'granted'
-            }));
-            return;
-          }
-        }
-        
-        // Clear invalid stored subscription
-        localStorage.removeItem('bildirimi-dene-subscription');
-      }
+      console.log('[BildirimiDene] Checking existing VAPID subscription...');
       
-      // Check current permission state
-      if (Notification.permission === 'granted') {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-          setStatus(prev => ({
-            ...prev,
-            subscribed: true,
-            permission: 'granted'
-          }));
-        }
-      }
+      // Get current VAPID subscription status
+      const subscriptionInfo = await pushManager.getSubscriptionInfo();
+      
+      console.log('[BildirimiDene] Subscription info:', {
+        permission: subscriptionInfo.permission,
+        hasSubscription: subscriptionInfo.hasSubscription,
+        endpoint: subscriptionInfo.subscription?.endpoint,
+        backendSubscriptions: subscriptionInfo.backendSubscriptions?.length || 0
+      });
+      
+      setStatus(prev => ({
+        ...prev,
+        permission: subscriptionInfo.permission,
+        subscribed: subscriptionInfo.permission === 'granted',
+        vapidSubscribed: subscriptionInfo.hasSubscription,
+        vapidEndpoint: subscriptionInfo.subscription?.endpoint,
+        browserInfo: subscriptionInfo.browserSupport
+      }));
+      
     } catch (error) {
-      console.error('[BildirimiDene] Error checking existing subscription:', error);
+      console.error('[BildirimiDene] Error checking VAPID subscription:', error);
+      setStatus(prev => ({ 
+        ...prev, 
+        error: 'VAPID abonelik kontrolü başarısız: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata')
+      }));
     }
   };
 
-  const requestNotificationPermission = async () => {
+  const requestVapidSubscription = async () => {
     if (!status.supported) {
-      setStatus(prev => ({ ...prev, error: 'Bildirimler desteklenmiyor' }));
+      setStatus(prev => ({ ...prev, error: 'VAPID push bildirimleri desteklenmiyor' }));
       return;
     }
 
     setIsLoading(true);
     setStatus(prev => ({ ...prev, error: undefined }));
+    setTestResult(null);
 
     try {
-      console.log('[BildirimiDene] Requesting notification permission...');
+      console.log('[BildirimiDene] Starting VAPID subscription process...');
       
-      // For Safari/iOS, we need to be more careful with service worker registration
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
+      console.log('[BildirimiDene] Platform detection:', { 
+        isAndroid,
+        userAgent: navigator.userAgent 
+      });
       
-      console.log('[BildirimiDene] Platform detection:', { isIOS, isSafari });
+      // Use PushSubscriptionManager for proper VAPID subscription
+      const result: SubscriptionResult = await pushManager.subscribe();
       
-      // Request permission using native browser API
-      const permission = await Notification.requestPermission();
-      console.log('[BildirimiDene] Permission result:', permission);
+      console.log('[BildirimiDene] VAPID subscription result:', result);
 
-      if (permission === 'granted') {
-        // Try to register service worker for push notifications
-        let registration;
-        try {
-          registration = await registerServiceWorker();
-        } catch (swError) {
-          console.warn('[BildirimiDene] Service worker registration failed, continuing with basic notifications:', swError);
-          // For Safari/iOS, we can still show basic notifications without service worker
-          if (isIOS || isSafari) {
-            console.log('[BildirimiDene] Using basic notifications for Safari/iOS');
-            registration = null;
-          } else {
-            throw swError;
-          }
-        }
-        
-        const subscriptionData = {
-          granted: true,
-          timestamp: Date.now(),
-          platform: isIOS ? 'ios' : isSafari ? 'safari' : 'other',
-          hasServiceWorker: !!registration
-        };
-        
-        // Store subscription state for persistence
-        localStorage.setItem('bildirimi-dene-subscription', JSON.stringify(subscriptionData));
-        
+      if (result.success && result.subscription) {
         setStatus(prev => ({ 
           ...prev, 
-          permission, 
-          subscribed: true 
+          permission: 'granted',
+          subscribed: true,
+          vapidSubscribed: true,
+          vapidEndpoint: result.subscription?.endpoint
         }));
         
-        // Send a test notification immediately
+        setTestResult('✅ VAPID push subscription başarılı! Android bildirimleri artık çalışmalı.');
+        
+        // Send a test push notification through backend
         setTimeout(() => {
-          showTestNotification();
-        }, 500);
+          sendVapidTestNotification();
+        }, 1000);
       } else {
+        const errorMsg = result.error || 'VAPID abonelik başarısız';
         setStatus(prev => ({ 
-          ...prev, 
-          permission,
-          error: permission === 'denied' ? 'Bildirim izni reddedildi' : 'Bildirim izni verilmedi'
+          ...prev,
+          error: errorMsg
         }));
+        setTestResult(`❌ VAPID abonelik hatası: ${errorMsg}`);
       }
     } catch (error) {
-      console.error('[BildirimiDene] Permission request failed:', error);
+      console.error('[BildirimiDene] VAPID subscription failed:', error);
+      const errorMsg = 'VAPID abonelik başarısız: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata');
       setStatus(prev => ({ 
         ...prev, 
-        error: 'İzin isteme başarısız: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata')
+        error: errorMsg
       }));
+      setTestResult(`❌ ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const registerServiceWorker = async () => {
+  // Service worker registration is now handled by PushSubscriptionManager
+
+  const sendVapidTestNotification = async () => {
+    setIsLoading(true);
+
     try {
-      if ('serviceWorker' in navigator) {
-        console.log('[BildirimiDene] Registering service worker...');
-        
-        // Check if we already have a service worker
-        const existingRegistration = await navigator.serviceWorker.getRegistration();
-        if (existingRegistration) {
-          console.log('[BildirimiDene] Service worker already registered');
-          return existingRegistration;
-        }
+      console.log('[BildirimiDene] Sending VAPID test notification through backend...');
+      
+      const response = await fetch('/api/v1/push/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          title: 'VAPID Test - Android Uyumlu 🤖',
+          body: 'Bu VAPID push bildirimidir. Android cihazlarda çalışmalıdır!',
+          url: '/bildirimi-dene'
+        }),
+      });
 
-        // For Safari, try a more conservative approach
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        if (isSafari) {
-          console.log('[BildirimiDene] Safari detected, using conservative SW registration');
-          // Safari is stricter about service worker paths and timing
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+      const result = await response.json();
 
-        // Register a simple service worker for push notifications
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        });
-        
-        // Wait for the service worker to be ready
-        await navigator.serviceWorker.ready;
-        
-        console.log('[BildirimiDene] Service worker registered successfully');
-        return registration;
+      if (response.ok) {
+        setTestResult(`✅ VAPID push bildirimi gönderildi! Android cihazlarda görünmelidir.`);
       } else {
-        console.warn('[BildirimiDene] Service Worker not supported');
-        return null;
+        setTestResult(`❌ VAPID bildirim hatası: ${result.error || 'Bilinmeyen hata'}`);
       }
     } catch (error) {
-      console.error('[BildirimiDene] Service worker registration failed:', error);
-      // Don't throw the error for Safari/iOS - they can work without SW for basic notifications
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isSafari || isIOS) {
-        console.log('[BildirimiDene] Continuing without service worker for Safari/iOS');
-        return null;
-      }
-      
-      throw error;
+      console.error('[BildirimiDene] VAPID notification failed:', error);
+      setTestResult(`❌ VAPID bildirim ağ hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const showTestNotification = () => {
+  const showBasicTestNotification = () => {
     if (Notification.permission !== 'granted') {
       console.warn('[BildirimiDene] Cannot show notification - permission not granted');
       setTestResult('❌ Bildirim izni verilmemiş');
@@ -220,36 +184,36 @@ export function BildirimiDene() {
     }
 
     try {
-      console.log('[BildirimiDene] Showing test notification...');
+      console.log('[BildirimiDene] Showing basic test notification...');
       
-      // Enhanced notification options for better cross-platform support
+      // Basic notification for browsers that don't support VAPID properly
       const notificationOptions = {
-        body: 'Tebrikler! Push bildirimleri başarıyla çalışıyor. Bu test bildirimidir.',
+        body: 'Bu temel tarayıcı bildirimidir. Android cihazlarda VAPID push bildirimi kullanın.',
         icon: '/favicon.ico',
         badge: '/favicon.ico',
-        tag: 'bildirimi-dene-test',
+        tag: 'bildirimi-dene-basic',
         requireInteraction: false,
         silent: false,
-        vibrate: [200, 100, 200], // For Android
-        renotify: true // Ensure notification shows even if tag exists
+        vibrate: [200, 100, 200],
+        renotify: true
       };
       
-      const notification = new Notification('🎉 Bildirimi Dene - Başarılı!', notificationOptions);
+      const notification = new Notification('📱 Temel Bildirim Testi', notificationOptions);
 
       notification.onclick = () => {
-        console.log('[BildirimiDene] Notification clicked');
+        console.log('[BildirimiDene] Basic notification clicked');
         window.focus();
         notification.close();
       };
 
-      notification.onerror = (error) => {
-        console.error('[BildirimiDene] Notification error:', error);
-        setTestResult('❌ Bildirim gösterilirken hata oluştu');
+      notification.onshow = () => {
+        console.log('[BildirimiDene] Basic notification shown successfully');
+        setTestResult('✅ Temel bildirim test başarılı (Android için VAPID kullanın)');
       };
 
-      notification.onshow = () => {
-        console.log('[BildirimiDene] Notification shown successfully');
-        setTestResult('✅ Test bildirimi başarıyla gönderildi!');
+      notification.onerror = (error) => {
+        console.error('[BildirimiDene] Basic notification error:', error);
+        setTestResult('❌ Temel bildirim hatası');
       };
 
       // Auto close after 5 seconds
@@ -260,8 +224,8 @@ export function BildirimiDene() {
       }, 5000);
 
     } catch (error) {
-      console.error('[BildirimiDene] Failed to show notification:', error);
-      setTestResult('❌ Bildirim gösterilirken hata: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
+      console.error('[BildirimiDene] Failed to show basic notification:', error);
+      setTestResult('❌ Temel bildirim hatası: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
     }
   };
 
@@ -301,30 +265,41 @@ export function BildirimiDene() {
     }
   };
 
-  const resetNotifications = () => {
-    // Clear stored subscription data
-    localStorage.removeItem('bildirimi-dene-subscription');
-    
-    setStatus({
-      supported: 'Notification' in window,
-      permission: 'default',
-      subscribed: false
-    });
+  const resetNotifications = async () => {
+    setIsLoading(true);
     setTestResult(null);
     
-    // Unregister service worker if it exists
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(registration => {
-          console.log('[BildirimiDene] Unregistering service worker');
-          registration.unregister();
-        });
-      }).catch(error => {
-        console.warn('[BildirimiDene] Error unregistering service workers:', error);
+    try {
+      console.log('[BildirimiDene] Resetting VAPID notifications...');
+      
+      // Unsubscribe from VAPID push notifications
+      const unsubscribeResult = await pushManager.unsubscribe();
+      
+      console.log('[BildirimiDene] Unsubscribe result:', unsubscribeResult);
+      
+      // Clear stored subscription data
+      localStorage.removeItem('bildirimi-dene-subscription');
+      
+      // Reset status
+      setStatus({
+        supported: false,
+        permission: 'default',
+        subscribed: false,
+        vapidSubscribed: false
       });
+      
+      // Re-check support
+      checkNotificationSupport();
+      await checkExistingVapidSubscription();
+      
+      setTestResult('🔄 VAPID bildirimleri sıfırlandı');
+      
+    } catch (error) {
+      console.error('[BildirimiDene] Error resetting notifications:', error);
+      setTestResult(`❌ Sıfırlama hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+    } finally {
+      setIsLoading(false);
     }
-    
-    checkNotificationSupport();
   };
 
   return (
@@ -366,7 +341,14 @@ export function BildirimiDene() {
               <span className="bildirimi-dene__status-icon">
                 {status.subscribed ? '✅' : '❌'}
               </span>
-              <span>{status.subscribed ? 'Abone Olundu' : 'Abone Olunmadı'}</span>
+              <span>{status.subscribed ? 'Temel İzin Verildi' : 'Temel İzin Verilmedi'}</span>
+            </div>
+            
+            <div className={`bildirimi-dene__status-item ${status.vapidSubscribed ? 'success' : 'error'}`}>
+              <span className="bildirimi-dene__status-icon">
+                {status.vapidSubscribed ? '✅' : '❌'}
+              </span>
+              <span>{status.vapidSubscribed ? 'VAPID Abone (Android Uyumlu)' : 'VAPID Abone Değil'}</span>
             </div>
           </div>
         </div>
@@ -392,31 +374,31 @@ export function BildirimiDene() {
 
         {/* Action Buttons */}
         <div className="bildirimi-dene__actions">
-          {status.permission === 'default' && status.supported && (
+          {(!status.vapidSubscribed && status.supported) && (
             <button
-              onClick={requestNotificationPermission}
+              onClick={requestVapidSubscription}
               disabled={isLoading}
               className="bildirimi-dene__button bildirimi-dene__button--primary"
             >
-              {isLoading ? '⏳ İşleniyor...' : '🔔 Bildirimleri Etkinleştir'}
+              {isLoading ? '⏳ VAPID Abonelik...' : '🤖 Android VAPID Push Etkinleştir'}
             </button>
           )}
 
-          {status.subscribed && (
+          {status.vapidSubscribed && (
             <div className="bildirimi-dene__test-actions">
               <button
-                onClick={showTestNotification}
+                onClick={sendVapidTestNotification}
+                disabled={isLoading}
                 className="bildirimi-dene__button bildirimi-dene__button--success"
               >
-                📱 Yerel Test Bildirimi
+                {isLoading ? '📤 VAPID Gönderiliyor...' : '🤖 VAPID Push Test (Android)'}
               </button>
               
               <button
-                onClick={sendServerNotification}
-                disabled={isLoading}
+                onClick={showBasicTestNotification}
                 className="bildirimi-dene__button bildirimi-dene__button--accent"
               >
-                {isLoading ? '📤 Gönderiliyor...' : '🚀 Server Test Bildirimi'}
+                📱 Temel Bildirim Testi
               </button>
             </div>
           )}

@@ -1,18 +1,15 @@
 // public/sw.js - iWent Service Worker
-// OneSignal Service Worker
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+// VAPID Push Notifications Service Worker
+// Optimized for Android and cross-platform compatibility
 
-// Simple Service Worker for Push Notifications
-// Enhanced for Safari/iOS compatibility
+const CACHE_NAME = 'bildirimi-dene-v3';
+const SW_VERSION = '3.0.0';
 
-const CACHE_NAME = 'bildirimi-dene-v2';
-const SW_VERSION = '2.0.0';
-
-console.log('[SW] Service Worker v' + SW_VERSION + ' script loaded');
+console.log('[SW] VAPID Service Worker v' + SW_VERSION + ' script loaded');
 
 // Install event
 self.addEventListener('install', function(event) {
-  console.log('[SW] Service Worker installing v' + SW_VERSION);
+  console.log('[SW] VAPID Service Worker installing v' + SW_VERSION);
   
   // Skip waiting to activate immediately
   event.waitUntil(
@@ -22,7 +19,7 @@ self.addEventListener('install', function(event) {
 
 // Activate event
 self.addEventListener('activate', function(event) {
-  console.log('[SW] Service Worker activating v' + SW_VERSION);
+  console.log('[SW] VAPID Service Worker activating v' + SW_VERSION);
   
   event.waitUntil(
     // Clean up old caches
@@ -42,33 +39,39 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Push event - handle incoming push notifications
+// Push event - handle incoming VAPID push notifications
 self.addEventListener('push', function(event) {
-  console.log('[SW] Push event received:', event);
+  console.log('[SW] VAPID Push event received:', event);
   
   let notificationData = {
-    title: 'Bildirimi Dene',
-    body: 'Test bildirimi alındı!',
+    title: 'iWent Bildirimi',
+    body: 'Yeni bir bildirim aldınız!',
     icon: '/favicon.ico',
     badge: '/favicon.ico',
-    tag: 'bildirimi-dene-push',
+    tag: 'iwent-vapid-push',
     requireInteraction: false,
-    vibrate: [200, 100, 200],
+    vibrate: [200, 100, 200], // Enhanced for Android
     silent: false,
-    renotify: true
+    renotify: true,
+    image: null // Can be used for rich notifications
   };
 
-  // If push event has data, use it
+  // Parse push data if available
   if (event.data) {
     try {
       const pushData = event.data.json();
-      console.log('[SW] Push data received:', pushData);
+      console.log('[SW] VAPID push data received:', pushData);
+      
+      // Merge with default data
       notificationData = {
         ...notificationData,
-        ...pushData
+        ...pushData,
+        // Ensure Android-specific properties
+        vibrate: pushData.vibrate || [200, 100, 200],
+        tag: pushData.tag || 'iwent-vapid-push-' + Date.now()
       };
     } catch (e) {
-      console.warn('[SW] Could not parse push data as JSON:', e);
+      console.warn('[SW] Could not parse VAPID push data as JSON:', e);
       const textData = event.data.text();
       if (textData) {
         notificationData.body = textData;
@@ -76,33 +79,39 @@ self.addEventListener('push', function(event) {
     }
   }
 
+  // Display notification with Android-optimized options
+  const notificationOptions = {
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: notificationData.badge,
+    tag: notificationData.tag,
+    requireInteraction: notificationData.requireInteraction,
+    vibrate: notificationData.vibrate,
+    silent: notificationData.silent,
+    renotify: notificationData.renotify,
+    image: notificationData.image,
+    actions: [
+      {
+        action: 'open',
+        title: 'Aç',
+        icon: '/favicon.ico'
+      },
+      {
+        action: 'close',
+        title: 'Kapat'
+      }
+    ],
+    data: {
+      url: notificationData.url || '/bildirimi-dene',
+      timestamp: Date.now(),
+      eventId: notificationData.eventId || null,
+      type: notificationData.type || 'general'
+    }
+  };
+
   const promiseChain = self.registration.showNotification(
     notificationData.title,
-    {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      tag: notificationData.tag,
-      requireInteraction: notificationData.requireInteraction,
-      vibrate: notificationData.vibrate,
-      silent: notificationData.silent,
-      renotify: notificationData.renotify,
-      actions: [
-        {
-          action: 'open',
-          title: 'Aç',
-          icon: '/favicon.ico'
-        },
-        {
-          action: 'close',
-          title: 'Kapat'
-        }
-      ],
-      data: {
-        url: '/bildirimi-dene',
-        timestamp: Date.now()
-      }
-    }
+    notificationOptions
   );
 
   event.waitUntil(promiseChain);
@@ -198,4 +207,4 @@ self.addEventListener('fetch', function(event) {
   }
 });
 
-console.log('[SW] Service Worker v' + SW_VERSION + ' ready');
+console.log('[SW] VAPID Service Worker v' + SW_VERSION + ' ready for Android push notifications');
