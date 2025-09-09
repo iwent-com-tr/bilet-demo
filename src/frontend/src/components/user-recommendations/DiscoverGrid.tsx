@@ -102,7 +102,7 @@ const DiscoverGrid: React.FC = () => {
   return (
     <section className="popular-events">
       <div className="popular-events__header">
-        <h2 className="popular-events__title">→ Ankara'nın En Büyük Etkinlikleri</h2>
+        <h2 className="popular-events__title">→ Beğenebileceğin Etkinlikler</h2>
       </div>
       <div className="popular-events__grid-container">
         <div className="popular-events__grid">
