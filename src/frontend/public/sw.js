@@ -2,153 +2,113 @@
 // OneSignal Service Worker
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-// Cache name for static assets
-const CACHE_NAME = 'iwent-pwa-v1';
+// Simple Service Worker for Push Notifications
+// This provides basic push notification support without OneSignal
 
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
-  // Skip waiting to activate immediately
+const CACHE_NAME = 'bildirimi-dene-v1';
+
+// Install event
+self.addEventListener('install', function(event) {
+  console.log('[SW] Service Worker installing');
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
-  // Claim all clients immediately
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('fetch', (event) => {
-  // Simple network-first strategy for now
-  const req = event.request;
-  const url = new URL(req.url);
-
-  // 1) POST/PUT/DELETE gibi GET olmayanları SW hiç ele almasın
-  if (req.method !== 'GET') return;
-
-  // 2) Cross-origin istekleri (api.iwent.com.tr) SW’de bırakma
-  if (url.origin !== self.location.origin) return;
-
-  // 3) Aynı origin’de bile /api/... isteklerine dokunma
-  if (url.pathname.startsWith('/api/')) return;
-
-  event.respondWith(fetch(event.request));
-});
-
-// Custom push event handler (works alongside OneSignal)
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push event received:', event);
-  
-  let notificationData;
-  
-  try {
-    // Parse the push payload
-    if (event.data) {
-      notificationData = event.data.json();
-    } else {
-      // Fallback for empty payload
-      notificationData = {
-        title: 'iWent Notification',
-        body: 'You have a new notification',
-        url: '/',
-        type: 'general'
-      };
-    }
-  } catch (error) {
-    console.error('[SW] Error parsing push payload:', error);
-    // Fallback for malformed payload
-    notificationData = {
-      title: 'iWent Notification',
-      body: 'You have a new notification',
-      url: '/',
-      type: 'error'
-    };
-  }
-  
-  // Validate required fields
-  if (!notificationData.title || !notificationData.body) {
-    console.error('[SW] Invalid notification data:', notificationData);
-    return;
-  }
-  
-  // Show the notification
-  const notificationOptions = {
-    body: notificationData.body,
-    icon: notificationData.icon || '/android-chrome-192x192.png',
-    badge: notificationData.badge || '/android-chrome-192x192.png',
-    data: {
-      url: notificationData.url || '/',
-      type: notificationData.type || 'general',
-      timestamp: Date.now()
-    },
-    tag: notificationData.tag || 'iwent-notification',
-    requireInteraction: notificationData.requireInteraction || false,
-    silent: notificationData.silent || false,
-    actions: notificationData.actions || []
-  };
-  
+// Activate event
+self.addEventListener('activate', function(event) {
+  console.log('[SW] Service Worker activating');
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationOptions)
+    self.clients.claim()
   );
 });
 
-// Notification click handler
-self.addEventListener('notificationclick', (event) => {
+// Push event - handle incoming push notifications
+self.addEventListener('push', function(event) {
+  console.log('[SW] Push event received:', event);
+  
+  let notificationData = {
+    title: 'Bildirimi Dene',
+    body: 'Test bildirimi alındı!',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    tag: 'bildirimi-dene',
+    requireInteraction: false
+  };
+
+  // If push event has data, use it
+  if (event.data) {
+    try {
+      const pushData = event.data.json();
+      notificationData = {
+        ...notificationData,
+        ...pushData
+      };
+    } catch (e) {
+      console.warn('[SW] Could not parse push data as JSON:', e);
+      notificationData.body = event.data.text() || notificationData.body;
+    }
+  }
+
+  const promiseChain = self.registration.showNotification(
+    notificationData.title,
+    {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      tag: notificationData.tag,
+      requireInteraction: notificationData.requireInteraction,
+      actions: [
+        {
+          action: 'open',
+          title: 'Aç'
+        },
+        {
+          action: 'close',
+          title: 'Kapat'
+        }
+      ]
+    }
+  );
+
+  event.waitUntil(promiseChain);
+});
+
+// Notification click event
+self.addEventListener('notificationclick', function(event) {
   console.log('[SW] Notification clicked:', event);
   
   event.notification.close();
-  
-  // Get the URL from notification data
-  const urlToOpen = event.notification.data?.url || '/';
-  
-  // Log notification interaction
-  logNotificationInteraction('click', {
-    tag: event.notification.tag,
-    type: event.notification.data?.type,
-    timestamp: Date.now(),
-    url: urlToOpen
-  });
-  
-  // Handle notification click - open the URL
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there's already a window open with this URL
-      for (const client of clientList) {
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      
-      // If no window is open, open a new one
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen);
-      }
-    })
-  );
-});
 
-// Notification close handler
-self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] Notification closed:', event);
-  
-  // Log notification interaction
-  logNotificationInteraction('close', {
-    tag: event.notification.tag,
-    type: event.notification.data?.type,
-    timestamp: Date.now()
-  });
-});
-
-// Background sync handler
-self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync:', event.tag);
-  
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
+  if (event.action === 'close') {
+    return;
   }
+
+  // Open or focus the app window
+  const promiseChain = self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  }).then(function(windowClients) {
+    let clientToFocus;
+
+    for (let i = 0; i < windowClients.length; i++) {
+      const windowClient = windowClients[i];
+      if (windowClient.url.includes('/bildirimi-dene') && 'focus' in windowClient) {
+        clientToFocus = windowClient;
+        break;
+      }
+    }
+
+    if (clientToFocus) {
+      return clientToFocus.focus();
+    } else {
+      return self.clients.openWindow('/bildirimi-dene');
+    }
+  });
+
+  event.waitUntil(promiseChain);
 });
 
-// Message handler for communication with main thread
-self.addEventListener('message', (event) => {
+// Message event - handle messages from the main thread
+self.addEventListener('message', function(event) {
   console.log('[SW] Message received:', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -156,36 +116,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Helper function to log notification interactions
-function logNotificationInteraction(action, data) {
-  try {
-    console.log(`[SW] Notification ${action}:`, data);
-    
-    // Store interaction data in IndexedDB or send to analytics
-    // For now, just log to console
-    const interactionData = {
-      action,
-      ...data,
-      userAgent: navigator.userAgent,
-      timestamp: Date.now()
-    };
-    
-    // In a real implementation, you might want to send this to an analytics service
-    // or store it in IndexedDB for later synchronization
-  } catch (error) {
-    console.error('[SW] Error logging notification interaction:', error);
-  }
-}
-
-// Background sync function
-function doBackgroundSync() {
-  console.log('[SW] Performing background sync...');
-  
-  // Implement your background sync logic here
-  // This could include:
-  // - Syncing offline data
-  // - Fetching latest content
-  // - Cleaning up old cache entries
-  
-  return Promise.resolve();
-}
+console.log('[SW] Service Worker script loaded');

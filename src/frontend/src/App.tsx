@@ -42,7 +42,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import OrganizerList from './pages/admin/OrganizerList';
 import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
-import { PushNotificationDemo } from './pages/PushNotificationDemo';
+import BildirimiDene from './pages/BildirimiDene';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
 import NotificationsDemo from 'pages/NotificationsDemo';
 // Context
@@ -88,7 +88,7 @@ const App: React.FC = () => {
 
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />
-            <Route path="/push-notification-demo" element={<PushNotificationDemo />} />
+            <Route path="/bildirimi-dene" element={<BildirimiDene />} />
           </Route>
 
           {/* User Routes */}
