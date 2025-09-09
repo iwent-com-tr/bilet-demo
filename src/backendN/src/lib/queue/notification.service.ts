@@ -1,6 +1,7 @@
 import { Job } from 'bullmq';
 import { 
-  notificationQueue, 
+  getNotificationQueue,
+  initializeQueue,
   NotificationJobData, 
   EventUpdateJobData, 
   NewEventJobData,
@@ -10,10 +11,34 @@ import {
 } from './index.js';
 
 export class NotificationService {
+  private queue: any = null;
+  
+  constructor() {
+    this.initializeQueue();
+  }
+  
+  private async initializeQueue() {
+    this.queue = await initializeQueue();
+  }
+  
+  private async ensureQueue() {
+    if (!this.queue) {
+      this.queue = await initializeQueue();
+    }
+    return this.queue;
+  }
   /**
    * Queue an event update notification job
    */
-  async queueEventUpdateNotification(data: Omit<EventUpdateJobData, 'type'>): Promise<Job> {
+  async queueEventUpdateNotification(data: Omit<EventUpdateJobData, 'type'>): Promise<Job | null> {
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      console.warn('⚠️  Queue unavailable - event update notification will be skipped');
+      console.warn('⚠️  Consider implementing direct notification fallback');
+      return null;
+    }
+    
     const jobData: EventUpdateJobData = {
       type: JOB_TYPES.EVENT_UPDATE,
       ...data,
@@ -25,7 +50,7 @@ export class NotificationService {
     // Add job to queue with priority based on change type
     const priority = this.getJobPriority(validatedData.changeType);
     
-    return await notificationQueue.add(
+    return await queue.add(
       JOB_TYPES.EVENT_UPDATE,
       validatedData,
       {
@@ -41,7 +66,15 @@ export class NotificationService {
   /**
    * Queue a new event notification job
    */
-  async queueNewEventNotification(data: Omit<NewEventJobData, 'type'>): Promise<Job> {
+  async queueNewEventNotification(data: Omit<NewEventJobData, 'type'>): Promise<Job | null> {
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      console.warn('⚠️  Queue unavailable - new event notification will be skipped');
+      console.warn('⚠️  Consider implementing direct notification fallback');
+      return null;
+    }
+    
     const jobData: NewEventJobData = {
       type: JOB_TYPES.NEW_EVENT,
       ...data,
@@ -50,7 +83,7 @@ export class NotificationService {
     // Validate job data
     const validatedData = NewEventJobDataSchema.parse(jobData);
 
-    return await notificationQueue.add(
+    return await queue.add(
       JOB_TYPES.NEW_EVENT,
       validatedData,
       {
@@ -82,14 +115,20 @@ export class NotificationService {
    * Get job by ID
    */
   async getJob(jobId: string): Promise<Job | undefined> {
-    return await notificationQueue.getJob(jobId);
+    const queue = await this.ensureQueue();
+    if (!queue) return undefined;
+    
+    return await queue.getJob(jobId);
   }
 
   /**
    * Cancel a job
    */
   async cancelJob(jobId: string): Promise<boolean> {
-    const job = await this.getJob(jobId);
+    const queue = await this.ensureQueue();
+    if (!queue) return false;
+    
+    const job = await queue.getJob(jobId);
     if (job) {
       await job.remove();
       return true;
@@ -101,10 +140,23 @@ export class NotificationService {
    * Get queue statistics
    */
   async getQueueStats() {
-    const waiting = await notificationQueue.getWaiting();
-    const active = await notificationQueue.getActive();
-    const completed = await notificationQueue.getCompleted();
-    const failed = await notificationQueue.getFailed();
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      return {
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        total: 0,
+        available: false
+      };
+    }
+    
+    const waiting = await queue.getWaiting();
+    const active = await queue.getActive();
+    const completed = await queue.getCompleted();
+    const failed = await queue.getFailed();
 
     return {
       waiting: waiting.length,
@@ -112,6 +164,7 @@ export class NotificationService {
       completed: completed.length,
       failed: failed.length,
       total: waiting.length + active.length + completed.length + failed.length,
+      available: true
     };
   }
 
@@ -119,7 +172,14 @@ export class NotificationService {
    * Retry failed jobs
    */
   async retryFailedJobs(limit: number = 10): Promise<number> {
-    const failedJobs = await notificationQueue.getFailed(0, limit - 1);
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      console.warn('⚠️  Queue unavailable - cannot retry failed jobs');
+      return 0;
+    }
+    
+    const failedJobs = await queue.getFailed(0, limit - 1);
     let retriedCount = 0;
 
     for (const job of failedJobs) {
@@ -138,22 +198,43 @@ export class NotificationService {
    * Clean old jobs
    */
   async cleanOldJobs(olderThan: number = 24 * 60 * 60 * 1000): Promise<void> {
-    await notificationQueue.clean(olderThan, 100, 'completed');
-    await notificationQueue.clean(olderThan, 50, 'failed');
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      console.warn('⚠️  Queue unavailable - cannot clean old jobs');
+      return;
+    }
+    
+    await queue.clean(olderThan, 100, 'completed');
+    await queue.clean(olderThan, 50, 'failed');
   }
 
   /**
    * Pause the queue
    */
   async pauseQueue(): Promise<void> {
-    await notificationQueue.pause();
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      console.warn('⚠️  Queue unavailable - cannot pause queue');
+      return;
+    }
+    
+    await queue.pause();
   }
 
   /**
    * Resume the queue
    */
   async resumeQueue(): Promise<void> {
-    await notificationQueue.resume();
+    const queue = await this.ensureQueue();
+    
+    if (!queue) {
+      console.warn('⚠️  Queue unavailable - cannot resume queue');
+      return;
+    }
+    
+    await queue.resume();
   }
 }
 

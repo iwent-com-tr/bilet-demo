@@ -173,7 +173,7 @@ router.get('/admin/push/health',
 );
 
 /**
- * Send test notification (development only)
+ * Send test notification
  * POST /api/v1/admin/push/test
  */
 router.post('/admin/push/test',
@@ -216,7 +216,7 @@ router.get('/docs', (req, res) => {
         'GET /api/v1/admin/push/stats': 'Get notification statistics',
         'GET /api/v1/admin/push/health': 'Health check endpoint',
         'GET /api/v1/admin/push/ticket-stats': 'Get ticket holder statistics',
-        'POST /api/v1/admin/push/test': 'Send test notification (development only)',
+        'POST /api/v1/admin/push/test': 'Send test notification (admin only)',
       },
     },
     authentication: {

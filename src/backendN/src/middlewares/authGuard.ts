@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccess } from '../lib/jwt';
-import { prisma } from '../lib/prisma';
+import { UnifiedAuthService } from '../lib/unified-auth.service';
 import { UserService } from '../modules/users/user.service';
 
 // Endpoints that indicate active user activity (not background processes)
@@ -28,37 +27,19 @@ class AuthGuard {
       }
 
       const token = authHeader.split(' ')[1];
-      const payload = verifyAccess(token);
+      const authResult = await UnifiedAuthService.authenticateByToken(token);
       
-      if (!payload || !payload.sub) {
-        return res.status(401).json({ error: 'Invalid token' });
+      if (!authResult) {
+        return res.status(401).json({ error: 'Authentication failed' });
       }
 
-      // Find user in database
-      const user = await prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: { 
-          id: true, 
-          userType: true, 
-          adminRole: true,
-          deletedAt: true 
-        }
-      });
-
-      if (!user || user.deletedAt) {
-        return res.status(401).json({ error: 'User not found' });
-      }
-
-      // Set user info on request
-      req.user = {
-        id: user.id,
-        role: user.userType as 'USER' | 'ADMIN' | 'ORGANIZER',
-        adminRole: user.adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY'
-      };
+      // Set user info on request using unified format
+      req.user = UnifiedAuthService.createRequestUser(authResult);
 
       // Update lastSeenAt timestamp only for active endpoints (non-blocking)
-      if (isActiveEndpoint(req.path)) {
-        UserService.updateLastSeen(user.id).catch(err => {
+      // Only for users, not organizers
+      if (isActiveEndpoint(req.path) && authResult.entity.type === 'USER') {
+        UserService.updateLastSeen(authResult.entity.id).catch(err => {
           console.error('Failed to update lastSeenAt:', err);
         });
       }
@@ -78,33 +59,16 @@ class AuthGuard {
       }
 
       const token = authHeader.split(' ')[1];
-      const payload = verifyAccess(token);
+      const authResult = await UnifiedAuthService.authenticateByToken(token);
       
-      if (!payload || !payload.sub) {
-        return next(); // Invalid token, continue without user
-      }
-
-      // Find user in database
-      const user = await prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: { 
-          id: true, 
-          userType: true, 
-          adminRole: true,
-          deletedAt: true 
-        }
-      });
-
-      if (user && !user.deletedAt) {
-        req.user = {
-          id: user.id,
-          role: user.userType as 'USER' | 'ADMIN' | 'ORGANIZER',
-          adminRole: user.adminRole as 'USER' | 'ADMIN' | 'SUPPORT' | 'READONLY'
-        };
+      if (authResult) {
+        // Set user info on request using unified format
+        req.user = UnifiedAuthService.createRequestUser(authResult);
 
         // Update lastSeenAt timestamp only for active endpoints (non-blocking)
-        if (isActiveEndpoint(req.path)) {
-          UserService.updateLastSeen(user.id).catch(err => {
+        // Only for users, not organizers
+        if (isActiveEndpoint(req.path) && authResult.entity.type === 'USER') {
+          UserService.updateLastSeen(authResult.entity.id).catch(err => {
             console.error('Failed to update lastSeenAt:', err);
           });
         }

@@ -8,7 +8,10 @@ import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
-import { validateEnvironmentOrExit } from './lib/push/environment-validator.js';
+import { validateEnvironmentOrExit } from './lib/runtime-environment-validator';
+import ServiceIntegrationManager from './lib/service-integration-manager';
+import { closeQueue } from './lib/queue/index';
+import healthRoutes from './routes/health.routes';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/user.routes';
 import organizerRoutes from './modules/organizer/organizer.routes';
@@ -33,17 +36,24 @@ import { adminApiLimiter } from './middlewares/rateLimiter';
 import pushRoutes from './modules/push/push.routes';
 import notificationRoutes from './modules/push/notification.routes';
 import queueRoutes from './modules/queue/queue.routes';
-import { createNotificationWorker } from './lib/queue/notification.worker';
-import { closeQueue } from './lib/queue/index';
 import settingsRoutes from './modules/settings/settings.routes';
 
 dotenv.config();
 
-// Validate environment configuration on startup (optional in production)
-if (process.env.NODE_ENV !== 'production') {
-  validateEnvironmentOrExit();
-} else {
-  console.log('⚠️  Environment validation skipped in production mode');
+// Validate environment configuration on startup
+validateEnvironmentOrExit();
+
+// Initialize service integration manager
+const serviceManager = new ServiceIntegrationManager(prisma);
+
+// Function to initialize services
+async function initializeServices() {
+  try {
+    await serviceManager.initializeServices();
+  } catch (error) {
+    console.error('❌ Failed to initialize services:', error);
+    process.exit(1);
+  }
 }
 
 const args = process.argv.slice(2);
@@ -99,29 +109,27 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
+
+// Push notification routes
 app.use(`${API_PREFIX}/push`, pushRoutes);
 app.use(`${API_PREFIX}/events`, notificationRoutes);
 app.use(`${API_PREFIX}/queue`, queueRoutes);
 
+// Chat routes
 app.use(`${API_PREFIX}/chat`, chatRoutes);
 
+// OneSignal push notification routes
 app.use(`${API_PREFIX}/push`, pushNotificationRoutes);
 app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
+
+// Admin routes with rate limiting
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
 app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
-app.use(`${API_PREFIX}/push`, pushRoutes);
-app.use(`${API_PREFIX}/events`, notificationRoutes);
-app.use(`${API_PREFIX}/queue`, queueRoutes);
+// Health monitoring routes
+app.use(`${API_PREFIX}/health`, healthRoutes);
 
-// Server status check
-app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
-app.use(`${API_PREFIX}/settings`, settingsRoutes);
-
-app.get(`${API_PREFIX}/health`, (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
+// Database connection check
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
     await prisma.$connect();
@@ -186,18 +194,8 @@ setupChat(server);
 // Initialize MeiliSearch indexes
 initMeili();
 
-// Populate if ran with --populate (disabled in production)
-if (args.includes('--populate') && process.env.NODE_ENV !== 'production') {
-  console.log('Database population is disabled in production mode');
-  process.exit(0);
-}
-
-// Optionally start the notification worker in the same process
-let notificationWorker: any = null;
-if (process.env.START_WORKER === 'true') {
-  notificationWorker = createNotificationWorker(prisma);
-  console.log('🚀 Notification worker started in main process');
-}
+// Initialize services (database, Redis, push notifications, worker)
+initializeServices();
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
@@ -219,10 +217,8 @@ const gracefulShutdown = async (signal: string) => {
     // Close HTTP server
     server.close();
     
-    // Close notification worker if running
-    if (notificationWorker) {
-      await notificationWorker.close();
-    }
+    // Close service manager (includes worker and other services)
+    await serviceManager.shutdown();
     
     // Close queue connections
     await closeQueue();

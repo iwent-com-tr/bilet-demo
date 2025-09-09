@@ -173,27 +173,39 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
         setError(null);
 
         try {
-            const apiUrl = process.env.REACT_APP_API_URL ;
-            const response = await axios.post(`${apiUrl}/push/test`, {}, {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setError('Test bildirimi göndermek için giriş yapmanız gerekiyor.');
+                return;
+            }
+
+            const response = await axios.post('/api/v1/admin/push/test', {
+                title: 'Test Bildirimi 🔔',
+                body: 'Bu bilet-demo uygulamasından gönderilen test bildirimidir!',
+                testMode: true
+            }, {
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
                 },
-                withCredentials: true,
             });
 
             const data = response.data;
 
-            // Show success message
-            alert(`Test bildirimi başarıyla gönderildi! (${data.sent} gönderildi, ${data.failed} başarısız)`);
+            // Show success message with better formatting
+            const notificationId = data.data?.id || data.id || 'demo-' + Date.now();
+            alert(`✅ Test bildirimi başarıyla gönderildi!\nID: ${notificationId}\nDurum: ${data.message || 'Başarılı'}`);
         } catch (err) {
             console.error('Error sending test notification:', err);
 
             if (axios.isAxiosError(err)) {
                 const errorMessage = err.response?.data?.error || err.message;
-                if (errorMessage.includes('NO_SUBSCRIPTIONS')) {
+                if (errorMessage.includes('NO_SUBSCRIPTIONS') || errorMessage.includes('No active subscriptions')) {
                     setError('Aktif bildirim aboneliği bulunamadı. Lütfen önce bildirimleri etkinleştirin.');
                 } else if (errorMessage.includes('UNAUTHORIZED') || err.response?.status === 401) {
                     setError('Test bildirimi göndermek için giriş yapmanız gerekiyor.');
+                } else if (errorMessage.includes('FORBIDDEN') || err.response?.status === 403) {
+                    setError('Test bildirimi göndermek için admin yetkisi gerekiyor.');
                 } else {
                     setError(`Test bildirimi gönderilemedi: ${errorMessage}`);
                 }

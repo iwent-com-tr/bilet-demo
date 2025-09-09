@@ -8,6 +8,8 @@ declare namespace Express {
       role?: 'USER' | 'ADMIN' | 'ORGANIZER';
       adminRole?: 'ADMIN' | 'SUPPORT' | 'READONLY' | 'USER';
       avatarUrl?: string;
+      type?: 'USER' | 'ORGANIZER'; // Indicates if authenticated as user or organizer
+      permissions?: string[]; // Array of permissions
     };
   }
 }

@@ -8,11 +8,38 @@ const redisConfig = {
   port: parseInt(process.env.REDIS_PORT || '6379'),
   retryDelayOnFailover: 100,
   enableReadyCheck: false,
-  maxRetriesPerRequest: null,
+  maxRetriesPerRequest: 3,
+  lazyConnect: true, // Don't connect immediately
+  retryStrategy: (times: number) => {
+    const delay = Math.min(times * 50, 2000);
+    console.log(`Redis retry attempt ${times}, delay: ${delay}ms`);
+    return delay;
+  },
 };
 
-// Create Redis connection
+// Create Redis connection with error handling
 export const redis = new IORedis(redisConfig);
+
+// Redis connection event handlers
+redis.on('connect', () => {
+  console.log('✅ Redis connection established');
+});
+
+redis.on('ready', () => {
+  console.log('🚀 Redis ready for operations');
+});
+
+redis.on('error', (error) => {
+  console.warn('⚠️  Redis connection error:', error.message);
+});
+
+redis.on('close', () => {
+  console.log('📴 Redis connection closed');
+});
+
+redis.on('reconnecting', () => {
+  console.log('🔄 Redis reconnecting...');
+});
 
 // Queue names
 export const QUEUE_NAMES = {
@@ -76,8 +103,31 @@ const workerOptions: WorkerOptions = {
   removeOnFail: { count: 50 },
 };
 
-// Create notification queue
-export const notificationQueue = new Queue(QUEUE_NAMES.NOTIFICATIONS, queueOptions);
+// Create notification queue only if Redis is available
+let notificationQueue: Queue | null = null;
+
+// Initialize queue with Redis availability check
+export async function initializeQueue(): Promise<Queue | null> {
+  try {
+    await redis.ping();
+    
+    if (!notificationQueue) {
+      notificationQueue = new Queue(QUEUE_NAMES.NOTIFICATIONS, queueOptions);
+      console.log('✅ Notification queue initialized');
+    }
+    
+    return notificationQueue;
+  } catch (error) {
+    console.warn('⚠️  Queue initialization failed - Redis unavailable:', error instanceof Error ? error.message : 'Unknown error');
+    console.warn('⚠️  Background job processing will be disabled');
+    return null;
+  }
+}
+
+// Export queue getter that handles null case
+export function getNotificationQueue(): Queue | null {
+  return notificationQueue;
+}
 
 // Queue health check
 export async function checkQueueHealth(): Promise<{
@@ -91,6 +141,17 @@ export async function checkQueueHealth(): Promise<{
   try {
     // Check Redis connection
     const redisStatus = redis.status === 'ready';
+    
+    if (!redisStatus || !notificationQueue) {
+      return {
+        redis: redisStatus,
+        queue: false,
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+      };
+    }
     
     // Check queue status
     const waiting = await notificationQueue.getWaiting();
@@ -122,6 +183,15 @@ export async function checkQueueHealth(): Promise<{
 // Queue monitoring utilities
 export async function getQueueStats() {
   const stats = await checkQueueHealth();
+  
+  if (!notificationQueue) {
+    return {
+      ...stats,
+      paused: false,
+      name: QUEUE_NAMES.NOTIFICATIONS,
+    };
+  }
+  
   const isPaused = await notificationQueue.isPaused();
   
   return {
@@ -134,9 +204,15 @@ export async function getQueueStats() {
 // Graceful shutdown
 export async function closeQueue() {
   try {
-    await notificationQueue.close();
-    await redis.quit();
-    console.log('Queue and Redis connections closed gracefully');
+    if (notificationQueue) {
+      await notificationQueue.close();
+      console.log('Queue closed gracefully');
+    }
+    
+    if (redis.status !== 'end') {
+      await redis.quit();
+      console.log('Redis connection closed gracefully');
+    }
   } catch (error) {
     console.error('Error closing queue connections:', error);
   }

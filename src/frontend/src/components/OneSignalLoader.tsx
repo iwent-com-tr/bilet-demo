@@ -16,32 +16,43 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
   const isProduction = process.env.NODE_ENV === 'production';
   const hostname = window.location.hostname;
   
-  // In development, check for explicit enable flag OR localhost
+  // Get OneSignal App ID from environment
+  const appId = process.env.REACT_APP_ONESIGNAL_APP_ID;
+  
+  // In development, enable by default if App ID exists, or allow explicit disable
   if (isDevelopment) {
-    const enabledInDev = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
+    const explicitlyDisabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'false';
     const isLocalhost = hostname === 'localhost';
     
-    // Allow on localhost for demo purposes
-    if (!enabledInDev && !isLocalhost) {
+    // Disable only if explicitly disabled
+    if (explicitlyDisabled) {
       return {
         enabled: false,
-        reason: 'Push notifications disabled in development environment. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.',
+        reason: 'Push notifications explicitly disabled in development. Remove REACT_APP_ENABLE_PUSH_NOTIFICATIONS=false to enable.',
       };
     }
+    
+    // Check for App ID in development
+    if (!appId) {
+      return {
+        enabled: false,
+        reason: 'Push notifications not configured - missing REACT_APP_ONESIGNAL_APP_ID',
+      };
+    }
+    
+    console.log('[FeatureFlag] Push notifications enabled in development - App ID found for domain:', hostname);
   }
   
-  // In production, allow on any domain if we have App ID
+  // In production, enable if App ID exists
   if (isProduction) {
-    const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
-    
-    if (!hasAppId) {
+    if (!appId) {
       return {
         enabled: false,
-        reason: `Push notifications not configured - missing REACT_APP_ONESIGNAL_APP_ID`,
+        reason: 'Push notifications not configured - missing REACT_APP_ONESIGNAL_APP_ID',
       };
     }
     
-    console.log('[FeatureFlag] Push notifications enabled - App ID found for domain:', hostname);
+    console.log('[FeatureFlag] Push notifications enabled in production - App ID found for domain:', hostname);
   }
   
   // Get app ID based on environment
@@ -65,19 +76,19 @@ export function usePushNotificationFeatureFlag(): PushNotificationFeatureFlag {
 function shouldLoadOneSignal(): boolean {
   const hostname = window.location.hostname;
   
-  // Skip in development unless explicitly enabled
+  // Check if explicitly disabled in development
   if (process.env.NODE_ENV === 'development') {
-    const isEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
-    if (!isEnabled) {
-      console.log('[OneSignalLoader] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
+    const explicitlyDisabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'false';
+    if (explicitlyDisabled) {
+      console.log('[OneSignalLoader] OneSignal explicitly disabled in development.');
       return false;
     }
   }
 
-  // Always initialize if we have an App ID (works on any domain)
+  // Initialize if we have an App ID (works on any domain, any environment)
   const hasAppId = !!process.env.REACT_APP_ONESIGNAL_APP_ID;
   if (hasAppId) {
-    console.log('[OneSignalLoader] OneSignal enabled - App ID found for hostname:', hostname);
+    console.log('[OneSignalLoader] OneSignal enabled - App ID found for hostname:', hostname, 'environment:', process.env.NODE_ENV);
     return true;
   }
 
