@@ -39,7 +39,7 @@ const Calendar: React.FC<CalendarProps> = ({ onDateSelect, selectedDate }) => {
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
-
+  // yine build alsın diye eklendi bu satır kanka
   // Fetch events for the current month
   const fetchMonthEvents = async (date: Date) => {
     setLoading(true);
