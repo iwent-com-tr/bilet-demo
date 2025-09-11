@@ -12,6 +12,7 @@ import "./VenuesDetail.css";
 import MobileNavbar from "components/layouts/MobileNavbar";
 import { useAuth } from "context/AuthContext";
 import { toast } from "react-toastify";
+import IWentMap from "components/iwent-map/IWentMap";
 
 interface Venue {
     id: string;
@@ -168,6 +169,11 @@ const VenuesDetail: React.FC = () => {
             </div>
 
             <VenuesEventList eventIds={venue.events} />
+
+            <div className='venue-map-wrapper'>
+                <h2 className="event-detail__ticket-title">Mekan Konumu</h2>
+                <IWentMap venueId={venue.id}/>
+            </div>
             <MobileNavbar />
         </div>
     );

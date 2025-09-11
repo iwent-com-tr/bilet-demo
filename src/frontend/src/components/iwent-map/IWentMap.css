@@ -94,3 +94,8 @@
     box-sizing: border-box !important;
     max-width: calc(100vw - 40px) !important;
 }
+
+.dark-mode-tiles {
+  filter: invert(100%) hue-rotate(180deg); /* Adjust values as needed */
+}
+

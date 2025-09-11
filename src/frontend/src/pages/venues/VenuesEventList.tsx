@@ -42,6 +42,16 @@ const VenuesEventList: React.FC<{ eventIds: string[] }> = ({ eventIds }: { event
     return <div>Loading...</div>;
   }
 
+  if (events.length === 0) {
+    return (
+      <div className="event-list__grid-container search__grid-container">
+        <h1 className="search__title venue-event-list-title">
+          Mekanın yaklaşan etkinliği bulunmamakta.
+        </h1>
+      </div>
+    );
+  }
+
     return (
         <div className="event-list__grid-container search__grid-container">
                         <h1 className="search__title venue-event-list-title">
