@@ -24,7 +24,7 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState<CityItem[]>([]);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL as string | undefined;
+  const API_BASE_URL = process.env.REACT_APP_API_URL as string ;
 
   useEffect(() => {
     const fetchCities = async () => {

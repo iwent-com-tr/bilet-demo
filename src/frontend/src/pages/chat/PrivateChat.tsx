@@ -80,13 +80,21 @@ const PrivateChat: React.FC = () => {
         axios.get(
           `${process.env.REACT_APP_API_URL}/chat/private/${userId}/messages`,
           {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
           }
         ),
         axios.get(
           `${process.env.REACT_APP_API_URL}/users/${userId}`,
           {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
           }
         )
       ]);

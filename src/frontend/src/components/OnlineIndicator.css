@@ -1,0 +1,68 @@
+.online-indicator-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.online-indicator-dot {
+  border-radius: 50%;
+  border: 2px solid #000;
+  flex-shrink: 0;
+}
+
+.online-indicator-sm {
+  width: 8px;
+  height: 8px;
+}
+
+.online-indicator-md {
+  width: 12px;
+  height: 12px;
+}
+
+.online-indicator-lg {
+  width: 16px;
+  height: 16px;
+}
+
+.online-indicator-dot.online {
+  background: #05EF7E;
+  animation: pulse 2s infinite;
+}
+
+.online-indicator-dot.offline {
+  background: #6b7280;
+}
+
+.online-indicator-text {
+  font-weight: 500;
+}
+
+.online-indicator-text-sm {
+  font-size: 12px;
+}
+
+.online-indicator-text-md {
+  font-size: 14px;
+}
+
+.online-indicator-text-lg {
+  font-size: 16px;
+}
+
+.online-indicator-text.online {
+  color: #05EF7E;
+}
+
+.online-indicator-text.offline {
+  color: #6b7280;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+} 

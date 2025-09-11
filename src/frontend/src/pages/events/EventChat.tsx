@@ -118,7 +118,11 @@ const EventChat: React.FC = () => {
       const messagesResponse = await axios.get(
         `${process.env.REACT_APP_API_URL}/chat/event/${eventData.id}/messages`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         }
       );
 
@@ -128,7 +132,11 @@ const EventChat: React.FC = () => {
       const participantsResponse = await axios.get(
         `${process.env.REACT_APP_API_URL}/chat/event/${eventData.id}/participants`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         }
       );
 
@@ -249,6 +257,9 @@ const EventChat: React.FC = () => {
     );
   }
 
+  // Derived boolean to check if current user is the event organizer
+  const isEventOrganizer = !!(user?.userType === 'ORGANIZER' && event.organizer.id === user?.id);
+
             return (
     <div className="event-chat-page">
       <ChatHeader
@@ -285,7 +296,8 @@ const EventChat: React.FC = () => {
                 message={message}
                 currentUserId={user?.id || ''}
 
-                currentUserType={user?.userType === 'ORGANIZER' ? 'organizer' : 'user'}
+                currentUserType={isEventOrganizer ? 'organizer' : 'user'}
+
               />
             ))
           )}
@@ -321,7 +333,9 @@ const EventChat: React.FC = () => {
           participants={participants}
           onClose={handleCloseGroupInfo}
           currentUserId={user?.id || ''}
-          isOrganizer={user?.userType === 'ORGANIZER' && event.organizer.id === user.id}
+
+          isOrganizer={isEventOrganizer}
+
         />
       )}
     </div>

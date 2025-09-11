@@ -1,41 +1,33 @@
 import React from 'react';
+import './OnlineIndicator.css';
 
 interface OnlineIndicatorProps {
   isOnline: boolean;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  showText?: boolean;
 }
 
 const OnlineIndicator: React.FC<OnlineIndicatorProps> = ({ 
   isOnline, 
   size = 'md', 
-  className = '' 
+  className = '',
+  showText = false
 }) => {
-  const sizeClasses = {
-    sm: 'w-2 h-2',
-    md: 'w-3 h-3', 
-    lg: 'w-4 h-4'
-  };
-
-  const textSizes = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-base'
-  };
-
   return (
-    <div className={`flex items-center space-x-1 ${className}`}>
+    <div className={`online-indicator-container ${className}`}>
       <div 
         className={`
-          ${sizeClasses[size]} 
-          rounded-full 
-          ${isOnline ? 'bg-green-500' : 'bg-gray-400'}
-          ${isOnline ? 'animate-pulse' : ''}
+          online-indicator-dot
+          online-indicator-${size}
+          ${isOnline ? 'online' : 'offline'}
         `}
       />
-      <span className={`${textSizes[size]} ${isOnline ? 'text-green-600' : 'text-gray-500'}`}>
-        {isOnline ? 'çevrimiçi' : 'çevrimdışı'}
-      </span>
+      {showText && (
+        <span className={`online-indicator-text online-indicator-text-${size} ${isOnline ? 'online' : 'offline'}`}>
+          {isOnline ? 'çevrimiçi' : 'çevrimdışı'}
+        </span>
+      )}
     </div>
   );
 };

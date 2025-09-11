@@ -12,7 +12,7 @@ export class VenuesService {
   }
 
     static async findById(id: string) {
-        const venue = await prisma.event.findFirst({ 
+        const venue = await prisma.venue.findFirst({ 
           where: { 
             id, deletedAt: null 
           },
@@ -70,8 +70,11 @@ export class VenuesService {
       });
   
       // Add the venue to the meilisearch index
-      venueIndex.addDocuments([{id: created.id, ...createInfoMeili}]);
-
+      if (venueIndex) {
+        venueIndex.addDocuments([{id: created.id, ...createInfoMeili}]);
+      }
+      
+      return created;
     }      
 
     static update = async function update(id: string, input: UpdateVenueInput) {
@@ -90,13 +93,17 @@ export class VenuesService {
         });
     
         // Update the event in the meilisearch index
-        venueIndex.updateDocuments([{id, ...updateInfoMeili}]);
+        if (venueIndex) {
+          venueIndex.updateDocuments([{id, ...updateInfoMeili}]);
+        }
     
         return { ...updated } as const;
     }
 
     static softDelete = async function softDelete(id: string) {
-      await venueIndex.deleteDocument(id);
+      if (venueIndex) {
+        await venueIndex.deleteDocument(id);
+      }
       
       await prisma.venue.update({ where: { id }, data: { deletedAt: new Date() } });
     }

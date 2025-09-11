@@ -42,7 +42,7 @@ export class MeiliService {
   const dbEvents = await prisma.event.findMany({
     where: {
       id: {
-        in: hits.map((hit) => hit.id),
+        in: hits.map((hit: any) => hit.id),
       },
     },
     select: {
@@ -110,7 +110,7 @@ export class MeiliService {
     dbEvents.map((e) => [e.id, e.venueExperimental])
   );
 
-  const filteredHits = hits.filter((hit) => {
+  const filteredHits = hits.filter((hit: any) => {
     const venue = venueMap.get(hit.id);
     if (!venue) return true;
 

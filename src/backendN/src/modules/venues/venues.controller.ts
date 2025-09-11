@@ -60,7 +60,7 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
       favoriteCount: venue.favoriteUsers.length,
       following: venue.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
     }
-    res.json({ event: sanitizeVenue(venue) });
+    res.json({ venue: sanitizeVenue(publicInfo) });
   } catch (e) { next(e); }
 }
 

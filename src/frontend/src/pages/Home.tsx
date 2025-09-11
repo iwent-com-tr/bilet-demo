@@ -45,12 +45,12 @@ const Home: React.FC = () => {
       try {
         // Use the new backendN API endpoint with status filter
         const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/events?status=ACTIVE`);
-        
+
         // Filter events that have banners - use response.data.data instead of response.data.events
-        const eventsWithBanners = response.data.data?.filter((event: Event) => 
+        const eventsWithBanners = response.data.data?.filter((event: Event) =>
           event.banner && event.banner.trim() !== ''
         ) || [];
-        
+
         setEvents(eventsWithBanners);
         setLoading(false);
       } catch (error) {
@@ -92,8 +92,8 @@ const Home: React.FC = () => {
                 }}
               >
                 {events.map((event) => (
-                  <div 
-                    key={event.id} 
+                  <div
+                    key={event.id}
                     className="hero-slider__slide"
                     onClick={() => handleSlideClick(event.slug)}
                     style={{ cursor: 'pointer' }}

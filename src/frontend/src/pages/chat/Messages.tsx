@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import MobileNavbar from '../../components/layouts/MobileNavbar';
 import OnlineIndicator from '../../components/OnlineIndicator';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import NewChatModal from '../../components/chat/NewChatModal';
 import './Messages.css';
 
 interface ChatPreview {
@@ -38,6 +39,7 @@ const Messages: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Hepsi');
   const [error, setError] = useState<string | null>(null);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
   const { updateOnlineStatus, isUserOnline } = useOnlineStatus();
 
   const filterTabs: FilterTab[] = [
@@ -79,54 +81,70 @@ const Messages: React.FC = () => {
         axios.get(
           `${process.env.REACT_APP_API_URL}/chat/my-event-chats`,
           {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
           }
         ),
         axios.get(
           `${process.env.REACT_APP_API_URL}/chat/my-private-chats`,
           {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
           }
         )
       ]);
 
-      const eventChats: ChatPreview[] = eventChatsResponse.data.chats?.map((chat: any) => ({
-        id: `event-${chat.eventId}`,
-        type: 'event' as const,
-        name: chat.eventName,
-        avatar: chat.eventBanner,
-        lastMessage: chat.lastMessage ? {
-          text: chat.lastMessage.senderName 
-            ? `${chat.lastMessage.senderName}: ${chat.lastMessage.message}`
-            : chat.lastMessage.message,
-          time: formatTime(chat.lastMessage.createdAt),
-          senderId: chat.lastMessage.senderId,
-          senderName: chat.lastMessage.senderName
-        } : {
-          text: 'Henüz mesaj yok',
-          time: formatTime(chat.event?.startDate),
-          senderId: 'system',
-          senderName: undefined
-        },
-        unreadCount: chat.unreadCount || 0,
-        eventSlug: chat.eventSlug
-      })) || [];
+      // Handle both array and object response formats for backward compatibility
+      const eventChatsData = eventChatsResponse.data?.chats || eventChatsResponse.data || [];
+      const privateChatsData = privateChatsResponse.data?.chats || privateChatsResponse.data || [];
 
-      const privateChats: ChatPreview[] = privateChatsResponse.data.chats?.map((chat: any) => ({
-        id: `private-${chat.userId}`,
-        type: 'private' as const,
-        name: chat.user ? `${chat.user.firstName} ${chat.user.lastName}` : 'Bilinmeyen Kullanıcı',
-        avatar: chat.user?.avatar,
-        lastMessage: {
-          text: chat.lastMessage?.message || 'Henüz mesaj yok',
-          time: formatTime(chat.lastMessage?.createdAt),
-          senderId: chat.lastMessage?.senderId || chat.userId,
-          senderName: chat.user?.firstName
-        },
-        unreadCount: chat.unreadCount || 0,
-        userId: chat.userId,
-        isOnline: chat.user?.isOnline || false
-      })) || [];
+      const eventChats: ChatPreview[] = Array.isArray(eventChatsData) 
+        ? eventChatsData.map((chat: any) => ({
+            id: `event-${chat.eventId}`,
+            type: 'event' as const,
+            name: chat.eventName,
+            avatar: chat.eventBanner,
+            lastMessage: chat.lastMessage ? {
+              text: chat.lastMessage.senderName 
+                ? `${chat.lastMessage.senderName}: ${chat.lastMessage.message}`
+                : chat.lastMessage.message,
+              time: formatTime(chat.lastMessage.createdAt),
+              senderId: chat.lastMessage.senderId,
+              senderName: chat.lastMessage.senderName
+            } : {
+              text: 'Henüz mesaj yok',
+              time: formatTime(chat.event?.startDate),
+              senderId: 'system',
+              senderName: undefined
+            },
+            unreadCount: chat.unreadCount || 0,
+            eventSlug: chat.eventSlug
+          }))
+        : [];
+
+      const privateChats: ChatPreview[] = Array.isArray(privateChatsData)
+        ? privateChatsData.map((chat: any) => ({
+            id: `private-${chat.userId}`,
+            type: 'private' as const,
+            name: chat.user ? `${chat.user.firstName} ${chat.user.lastName}` : 'Bilinmeyen Kullanıcı',
+            avatar: chat.user?.avatar,
+            lastMessage: {
+              text: chat.lastMessage?.message || 'Henüz mesaj yok',
+              time: formatTime(chat.lastMessage?.createdAt),
+              senderId: chat.lastMessage?.senderId || chat.userId,
+              senderName: chat.user?.firstName
+            },
+            unreadCount: chat.unreadCount || 0,
+            userId: chat.userId,
+            isOnline: chat.user?.isOnline || false
+          }))
+        : [];
 
       const allChats = [...eventChats, ...privateChats].sort((a, b) => {
         const aTime = a.lastMessage.time || '0';
@@ -135,6 +153,7 @@ const Messages: React.FC = () => {
       });
 
       setChats(allChats);
+      setError(null); // Clear any previous errors on successful fetch
     } catch (error) {
       console.error('Error fetching chats:', error);
       setError('Mesajlar yüklenirken bir hata oluştu');
@@ -242,7 +261,11 @@ const Messages: React.FC = () => {
       {/* Header */}
       <div className="messages-header">
         <h1 className="messages-title">Mesajlar</h1>
-        <button className="messages-add-button" aria-label="Yeni sohbet başlat">
+        <button 
+          className="messages-add-button" 
+          aria-label="Yeni sohbet başlat"
+          onClick={() => setShowNewChatModal(true)}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path 
               d="M12 5V19M5 12H19" 
@@ -363,6 +386,12 @@ const Messages: React.FC = () => {
       </div>
 
       <MobileNavbar />
+      
+      {/* New Chat Modal */}
+      <NewChatModal 
+        isOpen={showNewChatModal}
+        onClose={() => setShowNewChatModal(false)}
+      />
     </div>
   );
 };

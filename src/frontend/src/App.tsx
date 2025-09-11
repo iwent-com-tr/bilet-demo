@@ -2,10 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './utils/axios'; // Configure axios interceptors
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
 import ProtectedRoute from './components/layouts/ProtectedRoute';
+import { OneSignalLoader } from './components/OneSignalLoader';
 
 // Pages
 import Home from './pages/Home';
@@ -33,14 +35,16 @@ import Settings from './pages/user/settings/Settings';
 import PhoneVerify from './pages/user/PhoneVerify';
 import PhoneVerifyOrganizer from './pages/organizer/PhoneVerify';
 import CalendarPage from './pages/Calendar';
+
 import UserList from './pages/admin/UserList';
 import UserDetail from './pages/admin/UserDetail';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import OrganizerList from './pages/admin/OrganizerList';
 import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
-import { PushNotificationDemo } from './pages/PushNotificationDemo';
+import BildirimiDene from './pages/BildirimiDene';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
+import NotificationsDemo from 'pages/NotificationsDemo';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import Search from 'pages/search/Search';
@@ -59,8 +63,9 @@ import MapPage from 'pages/map/Map';
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <OneSignalLoader>
+      <AuthProvider>
+        <Router>
         <Routes>
           {/* Public Routes */}
           <Route element={<MainLayout />}>
@@ -72,6 +77,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
+            <Route path="/notifications-demo" element={<NotificationsDemo />} />
             <Route path="/search" element={<Search />} />
             <Route path='/search/:index_name' element={<Search />} />
 
@@ -83,9 +89,8 @@ const App: React.FC = () => {
 
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />
-            <Route path="/push-notification-demo" element={<PushNotificationDemo />} />
-            <Route path="/map" element={<MapPage />} />
 
+            <Route path="/bildirimi-dene" element={<BildirimiDene />} />
           </Route>
 
           {/* User Routes */}
@@ -237,6 +242,7 @@ const App: React.FC = () => {
         pauseOnHover
       />
     </AuthProvider>
+    </OneSignalLoader>
   );
 };
 

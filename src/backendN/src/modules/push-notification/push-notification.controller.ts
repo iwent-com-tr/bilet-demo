@@ -240,46 +240,63 @@ export class PushNotificationController {
   }
 
   /**
-   * Send test notification (development)
+   * Send test notification
    * POST /api/v1/admin/push/test
    */
   async sendTestNotification(req: Request, res: Response): Promise<void> {
     try {
-      // Only allow in development environment
-      if (process.env.NODE_ENV === 'production') {
-        res.status(403).json({ error: 'Test endpoints not available in production' });
-        return;
-      }
-
       const userId = (req as any).user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Authentication required' });
         return;
       }
 
+      // Check if user is admin or has appropriate permissions
+      const userType = (req as any).user?.userType;
+      const adminRole = (req as any).user?.adminRole;
+      
+      if (userType !== 'ADMIN' && adminRole !== 'ADMIN') {
+        res.status(403).json({ error: 'Admin access required for test notifications' });
+        return;
+      }
+
       const validatedData = TestNotificationSchema.parse(req.body);
       
+      // Use the provided userId from request or fall back to current user
+      const targetUserId = validatedData.userId || userId;
+      
       // Get user's subscriptions
-      const subscriptions = await subscriptionService.getUserSubscriptions(
-        validatedData.userId || userId
-      );
+      const subscriptions = await subscriptionService.getUserSubscriptions(targetUserId);
       
       if (subscriptions.length === 0) {
-        res.status(404).json({ error: 'No active subscriptions found' });
+        res.status(404).json({ 
+          error: 'No active subscriptions found',
+          message: 'Please enable push notifications first'
+        });
         return;
       }
       
-      // Send test notification to the first subscription
+      // Use custom title and body if provided, otherwise use defaults
+      const notificationTitle = validatedData.title || 'Test Notification 🔔';
+      const notificationBody = validatedData.body || 'This is a test push notification from bilet-demo!';
+      
+      // Send test notification to the user's subscriptions
       const result = await oneSignalService.sendTestNotification(
         subscriptions[0].onesignalUserId,
-        validatedData.title,
-        validatedData.body
+        notificationTitle,
+        notificationBody
       );
       
       res.status(200).json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          id: result.id || 'test-notification-' + Date.now(),
+          title: notificationTitle,
+          body: notificationBody,
+        },
         devicesNotified: subscriptions.length,
+        message: 'Test notification sent successfully'
       });
     } catch (error) {
       console.error('Send test notification error:', error);

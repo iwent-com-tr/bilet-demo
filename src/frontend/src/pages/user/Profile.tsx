@@ -348,7 +348,7 @@ const Profile: React.FC = () => {
       },
       {
         label: 'Bildirim Test',
-        onClick: () => navigate('/push-notification-demo'),
+        onClick: () => navigate('/bildirimi-dene'),
       },
       {
         label: 'Çıkış Yap',

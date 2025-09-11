@@ -1,12 +1,13 @@
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../lib/prisma';
-import { verifyAccess } from '../lib/jwt';
+import { UnifiedAuthService } from '../lib/unified-auth.service';
 import { UserService } from '../modules/users/user.service';
 
 type Principal = {
   id: string;
   role: 'USER' | 'ORGANIZER' | 'ADMIN';
+  type: 'USER' | 'ORGANIZER';
 };
 
 let io: SocketIOServer | null = null;
@@ -47,28 +48,20 @@ export function setupChat(server: http.Server): SocketIOServer {
         return next(err);
       }
 
-      const payload = verifyAccess(authToken);
-      const userId = payload.sub;
-      if (!userId) {
+      const authResult = await UnifiedAuthService.authenticateByToken(authToken);
+      if (!authResult) {
         const err: any = new Error('unauthorized');
         err.status = 401; err.code = 'UNAUTHORIZED';
         return next(err);
       }
 
-      // Resolve principal: try User first, then Organizer
-      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
-      if (dbUser) {
-        (socket.data as any).principal = { id: dbUser.id, role: (dbUser as any).userType === 'ADMIN' ? 'ADMIN' : 'USER' } as Principal;
-      } else {
-        const dbOrganizer = await prisma.organizer.findUnique({ where: { id: userId } });
-        if (dbOrganizer) {
-          (socket.data as any).principal = { id: dbOrganizer.id, role: 'ORGANIZER' } as Principal;
-        } else {
-          const err: any = new Error('unauthorized');
-          err.status = 401; err.code = 'UNAUTHORIZED';
-          return next(err);
-        }
-      }
+      // Create principal from unified auth result
+      (socket.data as any).principal = {
+        id: authResult.entity.id,
+        role: authResult.role,
+        type: authResult.entity.type
+      } as Principal;
+      
       next();
     } catch (e) {
       const err: any = e instanceof Error ? e : new Error('unauthorized');
@@ -235,6 +228,7 @@ export function setupChat(server: http.Server): SocketIOServer {
         const saved = await prisma.chatMessage.create({
           data: {
             eventId: event.id,
+            userId: principal.id,
             senderId: principal.id,
             senderType: principal.role === 'ORGANIZER' ? 'ORGANIZER' : 'USER',
             message: message.trim(),

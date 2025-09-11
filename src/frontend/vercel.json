@@ -1,0 +1,9 @@
+{
+    "rewrites": [
+      {
+        "source": "/api/v1/:path*",
+        "destination": "https://api.iwent.com.tr/api/v1/:path*"
+      }
+    ]
+  }
+  
