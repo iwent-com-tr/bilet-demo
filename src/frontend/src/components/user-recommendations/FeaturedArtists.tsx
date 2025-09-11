@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 
 interface Artist {
   id: string;
+  slug: string;
   name: string;
   banner?: string;
   following: boolean;
@@ -83,7 +84,7 @@ const FeaturedArtists: React.FC = () => {
         <div className="featured-artists__grid">
           {artists.map((artist) => (
             <div key={artist.id} className="featured-artists__card">
-              <Link to={`/artist/${artist.id}`} className="featured-artists__image-link">
+              <Link to={`/artists/${artist.slug}`} className="featured-artists__image-link">
                 <div className="featured-artists__image-container">
                   <img src={artist.banner} alt={artist.name} className="featured-artists__image" />
                 </div>

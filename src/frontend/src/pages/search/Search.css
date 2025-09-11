@@ -146,10 +146,12 @@
   flex: 1 1 auto;                 /* expands so sibling cards have equal height */
   box-sizing: border-box;
 }
-/* make each artist card a horizontal row */
-.artist-list__grid .artist-list__card {
+/* make each artist card a horizontal row (only on mobile) */
+/* .artist-list__grid .artist-list__card {
   display: flex;
   flex-direction: row;       /* image and stripe side-by-side */
+ */
+.artist-list__card {
   align-items: center;
   gap: 16px;
   padding: 12px;            /* optional spacing */
@@ -263,14 +265,19 @@
    ------------------------- */
 .search__title {
     display: flex;
-    color: var(--active-green);
     padding: 8px;
     width: 100%;
     margin-bottom: 12px;
     margin-right: 0px;
     margin-left: 0px;
     margin-top: 16px;
-    font-size: 36px;
+    text-align: center;
+    width: 100%;
+    justify-self: center;
+    justify-content: center;
+    color: rgb(173, 173, 173);
+    font-size: 42px;
+    font-weight: 900;
 }
 
 /* -------------------------
@@ -292,6 +299,7 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 320px;
+  padding: 12px;
 }
 
 /* Provide a safe-image rule for any generic img inside a card (display:block) */
@@ -392,7 +400,7 @@
   .artist-list__card {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;   /* instead of center */
+  align-items: center;
   justify-content: flex-start;
   background-color: black;
   border-radius: 12px;
@@ -425,12 +433,14 @@
 
   .artist-list__title {
     margin-top: 18px;
+    margin-left: 12px;
     font-size: 15px;
     line-height: 0.2;
   }
 
   .artist-list__genres {
     font-size: 12px;
+    margin-left: 12px;
     line-height: 1;
   }
 

@@ -50,6 +50,7 @@ import Messages from './pages/chat/Messages';
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
 import OrganizerDetails from 'pages/organizer/organizer-3rd-view/OrganizerDetails';
+import MapPage from 'pages/map/Map';
 
 
 const App: React.FC = () => {
@@ -75,6 +76,8 @@ const App: React.FC = () => {
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />
             <Route path="/push-notification-demo" element={<PushNotificationDemo />} />
+            <Route path="/map" element={<MapPage />} />
+
           </Route>
 
           {/* User Routes */}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import L, { LatLngExpression } from "leaflet";
 import "./IWentMap.css";
+
 
 
 interface ApiResponse {
@@ -58,6 +59,37 @@ const DefaultIcon = L.icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41],
 });
+
+import defaultIcon from '../../assets/map/default-icon.png';
+import defaultIconActive from '../../assets/map/default-icon-active.png';
+import venueIcon from '../../assets/map/venue-icon.png';
+import venueIconActive from '../../assets/map/venue-icon-active.png';
+
+const DefaultMapIcon = L.icon({
+    iconUrl: defaultIcon,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+});
+
+const DefaultMapIconActive = L.icon({
+    iconUrl: defaultIconActive,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+});
+
+const VenueMapIcon = L.icon({
+    iconUrl: venueIcon,
+    iconSize: [32, 44],
+    iconAnchor: [16, 32],
+});
+
+const VenueMapIconActive = L.icon({
+    iconUrl: venueIconActive,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+
+});
+
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const IWentMap = ({ venueId }: IWentMapProps) => {
@@ -65,9 +97,20 @@ const IWentMap = ({ venueId }: IWentMapProps) => {
     const [userPosition, setUserPosition] = useState<[number, number]>([0, 0]);
     const [dbVenues, setDbVenues] = useState<Venue[]>([]);
     const [filters, setFilters] = useState({});
+    const [currentZoom, setCurrentZoom] = useState(13); // Initial zoom level
+
+    // Custom hook to get map events
+    function MapEvents() {
+        useMapEvents({
+            zoomend: (e) => {
+                setCurrentZoom(e.target.getZoom());
+            },
+        });
+        return null;
+    }
 
     const fetchVenues = async () => {
-        const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/venues`);
+        const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/venues?limit=100`);
         const venuesFormatted: Venue[] = response.data.data.map(v => ({
         ...v,
         latitude: Number(v.latitude),
@@ -108,11 +151,12 @@ const IWentMap = ({ venueId }: IWentMapProps) => {
         zoom={13}
         style={{ height: "100vh", width: "100%" }}
     >
+        <MapEvents />
 
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+        className="dark-mode-tiles"/>
     {/* user location */}
     {userPosition[0] !== 0 && userPosition[1] !== 0 && (
         <Marker position={userPosition as any}>
@@ -121,31 +165,36 @@ const IWentMap = ({ venueId }: IWentMapProps) => {
     )}
 
     {/* venues */}
-    {dbVenues
-    .filter(v => typeof v.latitude === "number" && typeof v.longitude === "number")
-    .map(venue => (
-        <Marker key={venue.id} position={[venue.latitude as number, venue.longitude as number]}>
-        <Popup>
-            {venue.banner && (
-                <img
-                src={venue.banner}
-                alt={venue.name}
-                className="venue-popup-banner"
-                onClick={() => window.location.href = `/venues/${venue.slug}`}
-                />
-            )}
-            <Link
-                to={`/venues/${venue.slug}`}
-                className="venue-popup-name"
+    {currentZoom >= 5 && ( // Only show markers if zoom level is 10 or higher
+        dbVenues
+        .filter(v => typeof v.latitude === "number" && typeof v.longitude === "number")
+        .map(venue => (
+            <Marker 
+            key={venue.id} 
+            position={[venue.latitude as number, venue.longitude as number] as LatLngExpression} 
+            icon={VenueMapIcon}
             >
-                {venue.name}
-            </Link>
-            {venue.city && <div>{venue.city}</div>}
-            <VenueMarkerEventList eventIds={venue.events} />
-        </Popup>
-
-        </Marker>
-    ))}
+            <Popup>
+                {venue.banner && (
+                    <img
+                    src={venue.banner}
+                    alt={venue.name}
+                    className="venue-popup-banner"
+                    onClick={() => window.location.href = `/venues/${venue.slug}`}
+                    />
+                )}
+                <Link
+                    to={`/venues/${venue.slug}`}
+                    className="venue-popup-name"
+                >
+                    {venue.name}
+                </Link>
+                {venue.city && <div>{venue.city}</div>}
+                <VenueMarkerEventList eventIds={venue.events} />
+            </Popup>
+            </Marker>
+        ))
+    )}
 
     </MapContainer>
   );
