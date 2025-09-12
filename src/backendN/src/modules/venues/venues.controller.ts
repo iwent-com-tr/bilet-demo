@@ -5,6 +5,7 @@ import { resolveIsAdmin, resolveIsOrganizer } from '../publicServices/resolveRol
 import { resolveBannerPublicUrl } from '../publicServices/multer.service';
 import { sanitizeVenue } from '../publicServices/sanitizer.service';
 import { SearchService } from '../search/search.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function create(req: Request, res: Response, next: NextFunction) {
     
@@ -41,9 +42,12 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const refined = result.data.map((venue: any) => {
       return {
         ...venue,
-        following: venue.favoriteUsers.some((user: any) => user.id === (req as any).user?.id),
+        following: venue.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
       };
     });
+
+    if (req.user && query.q) PreferencesService.addPreferences(req.user.id, query.q);
+
     res.json({ ...result, data: refined.map(sanitizeVenue).filter(Boolean) });
   } catch (e) { next(e); }
 }

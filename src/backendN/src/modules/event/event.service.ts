@@ -300,6 +300,11 @@ export class EventService {
     return results;
   }
 
+  static async getPopularEvents(filters: ListEventsQuery) {
+    const results = SearchService.searchEvent(filters, "popularity");
+    return results;
+  }
+
   static async findById(id: string) {
     const event = await prisma.event.findFirst({ where: { id, deletedAt: null } });
     if (!event) {
@@ -315,6 +320,13 @@ export class EventService {
     const event = await prisma.event.findFirst({
       where: { slug, deletedAt: null },
       // Remove invalid include; adjust later when relation is available
+      include: {
+        venueExperimental: {
+          select: {
+            id: true,
+          }
+        }
+      }
     });
     if (!event) {
       const e: any = new Error('event not found');

@@ -58,6 +58,7 @@ import ArtistProfile from './pages/artists/ArtistProfile';
 import VenuesDetail from 'pages/venues/VenuesDetail';
 import ArtistsDetail from 'pages/artists/ArtistDetails';
 import OrganizerDetails from 'pages/organizer/organizer-3rd-view/OrganizerDetails';
+import MapPage from 'pages/map/Map';
 
 
 const App: React.FC = () => {
@@ -88,7 +89,12 @@ const App: React.FC = () => {
 
             <Route path="/venues/:slug" element={<VenuesDetail />} />
             <Route path="/artists/:slug" element={<ArtistsDetail />} />
+
+            <Route path="/map" element={<MapPage />} />
+
+
             <Route path="/bildirimi-dene" element={<BildirimiDene />} />
+
           </Route>
 
           {/* User Routes */}
@@ -230,7 +236,7 @@ const App: React.FC = () => {
 
       <ToastContainer
         position="top-right"
-        autoClose={5000}
+        autoClose={1500}
         hideProgressBar={false}
         newestOnTop
         closeOnClick

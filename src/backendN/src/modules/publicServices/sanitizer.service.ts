@@ -66,6 +66,8 @@ export function sanitizeVenue(e: any) {
     details: e.details ?? undefined,
     accessibility: e.accessibility ?? undefined,
     mapsLocation: e.mapsLocation ?? undefined,
+    latitude: e.latitude ?? undefined,
+    longitude: e.longitude ?? undefined,
     approved: e.approved,
     favoriteCount: e.favoriteCount || 0,
     following: e.following || false,
@@ -125,6 +127,6 @@ export function sanitizePublicOrganizer(o: any) {
     avatar: o.avatar || null,
     approved: o.approved,
     favoriteCount: o.favoriteCount || 0,
-    following: o.following || false,
+    following: o.following,
   };
 }

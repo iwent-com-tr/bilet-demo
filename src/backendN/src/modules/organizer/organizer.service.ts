@@ -10,6 +10,12 @@ export class OrganizerService {
     return val;
   }
 
+  static async getPopularOrganizers(data: { page: number; limit: number; q?: string }) {
+    const val = await SearchService.searchOrganizer(data);
+    val.data.sort((a, b) => b._count.events - a._count.events);
+    return val;
+  }
+
   static async list(params: { page: number; limit: number; q?: string }) {
     const { page, limit, q } = params;
     const where: any = { deletedAt: null };

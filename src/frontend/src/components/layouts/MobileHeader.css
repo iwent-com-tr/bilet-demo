@@ -25,6 +25,20 @@
   object-fit: contain;
 }
 
+.mobile-header__greeting-message {
+  font-size: 15px;
+  text-align: center;
+  margin-top: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.mobile-header__greeting-link {
+  color: var(--active-green);
+  font-weight: 300;
+  font-size: 18px;
+}
+
 @media (max-width: 768px) {
   .mobile-header {
     display: block;

@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/slider.css';
 import '../styles/home.css';
-import FeaturedEvents from '../components/FeaturedEvents';
-import FeaturedArtists from '../components/FeaturedArtists';
-import PopularArtistEvents from '../components/PopularArtistEvents';
-import PopularOrganizers from '../components/PopularOrganizers';
-import WeekEvents from '../components/WeekEvents';
+import FeaturedEvents from '../components/user-recommendations/FeaturedEvents';
+import FeaturedArtists from '../components/user-recommendations/FeaturedArtists';
+import PopularArtistEvents from '../components/user-recommendations/PopularArtistEvents';
+import PopularOrganizers from '../components/user-recommendations/PopularOrganizers';
+import WeekEvents from '../components/user-recommendations/WeekEvents';
 import MobileHeader from '../components/layouts/MobileHeader';
 import MobileNavbar from '../components/layouts/MobileNavbar';
 
 // Import slider navigation assets
 import radioChecked from '../assets/slider/radio-button-checked.svg';
 import radioUnchecked from '../assets/slider/material-symbols_radio-button-unchecked.svg';
+import UserRecommendations from 'components/user-recommendations/UserRecommendations';
 
 interface Event {
   id: string;
@@ -141,22 +142,7 @@ const Home: React.FC = () => {
         )}
       </section>
 
-      <div className="home-content">
-        {/* Featured Events Section */}
-        <FeaturedEvents />
-
-        {/* Featured Artists Section */}
-        <FeaturedArtists />
-
-        {/* Popular Artist Events Section */}
-        <PopularArtistEvents />
-
-        {/* Popular Organizers Section */}
-        <PopularOrganizers />
-
-        {/* Week Events Section */}
-        <WeekEvents />
-      </div>
+      <UserRecommendations />
 
       <MobileNavbar />
     </div>

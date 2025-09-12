@@ -1,0 +1,101 @@
+/* IWentMap.css - Leaflet popup rules only (NO marker rules) */
+
+/* Popup wrapper: responsive, never forces off-screen */
+.leaflet-popup-content-wrapper {
+    background-color: #111 !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+    padding-right: 48px !important;
+    box-sizing: border-box !important;
+
+    /* responsive width: auto, limited by viewport */
+    width: 400px !important;
+    min-width: 280px !important;                      /* keep readable */
+    max-width: calc(100vw - 40px) !important;         /* never off-screen */
+
+    /* DO NOT make wrapper scrollable (per your request) */
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255,255,255,0.08) transparent !important;
+    overflow: hidden !important;
+}
+
+/* inner content uses wrapper's width and cannot overflow it */
+.leaflet-popup-content {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    /* ensure content doesn't overflow horizontally */
+    overflow-x: hidden !important;
+}
+
+.leaflet-popup-content > * {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* popup tip */
+.leaflet-popup-tip {
+    background: #111 !important;
+}
+
+/* responsive banner inside popup (scales with popup) */
+.venue-popup-banner {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 160px !important;
+    object-fit: cover !important;
+    border-radius: 6px !important;
+    margin-bottom: 8px !important;
+    cursor: pointer !important;
+    transition: transform 0.18s ease !important;
+}
+
+.venue-popup-banner:hover {
+    transform: scale(1.02) !important;
+}
+
+/* venue name style only */
+.venue-popup-name {
+    display: block !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    margin-bottom: 6px !important;
+    color: var(--active-green) !important;
+    text-decoration: none !important;
+}
+
+/* strict safety: no child can push the wrapper wider */
+.leaflet-popup-content * {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+
+/* subtle scrollbar visuals for the wrapper area (wrapper not scrolling) */
+.leaflet-popup-content-wrapper::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+}
+.leaflet-popup-content-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.06) !important;
+    border-radius: 8px !important;
+}
+
+/* safety for popup */
+.leaflet-popup {
+    box-sizing: border-box !important;
+    max-width: calc(100vw - 40px) !important;
+}
+
+.dark-mode-tiles {
+  filter: invert(100%) hue-rotate(180deg); /* Adjust values as needed */
+}
+

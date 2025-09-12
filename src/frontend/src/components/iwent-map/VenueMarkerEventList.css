@@ -1,0 +1,222 @@
+/* VenueMarkerEventList.css - Marker / event-list only
+   (every selector begins with ".marker ") */
+
+/* Box model safety */
+.marker ,
+.marker * {
+    box-sizing: border-box !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* root wrapper for marker list */
+.marker .marker-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+    font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+    color: #fff !important;
+    background: transparent !important;
+}
+
+/* title */
+.marker .marker-title {
+    font-size: 18px !important;
+    font-weight: 300 !important;
+    margin: 12px 0px 8px 12px !important;
+    padding: 0 !important;
+    text-align: left !important;
+    line-height: 1.1 !important;
+}
+
+/* grid: single column + scrollable (grid scroll only) */
+.marker .marker-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    gap: 12px !important;
+    width: 100% !important;
+    align-items: stretch !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    scroll-behavior: smooth !important;
+
+    /* keep scrollbar hidden visually but functional */
+    scrollbar-width: none !important;        /* Firefox */
+    -ms-overflow-style: none !important;     /* IE 10+ */
+}
+.marker .marker-grid::-webkit-scrollbar {
+    display: none !important;                /* Chrome, Safari */
+}
+
+/* card: fixed height, horizontal layout, content gets remaining width */
+.marker .marker-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+    padding: 12px !important;
+    margin: 0 !important;
+    border: 1px solid rgba(180, 180, 180, 0.14) !important;
+    border-radius: 6px !important;
+    background: #0b0b0b !important;
+    text-decoration: none !important;
+    color: inherit !important;
+    line-height: 1.1 !important;
+    overflow: hidden !important;
+    transition: background-color 0.15s ease !important;
+
+    height: 120px !important;
+    min-height: 120px !important;
+    max-height: 120px !important;
+
+    /* ensure card cannot exceed popup width */
+    max-width: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* hover state */
+.marker .marker-card:hover {
+    background-color: #202020 !important;
+}
+
+/* image container & image — fluid now so it never forces overflow
+   Uses available inner-card height (card height minus padding) and percentage cap */
+.marker .marker-image-container {
+    flex: 0 0 clamp(56px, 22%, 96px) !important;
+    width: clamp(56px, 22%, 96px) !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    max-width: 40% !important; /* absolute cap so it never occupies too much space */
+}
+
+.marker .marker-image {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+    border-radius: 4px !important;
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 96px !important;
+}
+
+/* content area: takes remaining horizontal space, can shrink */
+.marker .marker-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important; /* allow proper truncation */
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* date/meta */
+.marker .marker-date {
+    font-size: 12px !important;
+    color: rgb(182, 182, 182) !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+}
+
+/* title — clamp lines so long titles don't overflow the popup */
+.marker .marker-event-title {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: var(--active-green) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.05 !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    letter-spacing: 0.1px !important;
+
+    /* clamp to 2 lines with ellipsis (works in WebKit + modern browsers) */
+    display: -webkit-box !important;
+    line-clamp: 2 !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* load more/controller */
+.marker .marker-loadwrap {
+    margin-top: 10px !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+}
+
+.marker .marker-loadmore {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    border: none !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 6px !important;
+    background-color: #000000 !important;
+    color: #fff !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.1s ease;
+}
+
+.marker.marker-loadmore:hover {
+    background-color: #1d1d1d !important;
+    transform: translateY(-2px);
+}
+
+.marker.marker-loadmore:active {
+    background-color: #353535 !important;
+    transform: translateY(-0px);
+    border: 1px solid var(--active-green) !important;
+    background-color: rgb(51, 51, 51) !important;
+}
+
+/* .marker.marker-loadmore:active {
+
+} */
+
+/* ensure anchors inside list inherit styling */
+.marker a,
+.marker a * {
+    color: inherit !important;
+    text-decoration: none !important;
+}
+
+/* defensive: make sure no child forces width */
+.marker .marker-root,
+.marker .marker-grid,
+.marker .marker-card,
+.marker .marker-content,
+.marker .marker-image-container,
+.marker .marker-image {
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* last resort safety caps */
+.marker ,
+.marker * {
+    min-height: 0 !important;
+    max-height: 10000px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
