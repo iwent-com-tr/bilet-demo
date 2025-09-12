@@ -150,7 +150,7 @@
 /* .artist-list__grid .artist-list__card {
   display: flex;
   flex-direction: row;       /* image and stripe side-by-side */
- */
+ 
 .artist-list__card {
   align-items: center;
   gap: 16px;
