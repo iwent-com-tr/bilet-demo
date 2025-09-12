@@ -189,7 +189,7 @@ const categories = [
 ];
 
 const OrganizerEventEdit: React.FC = () => {
-  const API_BASE_URL = process.env.REACT_APP_API_URL as string | undefined;
+  const API_BASE_URL = process.env.REACT_APP_API_URL as string;
 
   const { id } = useParams<{ id: string }>();
   const { user, isAuthenticated, isOrganizer, loading: authLoading } = useAuth();

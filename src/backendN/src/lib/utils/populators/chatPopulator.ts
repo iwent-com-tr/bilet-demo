@@ -100,6 +100,7 @@ export async function populateChatMessages() {
         await prisma.chatMessage.create({
           data: {
             eventId: event.id,
+            userId: senderId,
             senderId,
             senderType,
             message,

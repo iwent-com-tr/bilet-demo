@@ -1,4 +1,5 @@
-import { Browser, OS, DeviceType, SegmentSource } from '@prisma/client';
+import pkg from '@prisma/client';
+const { Browser, OS, DeviceType, SegmentSource } = pkg;
 
 // OneSignal API Types
 export interface OneSignalCreateNotificationRequest {
@@ -14,6 +15,12 @@ export interface OneSignalCreateNotificationRequest {
     relation: string;
     value: string;
     operator?: 'AND' | 'OR';
+    filters?: Array<{
+      field: string;
+      key?: string;
+      relation: string;
+      value: string;
+    }>;
   }>;
   target_channel?: 'push';
   headings?: Record<string, string>;
@@ -30,6 +37,11 @@ export interface OneSignalCreateNotificationRequest {
   custom_data?: Record<string, any>;
   chrome_web_icon?: string;
   chrome_web_badge?: string;
+  ios_badgeType?: string;
+  ios_badgeCount?: number;
+  android_channel_id?: string;
+  small_icon?: string;
+  large_icon?: string;
 }
 
 export interface OneSignalNotificationResponse {
@@ -68,9 +80,9 @@ export interface OneSignalPlayerResponse {
 // Internal API Types
 export interface SyncSubscriptionRequest {
   onesignalUserId: string;      // OneSignal player_id
-  browser: Browser;             // CHROME, SAFARI, FIREFOX, EDGE, OTHER
-  os: OS;                       // IOS, ANDROID, MACOS, WINDOWS, LINUX, OTHER
-  deviceType: DeviceType;       // DESKTOP, MOBILE, TABLET
+  browser: any;             // CHROME, SAFARI, FIREFOX, EDGE, OTHER
+  os: any;                       // IOS, ANDROID, MACOS, WINDOWS, LINUX, OTHER
+  deviceType: any;       // DESKTOP, MOBILE, TABLET
   pwa: boolean;                 // Is PWA installation
   subscriptionHash?: string;    // Optional: hash of subscription endpoint
 }
@@ -119,9 +131,9 @@ export interface SubscriptionResponse {
   id: string;
   userId: string;
   onesignalUserId: string;
-  browser: Browser;
-  os: OS;
-  deviceType: DeviceType;
+  browser: any;
+  os: any;
+  deviceType: any;
   pwa: boolean;
   subscribed: boolean;
   lastSeen?: string;
@@ -140,14 +152,14 @@ export interface NotificationStatsResponse {
     web: number;
     pwa: number;
   };
-  byBrowser: Record<Browser, number>;
-  byOS: Record<OS, number>;
+  byBrowser: Record<any, number>;
+  byOS: Record<any, number>;
 }
 
 export interface DeviceInfo {
-  browser: Browser;
-  os: OS;
-  deviceType: DeviceType;
+  browser: any;
+  os: any;
+  deviceType: any;
   pwa: boolean;
   userAgent?: string;
 }

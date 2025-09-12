@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { Browser, OS, DeviceType, SegmentSource } from '@prisma/client';
+import pkg from '@prisma/client';
+const { Browser, OS, DeviceType, SegmentSource } = pkg;
 
 // Enum validators
 export const BrowserSchema = z.nativeEnum(Browser);

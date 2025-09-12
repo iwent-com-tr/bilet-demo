@@ -1,0 +1,248 @@
+.new-chat-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.new-chat-modal {
+  background: #1f2937;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #374151;
+}
+
+.new-chat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #374151;
+}
+
+.new-chat-modal-header h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.new-chat-modal-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.new-chat-modal-close:hover {
+  color: #fff;
+  background: #374151;
+}
+
+.new-chat-modal-search {
+  padding: 16px 20px;
+  border-bottom: 1px solid #374151;
+}
+
+.new-chat-modal-search .search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.new-chat-modal-search .search-icon {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  z-index: 2;
+}
+
+.new-chat-modal-search .search-input {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 10px 12px 10px 40px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.new-chat-modal-search .search-input::placeholder {
+  color: #6b7280;
+}
+
+.new-chat-modal-search .search-input:focus {
+  border-color: #05EF7E;
+}
+
+.new-chat-modal-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 200px;
+}
+
+.new-chat-loading,
+.new-chat-error,
+.new-chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.new-chat-loading p,
+.new-chat-error p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.new-chat-error .retry-button {
+  background: #05EF7E;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.new-chat-error .retry-button:hover {
+  background: #04d970;
+}
+
+.new-chat-empty .empty-icon {
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.new-chat-empty .empty-icon svg {
+  color: #05EF7E;
+}
+
+.new-chat-empty h3 {
+  margin: 0 0 8px 0;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.new-chat-empty p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.friends-list {
+  padding: 8px 0;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #374151;
+}
+
+.friend-item:hover {
+  background: #374151;
+}
+
+.friend-item:last-child {
+  border-bottom: none;
+}
+
+.friend-avatar {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.friend-avatar img,
+.friend-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.friend-avatar-placeholder {
+  background: #05EF7E;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.friend-online-status {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+}
+
+.friend-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.friend-info h4 {
+  margin: 0 0 2px 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-info p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .new-chat-modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .new-chat-modal {
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 12px 12px 0 0;
+  }
+} 

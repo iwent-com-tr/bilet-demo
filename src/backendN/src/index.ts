@@ -8,6 +8,10 @@ import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
+import { validateEnvironmentOrExit } from './lib/runtime-environment-validator';
+import ServiceIntegrationManager from './lib/service-integration-manager';
+import { closeQueue } from './lib/queue/index';
+import healthRoutes from './routes/health.routes';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/user.routes';
 import organizerRoutes from './modules/organizer/organizer.routes';
@@ -20,15 +24,37 @@ import venueRoutes from './modules/venues/venues.routes';
 import { prisma } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
-import { populateDB } from './lib/utils/populators/populator';
-import settingsRoutes from './modules/settings/settings.routes';
+// Development-only import (excluded in production)
+// import { populateDB } from './lib/utils/populators/populator';
+
 
 import chatRoutes from './modules/chat/chat.routes';
 import adminUserRoutes from './modules/admin/users.routes';
 import adminEventRoutes from './modules/admin/event.routes';
 import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
 import { adminApiLimiter } from './middlewares/rateLimiter';
+import pushRoutes from './modules/push/push.routes';
+import notificationRoutes from './modules/push/notification.routes';
+import queueRoutes from './modules/queue/queue.routes';
+import settingsRoutes from './modules/settings/settings.routes';
+
 dotenv.config();
+
+// Validate environment configuration on startup
+validateEnvironmentOrExit();
+
+// Initialize service integration manager
+const serviceManager = new ServiceIntegrationManager(prisma);
+
+// Function to initialize services
+async function initializeServices() {
+  try {
+    await serviceManager.initializeServices();
+  } catch (error) {
+    console.error('❌ Failed to initialize services:', error);
+    process.exit(1);
+  }
+}
 
 const args = process.argv.slice(2);
 
@@ -43,9 +69,9 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3001';
 // Support multiple origins for HTTPS development
 const allowedOrigins = [
   CLIENT_ORIGIN,
+  'http://localhost:3000',  // Frontend port
   'http://localhost:5173',
   'https://localhost:5173',
-  
   'https://192.168.1.46:5173'
 ];
 
@@ -53,8 +79,17 @@ app.use(helmet());
 app.use(cors({
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cache-Control', 
+    'Pragma', 
+    'Expires',
+    'X-Requested-With'
+  ],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -75,16 +110,26 @@ app.use(`${API_PREFIX}/artists`, artistRoutes);
 app.use(`${API_PREFIX}/venues`, venueRoutes);
 app.use(`${API_PREFIX}/settings`, settingsRoutes);
 
+// Push notification routes
+app.use(`${API_PREFIX}/push`, pushRoutes);
+app.use(`${API_PREFIX}/events`, notificationRoutes);
+app.use(`${API_PREFIX}/queue`, queueRoutes);
+
+// Chat routes
 app.use(`${API_PREFIX}/chat`, chatRoutes);
 
+// OneSignal push notification routes
 app.use(`${API_PREFIX}/push`, pushNotificationRoutes);
 app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
+
+// Admin routes with rate limiting
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
 app.use(`${API_PREFIX}/admin/events`, adminApiLimiter, adminEventRoutes);
 
+// Health monitoring routes
+app.use(`${API_PREFIX}/health`, healthRoutes);
 
-// Server status check
-app.get(`${API_PREFIX}/health`, (_req, res) => res.json({ status: 'ok' }));
+// Database connection check
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
     await prisma.$connect();
@@ -94,6 +139,37 @@ app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   }
 });
 
+// Error handling middleware (must be after all routes)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('API Error:', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    query: req.query,
+    params: req.params,
+    timestamp: new Date().toISOString()
+  });
+
+  // Handle specific error types
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation error',
+      details: err.issues
+    });
+  }
+
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+  
+  res.status(status).json({
+    success: false,
+    error: message,
+    code: err.code || 'UNKNOWN_ERROR'
+  });
+});
 
 // Create server (HTTP or HTTPS based on environment)
 let server;
@@ -118,12 +194,8 @@ setupChat(server);
 // Initialize MeiliSearch indexes
 initMeili();
 
-// Populate if ran with --populate
-if (args.includes('--populate')) {
-  await populateDB(ARTIST_POPULATE_COUNT, VENUE_POPULATE_COUNT, EVENT_POPULATE_COUNT);
-  console.log(`Database populated with ${EVENT_POPULATE_COUNT} random events, ${ARTIST_POPULATE_COUNT} random artists, and ${VENUE_POPULATE_COUNT} random venues.`);
-  process.exit(0);
-}
+// Initialize services (database, Redis, push notifications, worker)
+initializeServices();
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
@@ -135,3 +207,33 @@ server.listen(port, () => {
     console.log('HTTPS mode: Make sure SSL certificates (server.crt, server.key) are present');
   }
 });
+
+
+// Graceful shutdown
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n📴 Received ${signal}, shutting down gracefully...`);
+  
+  try {
+    // Close HTTP server
+    server.close();
+    
+    // Close service manager (includes worker and other services)
+    await serviceManager.shutdown();
+    
+    // Close queue connections
+    await closeQueue();
+    
+    // Close Prisma connection
+    await prisma.$disconnect();
+    
+    console.log('✅ Graceful shutdown completed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

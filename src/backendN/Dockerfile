@@ -1,50 +1,57 @@
-# Build stage
-FROM node:20-alpine as builder
+# ---------- Base ----------
+  FROM node:18-alpine AS base
+  WORKDIR /app
+  ENV NODE_ENV=production
+  RUN apk add --no-cache dumb-init
+  RUN addgroup -g 1001 -S nodejs && adduser -S appuser -u 1001
+  
+  # Paketler ve Prisma şeması
+  COPY package*.json ./
+  COPY prisma ./prisma/
+  
+  # ---------- Prod deps ----------
+  FROM base AS deps
+  RUN npm ci --omit=dev && npm cache clean --force
+  
+  # ---------- Build deps ----------
+  FROM node:18-alpine AS build-deps
+  WORKDIR /app
+  COPY package*.json ./
+  RUN npm ci
+  COPY . .
+  RUN npx prisma generate
+  RUN npm run build
+  
+  # ---------- Production image ----------
+  FROM base AS production
+  
+  # prod dependency'leri kopyala
+  COPY --from=deps /app/node_modules ./node_modules
+  
+  # build çıktıları
+COPY --from=build-deps /app/dist ./dist
+COPY --from=build-deps /app/prisma ./prisma
+COPY --from=build-deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build-deps /app/package*.json ./
+  
+  # upload klasörleri
+RUN mkdir -p uploads/banners uploads/avatars uploads/events
 
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
-COPY tsconfig.json ./
-COPY json-loader.mjs ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source code
-COPY . .
-
-# Generate Prisma client
+# Prisma generate (güvenlik için)
 RUN npx prisma generate
-
-# Build the application
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine
-
-WORKDIR /app
-
-# Copy package files and install production dependencies
-COPY package*.json ./
-COPY json-loader.mjs ./
-RUN npm ci --only=production
-
-# Copy built files and prisma
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Expose port
-EXPOSE 3000
-
-# Start the application
-CMD ["node", "--import", "data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./json-loader.mjs\", pathToFileURL(\"./\"));", "dist/src/index.js"]
+  
+  # güvenlik
+  RUN chown -R appuser:nodejs /app
+  USER appuser
+  
+  EXPOSE 3000
+  
+  # Healthcheck (3000!)
+  HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/v1/health', (r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+  
+  ENTRYPOINT ["dumb-init","--"]
+  
+  # Önemli: migration + start
+  CMD ["sh","-c","npx prisma migrate deploy && node dist/src/index.js"]
+  

@@ -10,7 +10,11 @@ export class SettingsService {
   async getDefinitions() {
     const sections = await prisma.settingSection.findMany({
       orderBy: { order: 'asc' },
-      include: { items: { orderBy: { order: 'asc' } } },
+      include: {
+        items: {
+          orderBy: { order: 'asc' }
+        }
+      },
     });
     return sections;
   }
@@ -18,7 +22,11 @@ export class SettingsService {
   async getSectionByKey(sectionKey: string) {
     const section = await prisma.settingSection.findFirst({
       where: { key: sectionKey },
-      include: { items: { orderBy: { order: 'asc' } } },
+      include: {
+        items: {
+          orderBy: { order: 'asc' }
+        }
+      },
     });
     if (!section) throw new NotFoundError(`Section not found: ${sectionKey}`);
     return section;
@@ -70,13 +78,16 @@ export class SettingsService {
   }
 
   async putNotificationPref(userId: string, category: string, dto: { enabled?: boolean; inApp?: boolean; email?: boolean; sms?: boolean; }) {
+    // Category'yi enum'a çevir
+    const categoryEnum = category.toUpperCase().replace(/_/g, '_') as any;
+
     // Optional: validate category exists in enum – rely on Prisma enum cast to throw otherwise.
     return prisma.userNotificationPreference.upsert({
-      where: { userId_category: { userId, category: category as any } },
+      where: { userId_category: { userId, category: categoryEnum } },
       update: { ...dto },
       create: {
         userId,
-        category: category as any,
+        category: categoryEnum,
         enabled: dto.enabled ?? true,
         inApp: dto.inApp ?? true,
         email: dto.email ?? false,

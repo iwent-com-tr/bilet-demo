@@ -7,7 +7,9 @@
 
 .profile-mobile-content {
   padding: 20px;
-  padding-top: 0;
+  padding-top: 76px; /* PageHeader height (60px) + extra spacing (16px) */
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .profile-user-info {

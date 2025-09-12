@@ -1,14 +1,19 @@
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../lib/prisma';
-import { verifyAccess } from '../lib/jwt';
+import { UnifiedAuthService } from '../lib/unified-auth.service';
+import { UserService } from '../modules/users/user.service';
 
 type Principal = {
   id: string;
   role: 'USER' | 'ORGANIZER' | 'ADMIN';
+  type: 'USER' | 'ORGANIZER';
 };
 
 let io: SocketIOServer | null = null;
+
+// Track online users
+const onlineUsers = new Map<string, Set<string>>(); // userId -> Set of socket IDs
 
 export function getIO(): SocketIOServer {
   if (!io) throw new Error('Chat server not initialized');
@@ -43,28 +48,20 @@ export function setupChat(server: http.Server): SocketIOServer {
         return next(err);
       }
 
-      const payload = verifyAccess(authToken);
-      const userId = payload.sub;
-      if (!userId) {
+      const authResult = await UnifiedAuthService.authenticateByToken(authToken);
+      if (!authResult) {
         const err: any = new Error('unauthorized');
         err.status = 401; err.code = 'UNAUTHORIZED';
         return next(err);
       }
 
-      // Resolve principal: try User first, then Organizer
-      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
-      if (dbUser) {
-        (socket.data as any).principal = { id: dbUser.id, role: (dbUser as any).userType === 'ADMIN' ? 'ADMIN' : 'USER' } as Principal;
-      } else {
-        const dbOrganizer = await prisma.organizer.findUnique({ where: { id: userId } });
-        if (dbOrganizer) {
-          (socket.data as any).principal = { id: dbOrganizer.id, role: 'ORGANIZER' } as Principal;
-        } else {
-          const err: any = new Error('unauthorized');
-          err.status = 401; err.code = 'UNAUTHORIZED';
-          return next(err);
-        }
-      }
+      // Create principal from unified auth result
+      (socket.data as any).principal = {
+        id: authResult.entity.id,
+        role: authResult.role,
+        type: authResult.entity.type
+      } as Principal;
+      
       next();
     } catch (e) {
       const err: any = e instanceof Error ? e : new Error('unauthorized');
@@ -75,8 +72,29 @@ export function setupChat(server: http.Server): SocketIOServer {
   });
 
   io.on('connection', (socket) => {
-    const principal: Principal | undefined = (socket.data as any)?.principal;
-    if (principal) socket.join(userRoom(principal.id));
+    const principal: Principal | undefined = (socket.data as any).principal;
+    
+    if (!principal) {
+      socket.disconnect();
+      return;
+    }
+
+    console.log(`User ${principal.id} connected (${principal.role})`);
+
+    // Track user as online
+    if (!onlineUsers.has(principal.id)) {
+      onlineUsers.set(principal.id, new Set());
+    }
+    onlineUsers.get(principal.id)!.add(socket.id);
+
+    // Update lastSeenAt timestamp
+    UserService.updateLastSeen(principal.id);
+
+    // Join user room for private messaging
+    socket.join(userRoom(principal.id));
+
+    // Notify friends that this user is online
+    notifyFriendsOnlineStatus(principal.id, true);
 
     // Client requests to join an event chat room (by ID or slug)
     socket.on('chat:join', async (payload: { eventId?: string; eventSlug?: string }, ack?: (res: any) => void) => {
@@ -210,6 +228,7 @@ export function setupChat(server: http.Server): SocketIOServer {
         const saved = await prisma.chatMessage.create({
           data: {
             eventId: event.id,
+            userId: principal.id,
             senderId: principal.id,
             senderType: principal.role === 'ORGANIZER' ? 'ORGANIZER' : 'USER',
             message: message.trim(),
@@ -226,7 +245,24 @@ export function setupChat(server: http.Server): SocketIOServer {
     });
 
     socket.on('disconnect', () => {
-      // No-op for now
+      console.log(`User ${principal.id} disconnected`);
+      
+      // Remove socket from online tracking
+      const userSockets = onlineUsers.get(principal.id);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        
+        // If no more sockets for this user, mark as offline
+        if (userSockets.size === 0) {
+          onlineUsers.delete(principal.id);
+          
+          // Update lastSeenAt timestamp
+          UserService.updateLastSeen(principal.id);
+          
+          // Notify friends that this user went offline
+          notifyFriendsOnlineStatus(principal.id, false);
+        }
+      }
     });
 
     // ------------------------
@@ -395,6 +431,50 @@ export async function notifyEventPublished(eventId: string): Promise<void> {
   // The chat rooms are automatically created when users join
   // Both event:${eventId} and event-slug:${slug} rooms will be available
   console.log(`Event published: ${event.name} (${event.slug}) - Chat rooms ready`);
+}
+
+// Helper function to check if user is online
+export function isUserOnline(userId: string): boolean {
+  return onlineUsers.has(userId);
+}
+
+// Helper function to get online user count
+export function getOnlineUserCount(): number {
+  return onlineUsers.size;
+}
+
+// Helper function to get all online user IDs
+export function getOnlineUserIds(): string[] {
+  return Array.from(onlineUsers.keys());
+}
+
+// Notify friends when user's online status changes
+async function notifyFriendsOnlineStatus(userId: string, isOnline: boolean) {
+  try {
+    // Get user's friends
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { fromUserId: userId, status: 'ACCEPTED' },
+          { toUserId: userId, status: 'ACCEPTED' }
+        ]
+      }
+    });
+
+    const friendIds = friendships.map(f => 
+      f.fromUserId === userId ? f.toUserId : f.fromUserId
+    );
+
+    // Notify each friend about the status change
+    friendIds.forEach(friendId => {
+      io?.to(userRoom(friendId)).emit('user:status-change', {
+        userId: userId,
+        isOnline: isOnline
+      });
+    });
+  } catch (error) {
+    console.error('Error notifying friends about online status:', error);
+  }
 }
 
 

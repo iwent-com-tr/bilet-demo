@@ -29,16 +29,47 @@ export function PushNotificationDemo() {
     },
   });
 
-  const [testTitle, setTestTitle] = useState('Test Notification');
-  const [testBody, setTestBody] = useState('This is a test notification from bilet-demo!');
+  const [testTitle, setTestTitle] = useState('Demo Notification 🎆');
+  const [testBody, setTestBody] = useState('This is a test push notification from bilet-demo! Your notifications are working perfectly.');
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [hasShownInitialPrompt, setHasShownInitialPrompt] = useState(false);
 
-  // Send test notification
+  // Auto-trigger permission request after initialization if permission is default
+  useEffect(() => {
+    const tryAutoPermissionRequest = async () => {
+      // Only run once and only if we haven't shown the prompt yet
+      if (hasShownInitialPrompt || !isInitialized || !isSupported) {
+        return;
+      }
+
+      // Check if we should auto-request permission
+      const currentPermission = permissionState.permission;
+      console.log('[Demo] Current permission state:', currentPermission, 'canRequest:', canRequestPermission);
+      
+      if (currentPermission === 'default' && canRequestPermission) {
+        console.log('[Demo] Auto-requesting notification permission...');
+        setHasShownInitialPrompt(true);
+        
+        // Give user a moment to read the page before showing permission prompt
+        setTimeout(() => {
+          requestPermission();
+        }, 2000); // 2 second delay
+      }
+    };
+
+    tryAutoPermissionRequest();
+  }, [isInitialized, isSupported, permissionState.permission, canRequestPermission, requestPermission, hasShownInitialPrompt]);
+
+  // Send test notification with default demo content
   const sendTestNotification = async () => {
     try {
       setIsSendingTest(true);
       setTestResult(null);
+      
+      // Use current values or fallback to defaults
+      const finalTitle = testTitle.trim() || 'Demo Notification 🎆';
+      const finalBody = testBody.trim() || 'This is a test push notification from bilet-demo! Your notifications are working perfectly.';
       
       const response = await fetch('/api/v1/admin/push/test', {
         method: 'POST',
@@ -47,8 +78,8 @@ export function PushNotificationDemo() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          title: testTitle,
-          body: testBody,
+          title: finalTitle,
+          body: finalBody,
           testMode: true,
         }),
       });
@@ -56,15 +87,26 @@ export function PushNotificationDemo() {
       const result = await response.json();
       
       if (response.ok) {
-        setTestResult(`✅ Test notification sent successfully! ID: ${result.data.id}`);
+        const notificationId = result.data?.id || result.id || 'demo-' + Date.now();
+        setTestResult(`✅ Demo notification sent successfully! ID: ${notificationId}`);
       } else {
-        setTestResult(`❌ Failed to send: ${result.error}`);
+        setTestResult(`❌ Failed to send: ${result.error || 'Unknown error'}`);
       }
     } catch (err) {
       setTestResult(`❌ Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsSendingTest(false);
     }
+  };
+
+  // Send a quick demo notification with preset values
+  const sendQuickDemo = async () => {
+    // Set demo values
+    setTestTitle('Demo Notification 🎆');
+    setTestBody('This is a test push notification from bilet-demo! Your notifications are working perfectly.');
+    
+    // Send immediately
+    await sendTestNotification();
   };
 
   // Set demo tags
@@ -89,12 +131,19 @@ export function PushNotificationDemo() {
           <p className="text-sm text-yellow-600">
             <strong>Reason:</strong> {featureFlag.reason}
           </p>
-          {process.env.NODE_ENV === 'development' && (
+          {process.env.NODE_ENV === 'development' ? (
             <div className="mt-4 p-3 bg-yellow-100 rounded">
               <p className="text-sm font-medium">To enable in development:</p>
               <code className="text-xs bg-gray-800 text-green-400 p-1 rounded">
-                REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true
+                REACT_APP_ONESIGNAL_APP_ID=your_app_id
               </code>
+            </div>
+          ) : (
+            <div className="mt-4 p-3 bg-yellow-100 rounded">
+              <p className="text-sm font-medium">To enable push notifications:</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Contact your system administrator to configure OneSignal App ID.
+              </p>
             </div>
           )}
         </div>
@@ -122,6 +171,52 @@ export function PushNotificationDemo() {
               </p>
             )}
           </div>
+
+          {/* Permission Request Banner - Show prominently when permission is needed */}
+          {isSupported && canRequestPermission && !subscriptionStatus?.isSubscribed && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">🔔</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-blue-900 text-lg mb-2">
+                    Enable Push Notifications
+                  </h3>
+                  <p className="text-blue-700 mb-3">
+                    Click the button below to enable push notifications and receive demo notifications.
+                    Your browser will ask for permission.
+                  </p>
+                  <button
+                    onClick={requestPermission}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg"
+                  >
+                    🔔 Enable Notifications Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Permission Denied Banner */}
+          {permissionState.permission === 'denied' && (
+            <div className="mb-6 p-6 bg-red-50 border-2 border-red-200 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">🚫</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-red-900 text-lg mb-2">
+                    Notifications Blocked
+                  </h3>
+                  <p className="text-red-700 mb-3">
+                    You have blocked notifications for this site. To enable them:
+                  </p>
+                  <ol className="text-sm text-red-600 ml-4 list-decimal">
+                    <li>Click the lock icon in your browser's address bar</li>
+                    <li>Change notifications from "Block" to "Allow"</li>
+                    <li>Refresh this page</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* System Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -228,14 +323,25 @@ export function PushNotificationDemo() {
                   >
                     🏷️ Set Demo Tags
                   </button>
+                  
+                  <button
+                    onClick={sendQuickDemo}
+                    disabled={isSendingTest}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSendingTest ? '📤 Sending...' : '⚡ Quick Demo Notification'}
+                  </button>
                 </>
               )}
             </div>
 
             {/* Test Notification Section */}
-            {subscriptionStatus?.isSubscribed && process.env.NODE_ENV === 'development' && (
+            {subscriptionStatus?.isSubscribed && (
               <div className="border-t pt-4">
-                <h3 className="font-semibold text-gray-700 mb-3">🧪 Test Notification</h3>
+                <h3 className="font-semibold text-gray-700 mb-3">🧪 Custom Test Notification</h3>
+                <div className="mb-3 text-sm text-gray-600">
+                  Customize and send a test notification with your own content:
+                </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -268,7 +374,7 @@ export function PushNotificationDemo() {
                     disabled={isSendingTest || !testTitle.trim() || !testBody.trim()}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                   >
-                    {isSendingTest ? '📤 Sending...' : '📤 Send Test Notification'}
+                    {isSendingTest ? '📤 Sending Custom...' : '📤 Send Custom Notification'}
                   </button>
                   
                   {testResult && (
@@ -280,6 +386,10 @@ export function PushNotificationDemo() {
                       {testResult}
                     </div>
                   )}
+                  
+                  <div className="text-xs text-gray-500 mt-2">
+                    📝 Available in both development and production environments
+                  </div>
                 </div>
               </div>
             )}
