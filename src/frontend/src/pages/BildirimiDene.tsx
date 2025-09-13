@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './BildirimiDene.css';
-import { pushNotificationManager, type SubscriptionStatus, type DeviceInfo } from '../lib/push-notification-manager';
+import { pushNotificationManager, type SubscriptionResult, type BrowserSupport } from '../lib/push-notification-manager';
 
 interface NotificationStatus {
   supported: boolean;
@@ -9,7 +9,7 @@ interface NotificationStatus {
   vapidSubscribed: boolean;
   error?: string;
   vapidEndpoint?: string;
-  browserInfo?: DeviceInfo;
+  browserInfo?: BrowserSupport;
 }
 
 export function BildirimiDene() {
@@ -28,33 +28,24 @@ export function BildirimiDene() {
   useEffect(() => {
     checkNotificationSupport();
     checkExistingVapidSubscription();
-    
-    // Enable auto-initialization for testing (optional)
-    const enableAutoInit = localStorage.getItem('iwent-enable-auto-init') === 'true';
-    if (enableAutoInit) {
-      console.log('[BildirimiDene] Auto-initialization enabled');
-      pushManager.enableAutoPermissionRequests();
-    }
   }, []);
 
   const checkNotificationSupport = () => {
-    const isSupported = pushManager.isPushNotificationSupported();
-    const deviceInfo = pushManager.detectDeviceInfo();
-    const permissionState = pushManager.getPermissionState();
+    const browserSupport = pushManager.getBrowserSupport();
+    const permission = pushManager.getPermissionStatus();
 
     console.log('[BildirimiDene] Browser support check:', {
-      isSupported,
-      deviceInfo,
-      permissionState,
+      browserSupport,
+      permission,
       isAndroid: /Android/.test(navigator.userAgent)
     });
 
     setStatus(prev => ({
       ...prev,
-      supported: isSupported,
-      permission: permissionState.permission,
-      browserInfo: deviceInfo,
-      error: isSupported ? undefined : 'Tarayıcınız VAPID push bildirimleri desteklemiyor'
+      supported: browserSupport.isSupported,
+      permission,
+      browserInfo: browserSupport,
+      error: browserSupport.isSupported ? undefined : 'Tarayıcınız VAPID push bildirimleri desteklemiyor'
     }));
   };
 
@@ -62,27 +53,23 @@ export function BildirimiDene() {
     try {
       console.log('[BildirimiDene] Checking existing VAPID subscription...');
       
-      // Initialize push manager if not already done
-      await pushManager.initialize();
-      
       // Get current VAPID subscription status
-      const subscriptionInfo = await pushManager.getSubscriptionStatus();
+      const subscriptionInfo = await pushManager.getSubscriptionInfo();
       
       console.log('[BildirimiDene] Subscription info:', {
-        permission: subscriptionInfo.permissionGranted,
-        hasSubscription: subscriptionInfo.isSubscribed,
-        endpoint: subscriptionInfo.subscriptionEndpoint,
-        deviceInfo: subscriptionInfo.deviceInfo,
-        externalUserId: subscriptionInfo.externalUserId
+        permission: subscriptionInfo.permission,
+        hasSubscription: subscriptionInfo.hasSubscription,
+        endpoint: subscriptionInfo.subscription?.endpoint,
+        backendSubscriptions: subscriptionInfo.backendSubscriptions?.length || 0
       });
       
       setStatus(prev => ({
         ...prev,
-        permission: subscriptionInfo.permissionGranted ? 'granted' : 'default',
-        subscribed: subscriptionInfo.permissionGranted,
-        vapidSubscribed: subscriptionInfo.isSubscribed,
-        vapidEndpoint: subscriptionInfo.subscriptionEndpoint,
-        browserInfo: subscriptionInfo.deviceInfo
+        permission: subscriptionInfo.permission,
+        subscribed: subscriptionInfo.permission === 'granted',
+        vapidSubscribed: subscriptionInfo.hasSubscription,
+        vapidEndpoint: subscriptionInfo.subscription?.endpoint,
+        browserInfo: subscriptionInfo.browserSupport
       }));
       
     } catch (error) {
@@ -114,17 +101,17 @@ export function BildirimiDene() {
       });
       
       // Use pushNotificationManager for proper VAPID subscription
-      const result: SubscriptionStatus = await pushManager.requestPermissionAndSubscribe();
+      const result: SubscriptionResult = await pushManager.subscribe();
       
       console.log('[BildirimiDene] VAPID subscription result:', result);
 
-      if (result.isSubscribed && result.permissionGranted) {
+      if (result.success && result.subscription) {
         setStatus(prev => ({ 
           ...prev, 
           permission: 'granted',
           subscribed: true,
           vapidSubscribed: true,
-          vapidEndpoint: result.subscriptionEndpoint
+          vapidEndpoint: result.subscription?.endpoint
         }));
         
         setTestResult('✅ VAPID push subscription başarılı! Android bildirimleri artık çalışmalı.');
@@ -422,24 +409,6 @@ export function BildirimiDene() {
             className="bildirimi-dene__button bildirimi-dene__button--secondary"
           >
             🔄 Sıfırla
-          </button>
-          
-          <button
-            onClick={() => {
-              const isEnabled = localStorage.getItem('iwent-enable-auto-init') === 'true';
-              if (isEnabled) {
-                localStorage.removeItem('iwent-enable-auto-init');
-                pushManager.disableAutoPermissionRequests();
-                setTestResult('🔕 Otomatik izin istekleri devre dışı bırakıldı');
-              } else {
-                localStorage.setItem('iwent-enable-auto-init', 'true');
-                pushManager.enableAutoPermissionRequests();
-                setTestResult('🔔 Otomatik izin istekleri etkinleştirildi (sayfa yeniden yüklendiğinde aktif)');
-              }
-            }}
-            className="bildirimi-dene__button bildirimi-dene__button--accent"
-          >
-            {localStorage.getItem('iwent-enable-auto-init') === 'true' ? '🔕 Otomatik İzin Kapat' : '🔔 Otomatik İzin Aç'}
           </button>
         </div>
 

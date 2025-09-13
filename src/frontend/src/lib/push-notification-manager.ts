@@ -1,455 +1,194 @@
 import axios from 'axios';
 
-// Types
-export interface DeviceInfo {
-  browser: 'CHROME' | 'SAFARI' | 'FIREFOX' | 'EDGE' | 'OPERA' | 'OTHER';
-  os: 'IOS' | 'ANDROID' | 'MACOS' | 'WINDOWS' | 'LINUX' | 'CHROME_OS' | 'OTHER';
-  deviceType: 'DESKTOP' | 'MOBILE' | 'TABLET';
-  pwa: boolean;
-  userAgent?: string;
+// Types compatible with PushSubscriptionManager
+export interface PushSubscriptionData {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  expirationTime?: number | null;
 }
 
-export interface SubscriptionStatus {
-  isSubscribed: boolean;
-  permissionGranted: boolean;
-  subscriptionEndpoint?: string;
-  subscriptionHash?: string;
-  deviceInfo?: DeviceInfo;
-  externalUserId?: string;
-  isLoggedIn?: boolean;
+export interface SubscriptionResult {
+  success: boolean;
+  subscription?: PushSubscriptionData;
   error?: string;
+  code?: string;
 }
 
-export interface NotificationPermissionState {
-  permission: NotificationPermission;
-  canRequestPermission: boolean;
-  requiresUserAction: boolean;
+export interface BrowserSupport {
   isSupported: boolean;
+  hasServiceWorker: boolean;
+  hasPushManager: boolean;
+  hasNotifications: boolean;
+  platform: 'desktop' | 'mobile' | 'unknown';
+  browser: string;
+  version?: string;
 }
 
 class PushNotificationManager {
-  private subscription: PushSubscription | null = null;
-  private isInitialized = false;
-  private initPromise: Promise<void> | null = null;
-  private subscriptionCallbacks: Array<(status: SubscriptionStatus) => void> = [];
-  private permissionCallbacks: Array<(state: NotificationPermissionState) => void> = [];
-  private currentExternalUserId: string | null = null;
   private vapidPublicKey: string | null = null;
-  private storageKey = 'iwent-push-subscription';
-  private autoPermissionRequested = false;
-  private logger = console; // Enhanced logging reference
+  private serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
+  private readonly apiBaseUrl: string;
 
-  constructor() {
-    this.detectEnvironment();
-    this.loadStoredSubscription();
+  constructor(apiBaseUrl: string = process.env.REACT_APP_API_URL || '/api/v1') {
+    this.apiBaseUrl = apiBaseUrl;
+  }
+
+  /**
+   * Check if push notifications are supported in the current browser
+   */
+  getBrowserSupport(): BrowserSupport {
+    const hasServiceWorker = 'serviceWorker' in navigator;
+    const hasPushManager = 'PushManager' in window;
+    const hasNotifications = 'Notification' in window;
     
-    // Auto-initialize with delay for better UX
-    this.scheduleAutoInitialization();
-  }
+    // Detect platform
+    const userAgent = navigator.userAgent.toLowerCase();
+    let platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
+    if (/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)) {
+      platform = 'mobile';
+    } else if (/windows|macintosh|linux/i.test(userAgent)) {
+      platform = 'desktop';
+    }
 
-  /**
-   * Schedule automatic initialization with delay
-   */
-  private scheduleAutoInitialization(): void {
-    // Only auto-initialize in production or when explicitly enabled
-    const shouldAutoInit = process.env.NODE_ENV === 'production' || 
-                          localStorage.getItem('iwent-auto-push-init') === 'true';
+    // Detect browser
+    let browser = 'unknown';
+    let version: string | undefined;
     
-    if (shouldAutoInit && !this.autoPermissionRequested) {
-      this.logger.log('[PushManager] Scheduling auto-initialization with 2-second delay...');
-      
-      setTimeout(async () => {
-        try {
-          this.autoPermissionRequested = true;
-          
-          // Check if permissions are already granted
-          const permissionState = this.getPermissionState();
-          
-          if (permissionState.permission === 'granted') {
-            this.logger.log('[PushManager] Permissions already granted, auto-initializing...');
-            await this.initialize();
-          } else if (permissionState.canRequestPermission && permissionState.isSupported) {
-            this.logger.log('[PushManager] Auto-requesting push notification permissions...');
-            await this.requestPermissionAndSubscribe();
-          } else {
-            this.logger.log('[PushManager] Auto-initialization skipped - permissions denied or not supported');
-          }
-        } catch (error) {
-          this.logger.warn('[PushManager] Auto-initialization failed:', error);
-        }
-      }, 2000); // 2-second delay as specified
+    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
+      browser = 'chrome';
+      const match = userAgent.match(/chrome\/(\d+)/);
+      version = match ? match[1] : undefined;
+    } else if (userAgent.includes('firefox')) {
+      browser = 'firefox';
+      const match = userAgent.match(/firefox\/(\d+)/);
+      version = match ? match[1] : undefined;
+    } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      browser = 'safari';
+      const match = userAgent.match(/version\/(\d+)/);
+      version = match ? match[1] : undefined;
+    } else if (userAgent.includes('edg')) {
+      browser = 'edge';
+      const match = userAgent.match(/edg\/(\d+)/);
+      version = match ? match[1] : undefined;
     }
+
+    const isSupported = hasServiceWorker && hasPushManager && hasNotifications && window.isSecureContext;
+
+    return {
+      isSupported,
+      hasServiceWorker,
+      hasPushManager,
+      hasNotifications,
+      platform,
+      browser,
+      version,
+    };
   }
 
   /**
-   * Enable automatic permission requests (can be called manually)
+   * Check if push notifications are supported
    */
-  enableAutoPermissionRequests(): void {
-    localStorage.setItem('iwent-auto-push-init', 'true');
-    if (!this.autoPermissionRequested) {
-      this.scheduleAutoInitialization();
-    }
+  isSupported(): boolean {
+    return this.getBrowserSupport().isSupported;
   }
 
   /**
-   * Disable automatic permission requests
+   * Get the current notification permission status
    */
-  disableAutoPermissionRequests(): void {
-    localStorage.removeItem('iwent-auto-push-init');
-    this.autoPermissionRequested = true; // Prevent future auto requests
-  }
-  private loadStoredSubscription(): void {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const data = JSON.parse(stored);
-        this.currentExternalUserId = data.externalUserId || null;
-        console.log('[PushManager] Loaded stored subscription data');
-      }
-    } catch (error) {
-      console.warn('[PushManager] Failed to load stored subscription:', error);
+  getPermissionStatus(): NotificationPermission {
+    if (!('Notification' in window)) {
+      return 'denied';
     }
+    return Notification.permission;
   }
 
   /**
-   * Store subscription data in localStorage
+   * Request notification permission from the user
    */
-  private storeSubscription(status: SubscriptionStatus): void {
-    try {
-      const data = {
-        isSubscribed: status.isSubscribed,
-        permissionGranted: status.permissionGranted,
-        subscriptionEndpoint: status.subscriptionEndpoint,
-        externalUserId: status.externalUserId,
-        lastUpdated: new Date().toISOString()
-      };
-      localStorage.setItem(this.storageKey, JSON.stringify(data));
-      console.log('[PushManager] Stored subscription data to localStorage');
-    } catch (error) {
-      console.warn('[PushManager] Failed to store subscription:', error);
+  async requestPermission(): Promise<NotificationPermission> {
+    if (!('Notification' in window)) {
+      throw new Error('Notifications not supported');
     }
+
+    if (Notification.permission === 'granted') {
+      return 'granted';
+    }
+
+    if (Notification.permission === 'denied') {
+      return 'denied';
+    }
+
+    // Request permission
+    const permission = await Notification.requestPermission();
+    return permission;
   }
 
   /**
-   * Clear stored subscription data
+   * Initialize the service worker registration
    */
-  private clearStoredSubscription(): void {
-    try {
-      localStorage.removeItem(this.storageKey);
-      console.log('[PushManager] Cleared stored subscription data');
-    } catch (error) {
-      console.warn('[PushManager] Failed to clear stored subscription:', error);
-    }
-  }
-
-  /**
-   * Initialize VAPID-based push notifications
-   */
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
-    if (this.initPromise) return this.initPromise;
-
-    this.initPromise = this._initialize();
-    return this.initPromise;
-  }
-
-  private async _initialize(): Promise<void> {
-    try {
-      this.logger.log('[PushManager] Starting VAPID initialization...', {
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        environment: process.env.NODE_ENV
-      });
-      
-      // Check if push notifications are supported
-      const isSupported = this.isPushNotificationSupported();
-      const deviceInfo = this.detectDeviceInfo();
-      
-      this.logger.log('[PushManager] Push notification support check:', {
-        isSupported,
-        hasNotification: 'Notification' in window,
-        hasServiceWorker: 'serviceWorker' in navigator,
-        hasPushManager: 'PushManager' in window,
-        deviceInfo,
-        isSecureContext: window.isSecureContext,
-        protocol: window.location.protocol,
-        hostname: window.location.hostname,
-        isPWA: this.isPWA()
-      });
-      
-      if (!isSupported) {
-        const error = 'Push notifications are not supported in this browser';
-        this.logger.error('[PushManager] Initialization failed:', error);
-        throw new Error(error);
-      }
-
-      // Get VAPID public key from backend
-      await this.loadVapidPublicKey();
-      
-      // Register service worker
-      await this.registerServiceWorker();
-      
-      // Check existing subscription
-      await this.checkExistingSubscription();
-      
-      this.isInitialized = true;
-      this.logger.log('[PushManager] VAPID push notifications initialized successfully', {
-        timestamp: new Date().toISOString(),
-        hasSubscription: !!this.subscription,
-        subscriptionEndpoint: this.subscription?.endpoint
-      });
-      
-    } catch (error) {
-      this.logger.error('[PushManager] Failed to initialize VAPID push notifications:', {
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString()
-      });
-      this.isInitialized = false;
-      throw error;
-    }
-  }
-
-  /**
-   * Load VAPID public key from backend
-   */
-  private async loadVapidPublicKey(): Promise<void> {
-    try {
-      this.logger.log('[PushManager] Loading VAPID public key from backend...');
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/push/public-key`);
-      this.vapidPublicKey = response.data.publicKey;
-      this.logger.log('[PushManager] VAPID public key loaded successfully', {
-        keyLength: this.vapidPublicKey?.length,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      this.logger.error('[PushManager] Failed to load VAPID public key:', {
-        error: error instanceof Error ? error.message : error,
-        apiUrl: process.env.REACT_APP_API_URL,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error('Failed to load VAPID configuration');
-    }
-  }
-
-  /**
-   * Register service worker for push notifications
-   */
-  private async registerServiceWorker(): Promise<ServiceWorkerRegistration> {
+  async initializeServiceWorker(): Promise<ServiceWorkerRegistration> {
     if (!('serviceWorker' in navigator)) {
       throw new Error('Service Worker not supported');
     }
 
+    if (this.serviceWorkerRegistration) {
+      return this.serviceWorkerRegistration;
+    }
+
     try {
-      this.logger.log('[PushManager] Registering service worker...');
       const registration = await navigator.serviceWorker.register('/sw.js');
       
-      this.logger.log('[PushManager] Service worker registered successfully', {
-        scope: registration.scope,
-        updateViaCache: registration.updateViaCache,
-        timestamp: new Date().toISOString()
-      });
+      // Wait for the service worker to be ready
+      await navigator.serviceWorker.ready;
       
+      this.serviceWorkerRegistration = registration;
       return registration;
     } catch (error) {
-      this.logger.error('[PushManager] Service worker registration failed:', {
-        error: error instanceof Error ? error.message : error,
-        timestamp: new Date().toISOString()
-      });
-      throw error;
+      console.error('Service Worker registration failed:', error);
+      throw new Error('Failed to register Service Worker');
     }
   }
 
   /**
-   * Check for existing push subscription
+   * Fetch the VAPID public key from the server
    */
-  private async checkExistingSubscription(): Promise<void> {
-    try {
-      this.logger.log('[PushManager] Checking for existing subscription...');
-      const registration = await navigator.serviceWorker.ready;
-      this.subscription = await registration.pushManager.getSubscription();
-      
-      if (this.subscription) {
-        this.logger.log('[PushManager] Found existing subscription', {
-          endpoint: this.subscription.endpoint,
-          expirationTime: this.subscription.expirationTime,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Sync with backend
-        await this.syncSubscriptionWithBackend();
-      } else {
-        this.logger.log('[PushManager] No existing subscription found');
-      }
-    } catch (error) {
-      this.logger.error('[PushManager] Error checking existing subscription:', {
-        error: error instanceof Error ? error.message : error,
-        timestamp: new Date().toISOString()
-      });
-    }
-  }
-
-  /**
-   * Request notification permission and subscribe user
-   */
-  async requestPermissionAndSubscribe(): Promise<SubscriptionStatus> {
-    try {
-      this.logger.log('[PushManager] Starting permission request and subscription process...', {
-        timestamp: new Date().toISOString(),
-        currentPermission: Notification.permission,
-        isSupported: this.isPushNotificationSupported()
-      });
-      
-      await this.initialize();
-
-      // Check if browser supports push notifications
-      if (!this.isPushNotificationSupported()) {
-        const error = 'Push notifications are not supported on this device/browser';
-        this.logger.error('[PushManager] Permission request failed:', error);
-        throw new Error(error);
-      }
-
-      // Check current permission state
-      const currentPermission = Notification.permission;
-      this.logger.log('[PushManager] Current permission state:', {
-        permission: currentPermission,
-        timestamp: new Date().toISOString()
-      });
-
-      if (currentPermission === 'denied') {
-        const error = 'Notification permission was denied. Please enable notifications in your browser settings.';
-        this.logger.warn('[PushManager] Permission denied by user:', error);
-        throw new Error(error);
-      }
-
-      // Request permission if not granted
-      let permission: NotificationPermission = currentPermission;
-      if (permission === 'default') {
-        this.logger.log('[PushManager] Requesting notification permission from user...');
-        permission = await Notification.requestPermission();
-        this.logger.log('[PushManager] Permission request result:', {
-          permission,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      if (permission !== 'granted') {
-        const error = 'Notification permission not granted';
-        this.logger.warn('[PushManager] Permission not granted:', { permission });
-        throw new Error(error);
-      }
-
-      // Subscribe to push notifications
-      await this.subscribeToPushNotifications();
-      
-      const status = await this.getSubscriptionStatus();
-      this.logger.log('[PushManager] Subscription process completed:', {
-        status,
-        timestamp: new Date().toISOString()
-      });
-      
-      this.notifySubscriptionCallbacks(status);
-      
-      return status;
-      
-    } catch (error) {
-      this.logger.error('[PushManager] Permission request failed:', {
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString()
-      });
-      
-      const errorStatus: SubscriptionStatus = {
-        isSubscribed: false,
-        permissionGranted: false,
-        error: error instanceof Error ? error.message : 'Permission request failed'
-      };
-      
-      this.notifySubscriptionCallbacks(errorStatus);
-      return errorStatus;
-    }
-  }
-
-  /**
-   * Subscribe to push notifications using VAPID
-   */
-  private async subscribeToPushNotifications(): Promise<void> {
-    if (!this.vapidPublicKey) {
-      throw new Error('VAPID public key not available');
-    }
-
-    this.logger.log('[PushManager] Starting VAPID subscription process...', {
-      vapidKeyLength: this.vapidPublicKey.length,
-      timestamp: new Date().toISOString()
-    });
-
-    const registration = await navigator.serviceWorker.ready;
-    
-    const subscribeOptions = {
-      userVisibleOnly: true,
-      applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
-    };
-
-    this.subscription = await registration.pushManager.subscribe(subscribeOptions);
-    
-    this.logger.log('[PushManager] Successfully subscribed to push notifications', {
-      endpoint: this.subscription.endpoint,
-      expirationTime: this.subscription.expirationTime,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Sync with backend
-    await this.syncSubscriptionWithBackend();
-  }
-
-  /**
-   * Sync subscription with backend
-   */
-  private async syncSubscriptionWithBackend(): Promise<void> {
-    if (!this.subscription) {
-      throw new Error('No active subscription to sync');
+  async getVapidPublicKey(): Promise<string> {
+    if (this.vapidPublicKey) {
+      return this.vapidPublicKey;
     }
 
     try {
-      this.logger.log('[PushManager] Syncing subscription with backend...');
-      
-      const deviceInfo = this.detectDeviceInfo();
-      const subscriptionData = {
-        subscription: this.subscription.toJSON(),
-        userAgent: navigator.userAgent,
-        deviceInfo
-      };
-
-      this.logger.log('[PushManager] Sending subscription data to backend:', {
-        endpoint: this.subscription.endpoint,
-        deviceInfo,
-        timestamp: new Date().toISOString()
-      });
-
-      await axios.post(`${process.env.REACT_APP_API_URL}/push/subscribe`, subscriptionData, {
+      const response = await axios.get(`${this.apiBaseUrl}/push/public-key`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
-      this.logger.log('[PushManager] Synced subscription with backend successfully', {
-        timestamp: new Date().toISOString()
-      });
+      if (!response.data.publicKey) {
+        throw new Error('Invalid VAPID public key response');
+      }
+
+      this.vapidPublicKey = response.data.publicKey;
+      return response.data.publicKey;
     } catch (error) {
-      this.logger.error('[PushManager] Failed to sync subscription with backend:', {
-        error: error instanceof Error ? error.message : error,
-        endpoint: this.subscription?.endpoint,
-        timestamp: new Date().toISOString()
-      });
-      throw error;
+      console.error('Error fetching VAPID public key:', error);
+      
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to fetch VAPID public key: ${error.response?.status || error.message}`);
+      }
+      
+      throw new Error('Failed to get VAPID public key');
     }
   }
 
   /**
-   * Convert VAPID key from base64 to Uint8Array
+   * Convert VAPID public key from base64 to Uint8Array
    */
   private urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding)
       .replace(/-/g, '+')
       .replace(/_/g, '/');
@@ -464,326 +203,361 @@ class PushNotificationManager {
   }
 
   /**
-   * Get current subscription status
+   * Get the current push subscription
    */
-  async getSubscriptionStatus(): Promise<SubscriptionStatus> {
-    const permission = Notification.permission;
-    const isSubscribed = !!this.subscription;
-    
-    const status: SubscriptionStatus = {
-      isSubscribed,
-      permissionGranted: permission === 'granted',
-      subscriptionEndpoint: this.subscription?.endpoint,
-      deviceInfo: this.detectDeviceInfo(),
-      externalUserId: this.currentExternalUserId || undefined,
-      isLoggedIn: !!this.currentExternalUserId
-    };
-
-    // Store subscription status for persistence
-    if (isSubscribed && permission === 'granted') {
-      this.storeSubscription(status);
+  async getCurrentSubscription(): Promise<PushSubscription | null> {
+    if (!this.isSupported()) {
+      return null;
     }
 
-    return status;
+    try {
+      const registration = await this.initializeServiceWorker();
+      return await registration.pushManager.getSubscription();
+    } catch (error) {
+      console.error('Error getting current subscription:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Subscribe to push notifications - main method that BildirimiDene.tsx expects
+   */
+  async subscribe(): Promise<SubscriptionResult> {
+    try {
+      // Check browser support
+      if (!this.isSupported()) {
+        return {
+          success: false,
+          error: 'Push notifications not supported in this browser',
+          code: 'NOT_SUPPORTED',
+        };
+      }
+
+      // Check permission
+      const permission = await this.requestPermission();
+      if (permission !== 'granted') {
+        return {
+          success: false,
+          error: 'Notification permission denied',
+          code: 'PERMISSION_DENIED',
+        };
+      }
+
+      // Initialize service worker
+      const registration = await this.initializeServiceWorker();
+
+      // Check if already subscribed
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        const subscriptionData = this.convertSubscriptionToData(existingSubscription);
+        
+        // Register with backend
+        const registerResult = await this.registerWithBackend(subscriptionData);
+        if (registerResult.success) {
+          return {
+            success: true,
+            subscription: subscriptionData,
+          };
+        } else {
+          return registerResult;
+        }
+      }
+
+      // Get VAPID public key
+      const vapidPublicKey = await this.getVapidPublicKey();
+      const applicationServerKey = this.urlBase64ToUint8Array(vapidPublicKey);
+
+      // Subscribe to push manager
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+
+      const subscriptionData = this.convertSubscriptionToData(subscription);
+
+      // Register with backend
+      const registerResult = await this.registerWithBackend(subscriptionData);
+      if (registerResult.success) {
+        return {
+          success: true,
+          subscription: subscriptionData,
+        };
+      } else {
+        // If backend registration fails, unsubscribe from push manager
+        try {
+          await subscription.unsubscribe();
+        } catch (unsubError) {
+          console.error('Error unsubscribing after backend failure:', unsubError);
+        }
+        return registerResult;
+      }
+    } catch (error) {
+      console.error('Error subscribing to push notifications:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        code: 'SUBSCRIPTION_ERROR',
+      };
+    }
   }
 
   /**
    * Unsubscribe from push notifications
    */
-  async unsubscribe(): Promise<boolean> {
+  async unsubscribe(): Promise<SubscriptionResult> {
     try {
-      if (this.subscription) {
-        // Unsubscribe from browser
-        await this.subscription.unsubscribe();
-        
-        // Remove from backend
-        await axios.post(`${process.env.REACT_APP_API_URL}/push/unsubscribe`, {
-          endpoint: this.subscription.endpoint
-        }, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        this.subscription = null;
-        console.log('[PushManager] Successfully unsubscribed from push notifications');
+      if (!this.isSupported()) {
+        return {
+          success: false,
+          error: 'Push notifications not supported',
+          code: 'NOT_SUPPORTED',
+        };
       }
-      
-      // Clear stored subscription data
-      this.clearStoredSubscription();
-      
-      const status = await this.getSubscriptionStatus();
-      this.notifySubscriptionCallbacks(status);
-      
-      return true;
-    } catch (error) {
-      console.error('[PushManager] Failed to unsubscribe:', error);
-      return false;
-    }
-  }
 
-  /**
-   * Login user (associate external user ID)
-   */
-  async loginUser(userId: string): Promise<boolean> {
-    try {
-      this.currentExternalUserId = userId;
-      
-      // If subscribed, update backend with user association
-      if (this.subscription) {
-        await this.syncSubscriptionWithBackend();
+      const registration = await this.initializeServiceWorker();
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        return {
+          success: true, // Already unsubscribed
+        };
       }
+
+      const subscriptionData = this.convertSubscriptionToData(subscription);
+
+      // Unsubscribe from push manager
+      const unsubscribed = await subscription.unsubscribe();
       
-      console.log('[PushManager] User logged in:', userId);
-      return true;
+      if (!unsubscribed) {
+        return {
+          success: false,
+          error: 'Failed to unsubscribe from push manager',
+          code: 'UNSUBSCRIBE_ERROR',
+        };
+      }
+
+      // Unregister from backend
+      const unregisterResult = await this.unregisterFromBackend(subscriptionData.endpoint);
+      
+      return unregisterResult;
     } catch (error) {
-      console.error('[PushManager] Failed to login user:', error);
-      return false;
+      console.error('Error unsubscribing from push notifications:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        code: 'UNSUBSCRIBE_ERROR',
+      };
     }
   }
 
   /**
-   * Logout user
+   * Convert PushSubscription to PushSubscriptionData
    */
-  async logoutUser(): Promise<boolean> {
-    try {
-      this.currentExternalUserId = null;
-      console.log('[PushManager] User logged out');
-      return true;
-    } catch (error) {
-      console.error('[PushManager] Failed to logout user:', error);
-      return false;
+  private convertSubscriptionToData(subscription: PushSubscription): PushSubscriptionData {
+    const p256dhKey = subscription.getKey('p256dh');
+    const authKey = subscription.getKey('auth');
+    
+    if (!p256dhKey || !authKey) {
+      throw new Error('Invalid subscription keys');
     }
+
+    return {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: this.arrayBufferToBase64(p256dhKey),
+        auth: this.arrayBufferToBase64(authKey),
+      },
+      expirationTime: subscription.expirationTime,
+    };
   }
 
   /**
-   * Set user tags (for segmentation)
+   * Convert ArrayBuffer to base64 string
    */
-  async setTags(tags: Record<string, string>): Promise<boolean> {
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  /**
+   * Register subscription with backend
+   */
+  private async registerWithBackend(subscriptionData: PushSubscriptionData): Promise<SubscriptionResult> {
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/push/tags`, {
-        tags
+      const response = await axios.post(`${this.apiBaseUrl}/push/subscribe`, {
+        subscription: subscriptionData,
+        userAgent: navigator.userAgent,
       }, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
-      console.log('[PushManager] Tags updated successfully');
-      return true;
+
+      return {
+        success: true,
+        subscription: subscriptionData,
+      };
     } catch (error) {
-      console.error('[PushManager] Failed to set tags:', error);
-      return false;
+      console.error('Error registering with backend:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data || {};
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${error.response?.status}`,
+          code: errorData.code || 'BACKEND_ERROR',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+        code: 'NETWORK_ERROR',
+      };
     }
   }
 
   /**
-   * Check if push notifications are supported
+   * Unregister subscription from backend
    */
-  isPushNotificationSupported(): boolean {
-    return (
-      'Notification' in window &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      window.isSecureContext
-    );
+  private async unregisterFromBackend(endpoint: string): Promise<SubscriptionResult> {
+    try {
+      await axios.delete(`${this.apiBaseUrl}/push/unsubscribe`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        data: {
+          endpoint,
+        },
+      });
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error unregistering from backend:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data || {};
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${error.response?.status}`,
+          code: errorData.code || 'BACKEND_ERROR',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+        code: 'NETWORK_ERROR',
+      };
+    }
   }
 
   /**
-   * Detect device and browser information
+   * Get user's push subscriptions from backend
    */
-  detectDeviceInfo(): DeviceInfo {
-    const userAgent = navigator.userAgent;
+  async getUserSubscriptions(): Promise<{
+    success: boolean;
+    subscriptions?: Array<{
+      id: string;
+      endpoint: string;
+      enabled: boolean;
+      userAgent?: string;
+      createdAt: string;
+      lastSeenAt: string;
+    }>;
+    error?: string;
+    code?: string;
+  }> {
+    try {
+      const response = await axios.get(`${this.apiBaseUrl}/push/subscriptions`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      return {
+        success: true,
+        subscriptions: response.data.subscriptions,
+      };
+    } catch (error) {
+      console.error('Error getting user subscriptions:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data || {};
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${error.response?.status}`,
+          code: errorData.code || 'BACKEND_ERROR',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Get detailed information about the current subscription and browser support
+   * Compatible with the BildirimiDene.tsx expectations
+   */
+  async getSubscriptionInfo(): Promise<{
+    browserSupport: BrowserSupport;
+    permission: NotificationPermission;
+    hasSubscription: boolean;
+    subscription?: PushSubscriptionData;
+    backendSubscriptions?: Array<{
+      id: string;
+      endpoint: string;
+      enabled: boolean;
+      userAgent?: string;
+      createdAt: string;
+      lastSeenAt: string;
+    }>;
+  }> {
+    const browserSupport = this.getBrowserSupport();
+    const permission = this.getPermissionStatus();
     
-    // Detect browser
-    let browser: DeviceInfo['browser'] = 'OTHER';
-    if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) browser = 'CHROME';
-    else if (userAgent.includes('Firefox')) browser = 'FIREFOX';
-    else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browser = 'SAFARI';
-    else if (userAgent.includes('Edg')) browser = 'EDGE';
-    else if (userAgent.includes('Opera')) browser = 'OPERA';
-    
-    // Detect OS
-    let os: DeviceInfo['os'] = 'OTHER';
-    if (userAgent.includes('Win')) os = 'WINDOWS';
-    else if (userAgent.includes('Mac')) os = 'MACOS';
-    else if (userAgent.includes('Linux')) os = 'LINUX';
-    else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) os = 'IOS';
-    else if (userAgent.includes('Android')) os = 'ANDROID';
-    else if (userAgent.includes('CrOS')) os = 'CHROME_OS';
-    
-    // Detect device type
-    let deviceType: DeviceInfo['deviceType'] = 'DESKTOP';
-    if (/Mobile|Android|iPhone/.test(userAgent)) deviceType = 'MOBILE';
-    else if (/iPad|Tablet/.test(userAgent)) deviceType = 'TABLET';
-    
-    // Detect PWA
-    const pwa = window.matchMedia('(display-mode: standalone)').matches ||
-                (window.navigator as any).standalone === true;
-    
+    let hasSubscription = false;
+    let subscription: PushSubscriptionData | undefined;
+    let backendSubscriptions: any[] | undefined;
+
+    if (browserSupport.isSupported && permission === 'granted') {
+      const currentSub = await this.getCurrentSubscription();
+      if (currentSub) {
+        hasSubscription = true;
+        subscription = this.convertSubscriptionToData(currentSub);
+      }
+
+      // Get backend subscriptions
+      const backendResult = await this.getUserSubscriptions();
+      if (backendResult.success) {
+        backendSubscriptions = backendResult.subscriptions;
+      }
+    }
+
     return {
-      browser,
-      os,
-      deviceType,
-      pwa,
-      userAgent
+      browserSupport,
+      permission,
+      hasSubscription,
+      subscription,
+      backendSubscriptions,
     };
-  }
-
-  /**
-   * Detect environment for debugging
-   */
-  private detectEnvironment(): void {
-    const hostname = window.location.hostname;
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const isProduction = process.env.NODE_ENV === 'production';
-    const deviceInfo = this.detectDeviceInfo();
-    
-    const environmentInfo = {
-      hostname,
-      isDevelopment,
-      isProduction,
-      protocol: window.location.protocol,
-      isSecureContext: window.isSecureContext,
-      deviceInfo,
-      isPWA: this.isPWA(),
-      userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString()
-    };
-    
-    this.logger.log('[PushManager] Environment detection:', environmentInfo);
-    
-    // Store environment info for debugging
-    if (isDevelopment) {
-      (window as any).__iwent_push_env__ = environmentInfo;
-    }
-  }
-
-  // Helper methods for external user ID
-  getCurrentExternalUserId(): string | null {
-    return this.currentExternalUserId;
-  }
-
-  isUserLoggedIn(): boolean {
-    return !!this.currentExternalUserId;
-  }
-
-  async ensureUserLogin(userId: string): Promise<boolean> {
-    return this.loginUser(userId);
-  }
-
-  async autoLoginIfAuthenticated(userId: string): Promise<boolean> {
-    return this.loginUser(userId);
-  }
-
-  // Subscription callbacks
-  addSubscriptionCallback(callback: (status: SubscriptionStatus) => void): void {
-    this.subscriptionCallbacks.push(callback);
-  }
-
-  removeSubscriptionCallback(callback: (status: SubscriptionStatus) => void): void {
-    const index = this.subscriptionCallbacks.indexOf(callback);
-    if (index > -1) {
-      this.subscriptionCallbacks.splice(index, 1);
-    }
-  }
-
-  private notifySubscriptionCallbacks(status: SubscriptionStatus): void {
-    // Store subscription status for persistence
-    if (status.isSubscribed && status.permissionGranted) {
-      this.storeSubscription(status);
-    }
-    
-    this.subscriptionCallbacks.forEach(callback => {
-      try {
-        callback(status);
-      } catch (error) {
-        console.error('[PushManager] Subscription callback error:', error);
-      }
-    });
-  }
-
-  // Permission callbacks
-  addPermissionCallback(callback: (state: NotificationPermissionState) => void): void {
-    this.permissionCallbacks.push(callback);
-  }
-
-  removePermissionCallback(callback: (state: NotificationPermissionState) => void): void {
-    const index = this.permissionCallbacks.indexOf(callback);
-    if (index > -1) {
-      this.permissionCallbacks.splice(index, 1);
-    }
-  }
-
-  private notifyPermissionCallbacks(state: NotificationPermissionState): void {
-    this.permissionCallbacks.forEach(callback => {
-      try {
-        callback(state);
-      } catch (error) {
-        console.error('[PushManager] Permission callback error:', error);
-      }
-    });
-  }
-
-  /**
-   * Get notification permission state
-   */
-  getPermissionState(): NotificationPermissionState {
-    const isSupported = this.isPushNotificationSupported();
-    const permission = isSupported ? Notification.permission : 'denied';
-    const isIOS = this.detectDeviceInfo().os === 'IOS';
-    const isPWA = this.isPWA();
-    
-    return {
-      permission: permission as NotificationPermission,
-      canRequestPermission: permission === 'default',
-      requiresUserAction: true, // Always require user action for GDPR compliance
-      isSupported: isSupported && (!isIOS || isPWA), // iOS only supports push in PWA
-    };
-  }
-
-  /**
-   * Subscribe to subscription status changes
-   */
-  onSubscriptionChange(callback: (status: SubscriptionStatus) => void): () => void {
-    this.subscriptionCallbacks.push(callback);
-    
-    // Return unsubscribe function
-    return () => {
-      const index = this.subscriptionCallbacks.indexOf(callback);
-      if (index > -1) {
-        this.subscriptionCallbacks.splice(index, 1);
-      }
-    };
-  }
-
-  /**
-   * Subscribe to permission state changes
-   */
-  onPermissionChange(callback: (state: NotificationPermissionState) => void): () => void {
-    this.permissionCallbacks.push(callback);
-    
-    // Return unsubscribe function
-    return () => {
-      const index = this.permissionCallbacks.indexOf(callback);
-      if (index > -1) {
-        this.permissionCallbacks.splice(index, 1);
-      }
-    };
-  }
-
-  /**
-   * Check if running as PWA
-   */
-  isPWA(): boolean {
-    return (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      // @ts-ignore
-      window.navigator.standalone === true
-    );
   }
 }
 
-// Singleton instance
+// Export a default instance compatible with the working system
 export const pushNotificationManager = new PushNotificationManager();
+
+// Also export the class for direct instantiation if needed
+export { PushNotificationManager };
