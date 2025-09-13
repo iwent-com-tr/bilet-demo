@@ -425,8 +425,6 @@ model PushSubscription {
   id              String     @id @default(cuid())
   userId          String
   channel         PushChannel @default(WEB_PUSH)
-  onesignalUserId String     // OneSignal player_id (required)
-  onesignalSubId  String?    // OneSignal subscription_id (optional)
   subscriptionHash String?   // Hashed endpoint for security
   endpoint        String?    @unique
   p256dh          String?
@@ -446,10 +444,8 @@ model PushSubscription {
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, browser, os, deviceType, pwa])
-  @@index([onesignalUserId])
   @@index([subscribed, lastSeen])
   @@index([endpoint])
-  @@unique([userId, onesignalUserId]) // One subscription per user per OneSignal device
 }
 
 model UserSegmentTag {
@@ -457,8 +453,8 @@ model UserSegmentTag {
   userId    String
   key       String        // Tag key (e.g., "env", "city", "interests", "user_type")
   value     String        // Tag value (e.g., "dev", "istanbul", "concerts", "premium")
-  source    SegmentSource // INTERNAL or ONESIGNAL
-  syncedAt  DateTime?     // Last sync with OneSignal
+  source    SegmentSource // INTERNAL or EXTERNAL
+  syncedAt  DateTime?     // Last sync timestamp
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -472,8 +468,8 @@ model UserSegmentTag {
 model NotificationEvent {
   id              String    @id @default(cuid())
   userId          String?
-  onesignalId     String    // OneSignal notification ID
-  onesignalUserId String?   // OneSignal player_id
+  notificationId  String    // Generic notification ID
+  recipientId     String?   // Generic recipient ID
   eventType       String    // "sent", "delivered", "display", "click", "dismiss"
   timestamp       DateTime  @default(now())
   metadata        Json?     // Additional event data
@@ -482,8 +478,7 @@ model NotificationEvent {
   user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, eventType, timestamp])
-  @@index([onesignalId, eventType])
-  @@index([onesignalUserId, eventType])
+  @@index([notificationId, eventType])
   @@index([timestamp]) // For analytics queries
 }
 
@@ -787,7 +782,6 @@ enum DeviceType {
 
 enum SegmentSource {
   INTERNAL
-  ONESIGNAL
   EXTERNAL
 }
 

@@ -62,11 +62,6 @@ const EnvironmentSchema = z.object({
     { message: 'Must be a valid email or mailto:email format' }
   ).optional(),
   
-  // OneSignal
-  ONESIGNAL_APP_ID: z.string().optional(),
-  ONESIGNAL_API_KEY: z.string().optional(),
-  ONESIGNAL_WEBHOOK_SECRET: z.string().optional(),
-  
   // Queue System
   REDIS_URL: z.string().optional(),
   REDIS_HOST: z.string().default('localhost'),
@@ -218,14 +213,6 @@ function validateExternalServices(config: EnvironmentConfig, warnings: string[],
     warnings.push('VAPID keys not configured - web push notifications will be disabled');
   } else {
     info.push('VAPID configured - web push notifications enabled');
-  }
-  
-  // OneSignal
-  const oneSignalConfigured = config.ONESIGNAL_APP_ID && config.ONESIGNAL_API_KEY;
-  if (!oneSignalConfigured) {
-    warnings.push('OneSignal not configured - push notifications via OneSignal will be disabled');
-  } else {
-    info.push('OneSignal configured - push notifications enabled');
   }
   
   // Redis/Queue system

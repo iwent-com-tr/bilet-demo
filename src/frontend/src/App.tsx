@@ -7,7 +7,6 @@ import './utils/axios'; // Configure axios interceptors
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
 import ProtectedRoute from './components/layouts/ProtectedRoute';
-import { OneSignalLoader } from './components/OneSignalLoader';
 
 // Pages
 import Home from './pages/Home';
@@ -44,10 +43,10 @@ import AdminEventList from './pages/admin/EventList';
 import AdminEventDetail from './pages/admin/EventDetail';
 import BildirimiDene from './pages/BildirimiDene';
 import OrganizerDetail from './pages/admin/OrganizerDetail';
-import NotificationsDemo from 'pages/NotificationsDemo';
+import NotificationsDemo from './pages/NotificationsDemo';
 // Context
 import { AuthProvider } from './context/AuthContext';
-import Search from 'pages/search/Search';
+import Search from './pages/search/Search';
 
 import Messages from './pages/chat/Messages';
 import PrivateChat from './pages/chat/PrivateChat';
@@ -55,17 +54,16 @@ import UserProfile from './pages/user/UserProfile';
 import VenueProfile from './pages/venues/VenueProfile';
 import ArtistProfile from './pages/artists/ArtistProfile';
 
-import VenuesDetail from 'pages/venues/VenuesDetail';
-import ArtistsDetail from 'pages/artists/ArtistDetails';
-import OrganizerDetails from 'pages/organizer/organizer-3rd-view/OrganizerDetails';
-import MapPage from 'pages/map/Map';
+import VenuesDetail from './pages/venues/VenuesDetail';
+import ArtistsDetail from './pages/artists/ArtistDetails';
+import OrganizerDetails from './pages/organizer/organizer-3rd-view/OrganizerDetails';
+import MapPage from './pages/map/Map';
 
 
 const App: React.FC = () => {
   return (
-    <OneSignalLoader>
-      <AuthProvider>
-        <Router>
+    <AuthProvider>
+      <Router>
         <Routes>
           {/* Public Routes */}
           <Route element={<MainLayout />}>
@@ -246,7 +244,6 @@ const App: React.FC = () => {
         pauseOnHover
       />
     </AuthProvider>
-    </OneSignalLoader>
   );
 };
 

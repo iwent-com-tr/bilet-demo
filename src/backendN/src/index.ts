@@ -31,7 +31,6 @@ import { initMeili } from './lib/meili';
 import chatRoutes from './modules/chat/chat.routes';
 import adminUserRoutes from './modules/admin/users.routes';
 import adminEventRoutes from './modules/admin/event.routes';
-import pushNotificationRoutes from './modules/push-notification/push-notification.routes';
 import { adminApiLimiter } from './middlewares/rateLimiter';
 import pushRoutes from './modules/push/push.routes';
 import notificationRoutes from './modules/push/notification.routes';
@@ -117,10 +116,6 @@ app.use(`${API_PREFIX}/queue`, queueRoutes);
 
 // Chat routes
 app.use(`${API_PREFIX}/chat`, chatRoutes);
-
-// OneSignal push notification routes
-app.use(`${API_PREFIX}/push`, pushNotificationRoutes);
-app.use(`${API_PREFIX}`, pushNotificationRoutes); // For webhook endpoints
 
 // Admin routes with rate limiting
 app.use(`${API_PREFIX}/admin/users`, adminApiLimiter, adminUserRoutes);
@@ -237,3 +232,14 @@ const gracefulShutdown = async (signal: string) => {
 // Handle shutdown signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions to prevent memory leaks
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection');
+});

@@ -22,7 +22,7 @@ cp env.production.example .env
 **Kritik değişkenler:**
 - `DATABASE_URL`: PostgreSQL bağlantı string'i
 - `JWT_SECRET`: Güçlü bir JWT secret
-- `ONESIGNAL_APP_ID` ve `ONESIGNAL_API_KEY`: Push notification için
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`: VAPID push notification için
 - `REDIS_URL`: Redis bağlantı string'i
 - `CORS_ORIGIN`: Frontend domain'leriniz
 

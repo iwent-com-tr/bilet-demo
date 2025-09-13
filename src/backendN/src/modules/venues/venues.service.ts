@@ -33,7 +33,10 @@ export class VenuesService {
       }
     
       static async findBySlug(slug: string) {
-        console.log(slug);
+        // Debug logging only in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Finding venue by slug:', slug);
+        }
         const venue = await prisma.venue.findFirst({ 
           where: {
              slug,

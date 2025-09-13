@@ -1,6 +1,5 @@
 import { prisma } from '../../lib/prisma';
 import { ChatModerationService } from './moderation.service';
-import { oneSignalService } from '../push-notification/onesignal.service';
 import { UserService } from '../users/user.service';
 
 export class ChatService {
@@ -478,13 +477,6 @@ export class ChatService {
       }
     });
 
-    // Send push notification to receiver
-    try {
-      await oneSignalService.sendPrivateMessageNotification(senderId, receiverId, message);
-    } catch (notificationError) {
-      console.error('Failed to send private message notification:', notificationError);
-    }
-
     return sentMessage;
   }
 
@@ -524,18 +516,6 @@ export class ChatService {
         status: 'ACTIVE'
       }
     });
-
-    // Send push notification to all event participants
-    try {
-      await oneSignalService.sendEventMessageNotification(
-        userId, 
-        eventId, 
-        message, 
-        userType === 'organizer' ? 'ORGANIZER' : 'USER'
-      );
-    } catch (notificationError) {
-      console.error('Failed to send event message notification:', notificationError);
-    }
 
     return sentMessage;
   }

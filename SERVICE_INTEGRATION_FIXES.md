@@ -12,14 +12,13 @@ This document outlines the comprehensive fixes implemented for the push notifica
 
 **Fixes Applied**:
 - ✅ Enhanced push notification service initialization with proper VAPID validation
-- ✅ Added OneSignal service integration and health monitoring
 - ✅ Implemented Redis connection error handling with graceful fallbacks
 - ✅ Added comprehensive health monitoring for all services
 - ✅ Fixed import paths and dependencies
 
 **Key Features**:
 - **Graceful Degradation**: Services continue operating with reduced functionality when dependencies are unavailable
-- **Health Monitoring**: Real-time status tracking for database, Redis, VAPID, and OneSignal services
+- **Health Monitoring**: Real-time status tracking for database, Redis, and VAPID services
 - **Dependency Management**: Proper initialization order and dependency checking
 - **Error Recovery**: Automatic retry strategies and fallback mechanisms
 
@@ -80,10 +79,9 @@ graph TB
     I --> J{VAPID Valid?}
     J -->|Yes| K[Web Push Active]
     J -->|No| L[Web Push Disabled]
-    K --> M[OneSignal Check]
+    K --> M[Worker Initialization]
     L --> M
-    M --> N[Worker Initialization]
-    N --> O[Health Monitoring Start]
+    M --> N[Health Monitoring Start]
 ```
 
 ### Service Status Monitoring
@@ -117,17 +115,12 @@ The application now provides detailed service health information:
 - **Fallback**: Gracefully disables if misconfigured
 - **Features**: Full web push notification support
 
-### 2. OneSignal Integration
-- **Status**: Monitors OneSignal API credentials
-- **Fallback**: System works without OneSignal
-- **Features**: Enhanced push notification delivery
-
-### 3. Background Queue System
+### 2. Background Queue System
 - **Status**: Redis-based job processing
 - **Fallback**: Synchronous notification sending
 - **Features**: Scalable background processing
 
-### 4. Database Integration
+### 3. Database Integration
 - **Status**: Critical service - must be available
 - **Fallback**: Application cannot start without database
 - **Features**: User subscriptions, notification tracking
@@ -245,7 +238,7 @@ VAPID_SUBJECT="mailto:your-email@domain.com"
 
 # OneSignal (Optional - for enhanced push)
 ONESIGNAL_APP_ID="..."
-ONESIGNAL_API_KEY="..."
+VAPID_SUBJECT="mailto:admin@yourdomain.com"
 
 # Redis (Optional - for background processing)
 REDIS_HOST="localhost"
@@ -258,7 +251,6 @@ START_WORKER="false"
 
 **Graceful Fallbacks**:
 - Missing VAPID: Web push disabled, application continues
-- Missing OneSignal: Enhanced push disabled, basic push works
 - Missing Redis: Background jobs disabled, synchronous processing
 - Missing non-critical services: Application continues with warnings
 
@@ -291,13 +283,6 @@ Response format:
       "name": "Push Notifications (VAPID)",
       "status": "healthy",
       "message": "Web push notification service configured with VAPID",
-      "lastChecked": "2024-01-01T00:00:00.000Z",
-      "dependencies": []
-    },
-    "oneSignal": {
-      "name": "OneSignal Push Service",
-      "status": "healthy",
-      "message": "OneSignal push notification service configured",
       "lastChecked": "2024-01-01T00:00:00.000Z",
       "dependencies": []
     }

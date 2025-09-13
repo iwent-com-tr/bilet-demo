@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { FriendshipService, BlockService, MessageService } from './friendship.service';
 import { CreateBlockDTO, CreateFriendRequestDTO, ListFriendshipsQueryDTO, ListMessagesQueryDTO, PathIdDTO, SendMessageDTO } from './friendship.dto';
-import { oneSignalService } from '../push-notification/onesignal.service';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -18,13 +17,6 @@ export async function request(req: Request, res: Response, next: NextFunction) {
     const userId = (req as any).user?.id as string;
     const data = await FriendshipService.request(userId, input);
     
-    // Send push notification to the recipient
-    try {
-      await oneSignalService.sendFriendRequestNotification(data.fromUserId, data.toUserId);
-    } catch (notificationError) {
-      console.error('Failed to send friend request notification:', notificationError);
-    }
-    
     res.status(201).json({ friendship: data });
   } catch (e) { next(e); }
 }
@@ -34,13 +26,6 @@ export async function accept(req: Request, res: Response, next: NextFunction) {
     const { id } = PathIdDTO.parse(req.params);
     const userId = (req as any).user?.id as string;
     const data = await FriendshipService.accept(userId, id);
-    
-    // Send push notification to the friend request sender
-    try {
-      await oneSignalService.sendFriendRequestAcceptedNotification(data.toUserId, data.fromUserId);
-    } catch (notificationError) {
-      console.error('Failed to send friend request accepted notification:', notificationError);
-    }
     
     res.json({ friendship: data });
   } catch (e) { next(e); }

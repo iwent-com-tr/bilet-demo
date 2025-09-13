@@ -54,7 +54,6 @@ export class PushSubscriptionService {
           enabled: true,
           lastSeenAt: new Date(),
           channel: 'WEB_PUSH',
-          onesignalUserId: 'temp-' + Date.now(),
           browser: 'OTHER',
           os: 'OTHER',
           deviceType: 'DESKTOP',

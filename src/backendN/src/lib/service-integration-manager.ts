@@ -191,9 +191,6 @@ export class ServiceIntegrationManager {
 
       console.warn('⚠️  Web push notifications may not work properly');
     }
-
-    // Check OneSignal configuration (optional)
-    this.initializeOneSignalService();
   }
 
   /**
@@ -380,48 +377,7 @@ export class ServiceIntegrationManager {
     }
   }
 
-  /**
-   * Initialize OneSignal push notification service
-   */
-  private initializeOneSignalService(): void {
-    try {
-      const onesignalAppId = process.env.ONESIGNAL_APP_ID;
-      const onesignalApiKey = process.env.ONESIGNAL_API_KEY;
-      
-      if (!onesignalAppId || !onesignalApiKey) {
-        this.servicesHealth.oneSignal = {
-          name: 'OneSignal Push Service',
-          status: 'unavailable',
-          message: 'OneSignal credentials not configured - OneSignal push notifications disabled',
-          lastChecked: new Date(),
-          dependencies: []
-        };
 
-        console.warn('⚠️  OneSignal push notifications disabled - credentials not configured');
-        return;
-      }
-
-      this.servicesHealth.oneSignal = {
-        name: 'OneSignal Push Service',
-        status: 'healthy',
-        message: 'OneSignal push notification service configured',
-        lastChecked: new Date(),
-        dependencies: []
-      };
-
-      console.log('✅ OneSignal push notification service configured');
-    } catch (error) {
-      this.servicesHealth.oneSignal = {
-        name: 'OneSignal Push Service',
-        status: 'degraded',
-        message: `OneSignal configuration error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        lastChecked: new Date(),
-        dependencies: []
-      };
-
-      console.warn('⚠️  OneSignal push notifications may not work properly');
-    }
-  }
 
   /**
    * Initialize notification worker
@@ -668,7 +624,6 @@ export class ServiceIntegrationManager {
 
     const notifications = {
       pushNotifications: this.servicesHealth.pushNotifications,
-      oneSignal: this.servicesHealth.oneSignal,
       worker: this.servicesHealth.worker,
     };
 

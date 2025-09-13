@@ -29,7 +29,7 @@ async function generateUniqueSlug(base: string): Promise<string> {
   while (taken.has(`${initial}-${i}`)) i += 1;
   return `${initial}-${i}`;
 }
-import { oneSignalService } from '../push-notification/onesignal.service';
+
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
 import { SearchService } from '../search/search.service';
@@ -606,23 +606,8 @@ export class EventService {
    * Send notification to ticket holders when event is published
    */
   static async notifyTicketHoldersEventPublished(eventName: string, eventId: string) {
-    try {
-      await oneSignalService.sendToEventTicketHolders(
-        eventId,
-        `🎉 ${eventName} Etkinliği Açıldı!`,
-        `${eventName} etkinliği artık aktif! Bilet detaylarınızı kontrol edin ve hazırlıklarınızı tamamlayın.`,
-        {
-          data: {
-            notification_type: 'event_published',
-            event_id: eventId,
-            event_name: eventName
-          }
-        }
-      );
-    } catch (error) {
-      console.error('Failed to send event published notification:', error);
-      throw error;
-    }
+    // Note: OneSignal removed - implement VAPID push notifications here if needed
+    console.log(`Event published notification would be sent for: ${eventName} (${eventId})`);
   }
 
   /**
@@ -634,30 +619,8 @@ export class EventService {
     updateType: 'time_change' | 'venue_change' | 'general_update',
     message: string
   ) {
-    try {
-      const titles = {
-        time_change: `⏰ ${eventName} - Saat Değişikliği`,
-        venue_change: `📍 ${eventName} - Mekan Değişikliği`,
-        general_update: `📢 ${eventName} - Önemli Duyuru`
-      };
-
-      await oneSignalService.sendToEventTicketHolders(
-        eventId,
-        titles[updateType],
-        message,
-        {
-          data: {
-            notification_type: 'event_update',
-            update_type: updateType,
-            event_id: eventId,
-            event_name: eventName
-          }
-        }
-      );
-    } catch (error) {
-      console.error('Failed to send event update notification:', error);
-      throw error;
-    }
+    // Note: OneSignal removed - implement VAPID push notifications here if needed
+    console.log(`Event update notification would be sent for: ${eventName} (${eventId}) - ${updateType}`);
   }
 
   /**
@@ -674,18 +637,8 @@ export class EventService {
         throw new Error('Event not found');
       }
 
-      await oneSignalService.sendEventReminder(
-        eventId,
-        event.name,
-        hoursBeforeEvent,
-        {
-          venue: event.venue ?? 'Mekan belirtilmemiş',
-          startTime: event.startDate.toLocaleTimeString('tr-TR', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })
-        }
-      );
+      // Note: OneSignal removed - implement VAPID push notifications here if needed
+      console.log(`Event reminder would be sent for: ${event.name} (${eventId})`);
     } catch (error) {
       console.error('Failed to send event reminder:', error);
       throw error;

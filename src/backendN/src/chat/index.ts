@@ -79,7 +79,10 @@ export function setupChat(server: http.Server): SocketIOServer {
       return;
     }
 
-    console.log(`User ${principal.id} connected (${principal.role})`);
+    // Log user connection for debugging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`User ${principal.id} connected (${principal.role})`);
+    }
 
     // Track user as online
     if (!onlineUsers.has(principal.id)) {
@@ -245,7 +248,10 @@ export function setupChat(server: http.Server): SocketIOServer {
     });
 
     socket.on('disconnect', () => {
-      console.log(`User ${principal.id} disconnected`);
+      // Log user disconnection for debugging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`User ${principal.id} disconnected`);
+      }
       
       // Remove socket from online tracking
       const userSockets = onlineUsers.get(principal.id);

@@ -51,15 +51,7 @@ This document details the comprehensive service integration and health monitorin
 - **Configuration**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
 - **Endpoints**: `GET /api/v1/health/service/pushNotifications`
 
-#### 6. OneSignal (Enhanced Push Notifications)
-- **Status**: Optional service
-- **Health Check**: API credentials validation
-- **Fallback**: Falls back to VAPID web push
-- **Features**: Advanced push notification features
-- **Configuration**: `ONESIGNAL_APP_ID`, `ONESIGNAL_API_KEY`
-- **Endpoints**: `GET /api/v1/health/service/oneSignal`
-
-#### 7. Notification Worker
+#### 6. Notification Worker
 - **Status**: Optional service
 - **Health Check**: Worker process status
 - **Fallback**: Synchronous notification processing
@@ -69,7 +61,7 @@ This document details the comprehensive service integration and health monitorin
 
 ### 🔍 Search & AI Services
 
-#### 8. MeiliSearch (Search Engine)
+#### 7. MeiliSearch (Search Engine)
 - **Status**: Optional service
 - **Health Check**: Service health endpoint
 - **Fallback**: Search functionality disabled when unavailable
@@ -77,7 +69,7 @@ This document details the comprehensive service integration and health monitorin
 - **Configuration**: `MEILI_HOST`, `MEILI_API_KEY`
 - **Endpoints**: `GET /api/v1/health/service/meilisearch`
 
-#### 9. OpenAI (AI Features)
+#### 8. OpenAI (AI Features)
 - **Status**: Optional service
 - **Health Check**: API key validation
 - **Fallback**: AI features disabled when unavailable
@@ -161,7 +153,6 @@ GET /api/v1/health/services
     },
     "notifications": {
       "pushNotifications": { /* service status */ },
-      "oneSignal": { /* service status */ },
       "worker": { /* service status */ }
     }
   }
@@ -223,9 +214,6 @@ EMAIL_FROM="noreply@yourdomain.com"
 VAPID_PUBLIC_KEY="your_vapid_public_key"
 VAPID_PRIVATE_KEY="your_vapid_private_key"
 VAPID_SUBJECT="mailto:admin@yourdomain.com"
-
-ONESIGNAL_APP_ID="your_onesignal_app_id"
-ONESIGNAL_API_KEY="your_onesignal_api_key"
 
 # Search & AI Services
 MEILI_HOST="http://localhost:7700"
