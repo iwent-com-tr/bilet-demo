@@ -35,9 +35,111 @@ class PushNotificationManager {
   private permissionCallbacks: Array<(state: NotificationPermissionState) => void> = [];
   private currentExternalUserId: string | null = null;
   private vapidPublicKey: string | null = null;
+  private storageKey = 'iwent-push-subscription';
+  private autoPermissionRequested = false;
+  private logger = console; // Enhanced logging reference
 
   constructor() {
     this.detectEnvironment();
+    this.loadStoredSubscription();
+    
+    // Auto-initialize with delay for better UX
+    this.scheduleAutoInitialization();
+  }
+
+  /**
+   * Schedule automatic initialization with delay
+   */
+  private scheduleAutoInitialization(): void {
+    // Only auto-initialize in production or when explicitly enabled
+    const shouldAutoInit = process.env.NODE_ENV === 'production' || 
+                          localStorage.getItem('iwent-auto-push-init') === 'true';
+    
+    if (shouldAutoInit && !this.autoPermissionRequested) {
+      this.logger.log('[PushManager] Scheduling auto-initialization with 2-second delay...');
+      
+      setTimeout(async () => {
+        try {
+          this.autoPermissionRequested = true;
+          
+          // Check if permissions are already granted
+          const permissionState = this.getPermissionState();
+          
+          if (permissionState.permission === 'granted') {
+            this.logger.log('[PushManager] Permissions already granted, auto-initializing...');
+            await this.initialize();
+          } else if (permissionState.canRequestPermission && permissionState.isSupported) {
+            this.logger.log('[PushManager] Auto-requesting push notification permissions...');
+            await this.requestPermissionAndSubscribe();
+          } else {
+            this.logger.log('[PushManager] Auto-initialization skipped - permissions denied or not supported');
+          }
+        } catch (error) {
+          this.logger.warn('[PushManager] Auto-initialization failed:', error);
+        }
+      }, 2000); // 2-second delay as specified
+    }
+  }
+
+  /**
+   * Enable automatic permission requests (can be called manually)
+   */
+  enableAutoPermissionRequests(): void {
+    localStorage.setItem('iwent-auto-push-init', 'true');
+    if (!this.autoPermissionRequested) {
+      this.scheduleAutoInitialization();
+    }
+  }
+
+  /**
+   * Disable automatic permission requests
+   */
+  disableAutoPermissionRequests(): void {
+    localStorage.removeItem('iwent-auto-push-init');
+    this.autoPermissionRequested = true; // Prevent future auto requests
+  }
+  private loadStoredSubscription(): void {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored) {
+        const data = JSON.parse(stored);
+        this.currentExternalUserId = data.externalUserId || null;
+        console.log('[PushManager] Loaded stored subscription data');
+      }
+    } catch (error) {
+      console.warn('[PushManager] Failed to load stored subscription:', error);
+    }
+  }
+
+  /**
+   * Store subscription data in localStorage
+   */
+  private storeSubscription(status: SubscriptionStatus): void {
+    try {
+      const data = {
+        isSubscribed: status.isSubscribed,
+        permissionGranted: status.permissionGranted,
+        subscriptionEndpoint: status.subscriptionEndpoint,
+        externalUserId: status.externalUserId,
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
+      console.log('[PushManager] Stored subscription data to localStorage');
+    } catch (error) {
+      console.warn('[PushManager] Failed to store subscription:', error);
+    }
+  }
+
+  /**
+   * Clear stored subscription data
+   */
+  private clearStoredSubscription(): void {
+    try {
+      localStorage.removeItem(this.storageKey);
+      console.log('[PushManager] Cleared stored subscription data');
+    } catch (error) {
+      console.warn('[PushManager] Failed to clear stored subscription:', error);
+    }
   }
 
   /**
@@ -53,24 +155,32 @@ class PushNotificationManager {
 
   private async _initialize(): Promise<void> {
     try {
-      console.log('[PushManager] Starting VAPID initialization...');
+      this.logger.log('[PushManager] Starting VAPID initialization...', {
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        environment: process.env.NODE_ENV
+      });
       
       // Check if push notifications are supported
       const isSupported = this.isPushNotificationSupported();
-      console.log('[PushManager] Push notification support check:', {
+      const deviceInfo = this.detectDeviceInfo();
+      
+      this.logger.log('[PushManager] Push notification support check:', {
         isSupported,
         hasNotification: 'Notification' in window,
         hasServiceWorker: 'serviceWorker' in navigator,
         hasPushManager: 'PushManager' in window,
-        userAgent: navigator.userAgent,
-        isMobile: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent),
+        deviceInfo,
         isSecureContext: window.isSecureContext,
         protocol: window.location.protocol,
-        hostname: window.location.hostname
+        hostname: window.location.hostname,
+        isPWA: this.isPWA()
       });
       
       if (!isSupported) {
-        throw new Error('Push notifications are not supported in this browser');
+        const error = 'Push notifications are not supported in this browser';
+        this.logger.error('[PushManager] Initialization failed:', error);
+        throw new Error(error);
       }
 
       // Get VAPID public key from backend
@@ -83,10 +193,18 @@ class PushNotificationManager {
       await this.checkExistingSubscription();
       
       this.isInitialized = true;
-      console.log('[PushManager] VAPID push notifications initialized successfully');
+      this.logger.log('[PushManager] VAPID push notifications initialized successfully', {
+        timestamp: new Date().toISOString(),
+        hasSubscription: !!this.subscription,
+        subscriptionEndpoint: this.subscription?.endpoint
+      });
       
     } catch (error) {
-      console.error('[PushManager] Failed to initialize VAPID push notifications:', error);
+      this.logger.error('[PushManager] Failed to initialize VAPID push notifications:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
       this.isInitialized = false;
       throw error;
     }
@@ -97,11 +215,19 @@ class PushNotificationManager {
    */
   private async loadVapidPublicKey(): Promise<void> {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/push/vapid-public-key`);
+      this.logger.log('[PushManager] Loading VAPID public key from backend...');
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/push/public-key`);
       this.vapidPublicKey = response.data.publicKey;
-      console.log('[PushManager] VAPID public key loaded');
+      this.logger.log('[PushManager] VAPID public key loaded successfully', {
+        keyLength: this.vapidPublicKey?.length,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
-      console.error('[PushManager] Failed to load VAPID public key:', error);
+      this.logger.error('[PushManager] Failed to load VAPID public key:', {
+        error: error instanceof Error ? error.message : error,
+        apiUrl: process.env.REACT_APP_API_URL,
+        timestamp: new Date().toISOString()
+      });
       throw new Error('Failed to load VAPID configuration');
     }
   }
@@ -115,11 +241,21 @@ class PushNotificationManager {
     }
 
     try {
+      this.logger.log('[PushManager] Registering service worker...');
       const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('[PushManager] Service worker registered successfully');
+      
+      this.logger.log('[PushManager] Service worker registered successfully', {
+        scope: registration.scope,
+        updateViaCache: registration.updateViaCache,
+        timestamp: new Date().toISOString()
+      });
+      
       return registration;
     } catch (error) {
-      console.error('[PushManager] Service worker registration failed:', error);
+      this.logger.error('[PushManager] Service worker registration failed:', {
+        error: error instanceof Error ? error.message : error,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
   }
@@ -129,16 +265,27 @@ class PushNotificationManager {
    */
   private async checkExistingSubscription(): Promise<void> {
     try {
+      this.logger.log('[PushManager] Checking for existing subscription...');
       const registration = await navigator.serviceWorker.ready;
       this.subscription = await registration.pushManager.getSubscription();
       
       if (this.subscription) {
-        console.log('[PushManager] Found existing subscription');
+        this.logger.log('[PushManager] Found existing subscription', {
+          endpoint: this.subscription.endpoint,
+          expirationTime: this.subscription.expirationTime,
+          timestamp: new Date().toISOString()
+        });
+        
         // Sync with backend
         await this.syncSubscriptionWithBackend();
+      } else {
+        this.logger.log('[PushManager] No existing subscription found');
       }
     } catch (error) {
-      console.error('[PushManager] Error checking existing subscription:', error);
+      this.logger.error('[PushManager] Error checking existing subscription:', {
+        error: error instanceof Error ? error.message : error,
+        timestamp: new Date().toISOString()
+      });
     }
   }
 
@@ -147,43 +294,71 @@ class PushNotificationManager {
    */
   async requestPermissionAndSubscribe(): Promise<SubscriptionStatus> {
     try {
-      console.log('[PushManager] Starting permission request and subscription process...');
+      this.logger.log('[PushManager] Starting permission request and subscription process...', {
+        timestamp: new Date().toISOString(),
+        currentPermission: Notification.permission,
+        isSupported: this.isPushNotificationSupported()
+      });
       
       await this.initialize();
 
       // Check if browser supports push notifications
       if (!this.isPushNotificationSupported()) {
-        throw new Error('Push notifications are not supported on this device/browser');
+        const error = 'Push notifications are not supported on this device/browser';
+        this.logger.error('[PushManager] Permission request failed:', error);
+        throw new Error(error);
       }
 
       // Check current permission state
       const currentPermission = Notification.permission;
-      console.log('[PushManager] Current permission state:', currentPermission);
+      this.logger.log('[PushManager] Current permission state:', {
+        permission: currentPermission,
+        timestamp: new Date().toISOString()
+      });
 
       if (currentPermission === 'denied') {
-        throw new Error('Notification permission was denied. Please enable notifications in your browser settings.');
+        const error = 'Notification permission was denied. Please enable notifications in your browser settings.';
+        this.logger.warn('[PushManager] Permission denied by user:', error);
+        throw new Error(error);
       }
 
       // Request permission if not granted
       let permission: NotificationPermission = currentPermission;
       if (permission === 'default') {
+        this.logger.log('[PushManager] Requesting notification permission from user...');
         permission = await Notification.requestPermission();
+        this.logger.log('[PushManager] Permission request result:', {
+          permission,
+          timestamp: new Date().toISOString()
+        });
       }
 
       if (permission !== 'granted') {
-        throw new Error('Notification permission not granted');
+        const error = 'Notification permission not granted';
+        this.logger.warn('[PushManager] Permission not granted:', { permission });
+        throw new Error(error);
       }
 
       // Subscribe to push notifications
       await this.subscribeToPushNotifications();
       
       const status = await this.getSubscriptionStatus();
+      this.logger.log('[PushManager] Subscription process completed:', {
+        status,
+        timestamp: new Date().toISOString()
+      });
+      
       this.notifySubscriptionCallbacks(status);
       
       return status;
       
     } catch (error) {
-      console.error('[PushManager] Permission request failed:', error);
+      this.logger.error('[PushManager] Permission request failed:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
+      
       const errorStatus: SubscriptionStatus = {
         isSubscribed: false,
         permissionGranted: false,
@@ -203,6 +378,11 @@ class PushNotificationManager {
       throw new Error('VAPID public key not available');
     }
 
+    this.logger.log('[PushManager] Starting VAPID subscription process...', {
+      vapidKeyLength: this.vapidPublicKey.length,
+      timestamp: new Date().toISOString()
+    });
+
     const registration = await navigator.serviceWorker.ready;
     
     const subscribeOptions = {
@@ -211,7 +391,12 @@ class PushNotificationManager {
     };
 
     this.subscription = await registration.pushManager.subscribe(subscribeOptions);
-    console.log('[PushManager] Successfully subscribed to push notifications');
+    
+    this.logger.log('[PushManager] Successfully subscribed to push notifications', {
+      endpoint: this.subscription.endpoint,
+      expirationTime: this.subscription.expirationTime,
+      timestamp: new Date().toISOString()
+    });
     
     // Sync with backend
     await this.syncSubscriptionWithBackend();
@@ -226,6 +411,8 @@ class PushNotificationManager {
     }
 
     try {
+      this.logger.log('[PushManager] Syncing subscription with backend...');
+      
       const deviceInfo = this.detectDeviceInfo();
       const subscriptionData = {
         subscription: this.subscription.toJSON(),
@@ -233,15 +420,27 @@ class PushNotificationManager {
         deviceInfo
       };
 
+      this.logger.log('[PushManager] Sending subscription data to backend:', {
+        endpoint: this.subscription.endpoint,
+        deviceInfo,
+        timestamp: new Date().toISOString()
+      });
+
       await axios.post(`${process.env.REACT_APP_API_URL}/push/subscribe`, subscriptionData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
       
-      console.log('[PushManager] Synced subscription with backend successfully');
+      this.logger.log('[PushManager] Synced subscription with backend successfully', {
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
-      console.error('[PushManager] Failed to sync subscription with backend:', error);
+      this.logger.error('[PushManager] Failed to sync subscription with backend:', {
+        error: error instanceof Error ? error.message : error,
+        endpoint: this.subscription?.endpoint,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
   }
@@ -271,7 +470,7 @@ class PushNotificationManager {
     const permission = Notification.permission;
     const isSubscribed = !!this.subscription;
     
-    return {
+    const status: SubscriptionStatus = {
       isSubscribed,
       permissionGranted: permission === 'granted',
       subscriptionEndpoint: this.subscription?.endpoint,
@@ -279,6 +478,13 @@ class PushNotificationManager {
       externalUserId: this.currentExternalUserId || undefined,
       isLoggedIn: !!this.currentExternalUserId
     };
+
+    // Store subscription status for persistence
+    if (isSubscribed && permission === 'granted') {
+      this.storeSubscription(status);
+    }
+
+    return status;
   }
 
   /**
@@ -302,6 +508,9 @@ class PushNotificationManager {
         this.subscription = null;
         console.log('[PushManager] Successfully unsubscribed from push notifications');
       }
+      
+      // Clear stored subscription data
+      this.clearStoredSubscription();
       
       const status = await this.getSubscriptionStatus();
       this.notifySubscriptionCallbacks(status);
@@ -428,14 +637,26 @@ class PushNotificationManager {
     const hostname = window.location.hostname;
     const isDevelopment = process.env.NODE_ENV === 'development';
     const isProduction = process.env.NODE_ENV === 'production';
+    const deviceInfo = this.detectDeviceInfo();
     
-    console.log('[PushManager] Environment detection:', {
+    const environmentInfo = {
       hostname,
       isDevelopment,
       isProduction,
       protocol: window.location.protocol,
-      isSecureContext: window.isSecureContext
-    });
+      isSecureContext: window.isSecureContext,
+      deviceInfo,
+      isPWA: this.isPWA(),
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    };
+    
+    this.logger.log('[PushManager] Environment detection:', environmentInfo);
+    
+    // Store environment info for debugging
+    if (isDevelopment) {
+      (window as any).__iwent_push_env__ = environmentInfo;
+    }
   }
 
   // Helper methods for external user ID
@@ -468,6 +689,11 @@ class PushNotificationManager {
   }
 
   private notifySubscriptionCallbacks(status: SubscriptionStatus): void {
+    // Store subscription status for persistence
+    if (status.isSubscribed && status.permissionGranted) {
+      this.storeSubscription(status);
+    }
+    
     this.subscriptionCallbacks.forEach(callback => {
       try {
         callback(status);
