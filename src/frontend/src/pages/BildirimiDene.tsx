@@ -114,7 +114,7 @@ export function BildirimiDene() {
           vapidEndpoint: result.subscription?.endpoint
         }));
         
-        setTestResult('✅ VAPID push subscription başarılı! Android bildirimleri artık çalışmalı.');
+        setTestResult('✅ VAPID push subscription başarılı! Tüm platformlarda çalışmalı.');
         
         // Send a test push notification through backend
         setTimeout(() => {
@@ -156,8 +156,8 @@ export function BildirimiDene() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          title: 'VAPID Test - Android Uyumlu 🤖',
-          body: 'Bu VAPID push bildirimidir. Android cihazlarda çalışmalıdır!',
+          title: 'VAPID Test - 🚀 Çapraz Platform',
+          body: 'Bu VAPID push bildirimidir. Tüm platformlarda çalışır!',
           url: '/bildirimi-dene'
         }),
       });
@@ -165,7 +165,7 @@ export function BildirimiDene() {
       const result = await response.json();
 
       if (response.ok) {
-        setTestResult(`✅ VAPID push bildirimi gönderildi! Android cihazlarda görünmelidir.`);
+        setTestResult(`✅ VAPID push bildirimi gönderildi! Tüm platformlarda görünmelidir.`);
       } else {
         setTestResult(`❌ VAPID bildirim hatası: ${result.error || 'Bilinmeyen hata'}`);
       }
@@ -177,58 +177,7 @@ export function BildirimiDene() {
     }
   };
 
-  const showBasicTestNotification = () => {
-    if (Notification.permission !== 'granted') {
-      console.warn('[BildirimiDene] Cannot show notification - permission not granted');
-      setTestResult('❌ Bildirim izni verilmemiş');
-      return;
-    }
 
-    try {
-      console.log('[BildirimiDene] Showing basic test notification...');
-      
-      // Basic notification for browsers that don't support VAPID properly
-      const notificationOptions = {
-        body: 'Bu temel tarayıcı bildirimidir. Android cihazlarda VAPID push bildirimi kullanın.',
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: 'bildirimi-dene-basic',
-        requireInteraction: false,
-        silent: false,
-        vibrate: [200, 100, 200],
-        renotify: true
-      };
-      
-      const notification = new Notification('📱 Temel Bildirim Testi', notificationOptions);
-
-      notification.onclick = () => {
-        console.log('[BildirimiDene] Basic notification clicked');
-        window.focus();
-        notification.close();
-      };
-
-      notification.onshow = () => {
-        console.log('[BildirimiDene] Basic notification shown successfully');
-        setTestResult('✅ Temel bildirim test başarılı (Android için VAPID kullanın)');
-      };
-
-      notification.onerror = (error) => {
-        console.error('[BildirimiDene] Basic notification error:', error);
-        setTestResult('❌ Temel bildirim hatası');
-      };
-
-      // Auto close after 5 seconds
-      setTimeout(() => {
-        if (notification) {
-          notification.close();
-        }
-      }, 5000);
-
-    } catch (error) {
-      console.error('[BildirimiDene] Failed to show basic notification:', error);
-      setTestResult('❌ Temel bildirim hatası: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
-    }
-  };
 
   const sendServerNotification = async () => {
     setIsLoading(true);
@@ -349,7 +298,7 @@ export function BildirimiDene() {
               <span className="bildirimi-dene__status-icon">
                 {status.vapidSubscribed ? '✅' : '❌'}
               </span>
-              <span>{status.vapidSubscribed ? 'VAPID Abone (Android Uyumlu)' : 'VAPID Abone Değil'}</span>
+              <span>{status.vapidSubscribed ? 'VAPID Abone (🚀 Çapraz Platform)' : 'VAPID Abone Değil'}</span>
             </div>
           </div>
         </div>
@@ -381,27 +330,18 @@ export function BildirimiDene() {
               disabled={isLoading}
               className="bildirimi-dene__button bildirimi-dene__button--primary"
             >
-              {isLoading ? '⏳ VAPID Abonelik...' : '🤖 Android VAPID Push Etkinleştir'}
+              {isLoading ? '⏳ VAPID Abonelik...' : '🚀 VAPID Push Etkinleştir'}
             </button>
           )}
 
           {status.vapidSubscribed && (
-            <div className="bildirimi-dene__test-actions">
-              <button
-                onClick={sendVapidTestNotification}
-                disabled={isLoading}
-                className="bildirimi-dene__button bildirimi-dene__button--success"
-              >
-                {isLoading ? '📤 VAPID Gönderiliyor...' : '🤖 VAPID Push Test (Android)'}
-              </button>
-              
-              <button
-                onClick={showBasicTestNotification}
-                className="bildirimi-dene__button bildirimi-dene__button--accent"
-              >
-                📱 Temel Bildirim Testi
-              </button>
-            </div>
+            <button
+              onClick={sendVapidTestNotification}
+              disabled={isLoading}
+              className="bildirimi-dene__button bildirimi-dene__button--success"
+            >
+              {isLoading ? '📤 VAPID Gönderiliyor...' : '🚀 VAPID Push Test'}
+            </button>
           )}
 
           <button
@@ -426,15 +366,15 @@ export function BildirimiDene() {
         <div className="bildirimi-dene__instructions">
           <h3>Nasıl Test Edilir:</h3>
           <ol>
-            <li>"Bildirimleri Etkinleştir" butonuna tıklayın</li>
+            <li>"VAPID Push Etkinleştir" butonuna tıklayın</li>
             <li>Tarayıcı izin istediğinde "İzin Ver" seçeneğini seçin</li>
-            <li>"Yerel Test Bildirimi" ile tarayıcı bildirimi test edin</li>
-            <li>"Server Test Bildirimi" ile backend entegrasyonunu test edin</li>
+            <li>"VAPID Push Test" ile bildirim sistemi test edin</li>
+            <li>Server test bildirimi ile backend entegrasyonunu test edin</li>
           </ol>
           
           <div className="bildirimi-dene__note">
-            <strong>Not:</strong> Bu test bileşeni OneSignal kullanmadan doğrudan browser API'leri ile çalışır.
-            HTTPS bağlantı veya localhost gereklidir.
+            <strong>Not:</strong> Bu VAPID push bildirim sistemi tüm modern tarayıcılarda ve 
+            PWA modunda iOS'ta çalışır. HTTPS bağlantı veya localhost gereklidir.
           </div>
 
           {/* Platform-specific information */}
@@ -494,7 +434,7 @@ export function BildirimiDene() {
             return (
               <div className="bildirimi-dene__troubleshooting bildirimi-dene__troubleshooting--android">
                 <h3>🤖 Android Kullanıcıları İçin</h3>
-                <p>Android'de bildirimler çalışmıyorsa:</p>
+                <p>Android'de VAPID bildirimleri çalışmıyorsa:</p>
                 <ol>
                   <li>Tarayıcı ayarlarından bildirim izinlerini kontrol edin</li>
                   <li>Android sistem ayarlarından tarayıcı bildirimlerini etkinleştirin</li>
