@@ -226,11 +226,17 @@ const Search: React.FC = () => {
 
     const fetchEvents = async () => {
   try {
-    const params = new URLSearchParams({
+    const { latitude, longitude, distance, ...restFilters } = filters;
+
+    const paramsObj = {
       page: eventsPage.toString(),
       limit: '6',
-      ...filters
-    });
+      ...restFilters,
+      // only include location if available
+      ...(latitude && longitude ? { latitude, longitude, distance } : {}),
+    };
+
+    const params = new URLSearchParams(paramsObj as any);
 
     const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/events?${params}`);
 
@@ -250,11 +256,17 @@ const Search: React.FC = () => {
 
 const fetchVenues = async () => {
   try {
-    const params = new URLSearchParams({
-      page: venuesPage.toString(),
+    const { latitude, longitude, distance, ...restFilters } = filters;
+
+    const paramsObj = {
+      page: eventsPage.toString(),
       limit: '6',
-      ...filters,
-    });
+      ...restFilters,
+      // only include location if available
+      ...(latitude && longitude ? { latitude, longitude, distance } : {}),
+    };
+
+    const params = new URLSearchParams(paramsObj as any);
 
     const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/venues?${params}`);
 
@@ -274,11 +286,17 @@ const fetchVenues = async () => {
 
 const fetchArtists = async () => {
   try {
-    const params = new URLSearchParams({
-      page: artistsPage.toString(),
+    const { latitude, longitude, distance, ...restFilters } = filters;
+
+    const paramsObj = {
+      page: eventsPage.toString(),
       limit: '6',
-      ...filters,
-    });
+      ...restFilters,
+      // only include location if available
+      ...(latitude && longitude ? { latitude, longitude, distance } : {}),
+    };
+
+    const params = new URLSearchParams(paramsObj as any);
 
     const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/artists?${params}`);
 
@@ -298,11 +316,17 @@ const fetchArtists = async () => {
 
 const fetchOrganizers = async () => {
   try {
-    const params = new URLSearchParams({
-      page: organizersPage.toString(),
+    const { latitude, longitude, distance, ...restFilters } = filters;
+
+    const paramsObj = {
+      page: eventsPage.toString(),
       limit: '6',
-      ...filters,
-    });
+      ...restFilters,
+      // only include location if available
+      ...(latitude && longitude ? { latitude, longitude, distance } : {}),
+    };
+
+    const params = new URLSearchParams(paramsObj as any);
 
     const response = await axios.get<ApiResponse>(`${process.env.REACT_APP_API_URL}/organizers/public/?${params}`);
     console.log(response);
