@@ -199,6 +199,23 @@ const Search: React.FC = () => {
       }
     }, []);
 
+    // limiting scroll
+    useEffect(() => {
+      const handleScroll = () => {
+        if (!isFilterScreenOn) return;
+
+        const maxScroll = 300; // max scroll in px
+        if (window.scrollY > maxScroll) {
+          window.scrollTo(0, maxScroll); // prevent scrolling past maxScroll
+        }
+      };
+
+      window.addEventListener('scroll', handleScroll, { passive: false });
+
+      return () => window.removeEventListener('scroll', handleScroll);
+    }, [isFilterScreenOn]);
+
+
     useEffect(() => {
         if (activeIndex != -1) {
             if (activeIndex === 0) fetchEvents();

@@ -22,8 +22,12 @@ const MobileNavbar: React.FC = () => {
   }, [lastScrollY]);
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    if (path === '/') {
+      return location.pathname === '/'; // exact match for home
+    }
+    return location.pathname.startsWith(path); // partial match for others
   };
+
 
   return (
     <>

@@ -20,25 +20,25 @@
 }
 
 .filter-screen {
-  position: fixed;
+  position: absolute;   /* Take out of normal flow to act as an overlay */
   top: 0;
   left: 0;
   width: 100%;
-  height: 100vh;                /* explicit viewport height */
-  overflow-y: auto;             /* enable vertical scrolling */
-  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-  touch-action: pan-y;          /* allow vertical pan gestures */
-  overscroll-behavior: contain; /* avoid body scroll bleed */
-  padding-bottom: 64px;         /* so last controls aren't glued to the bottom */
-  transition: all 0.5s ease;
+  min-height: 100vh; /* Ensures it covers the screen */
+  /* The 400px padding will now extend the page scroll */
+  padding-bottom: 400px;
+  transition: transform 0.5s ease, opacity 0.5s ease;
   z-index: 100;
   background-color: black;
   box-shadow: 0px 100px 300px rgba(0, 0, 0, 1);
+  transform: translateY(0);  /* default: visible */
+  opacity: 1;
 }
 
 .filter-screen.blocked {
+  /* When hidden, we just slide it out of view. It's already positioned. */
+  transform: translateY(-100%); /* slide out above */
   opacity: 0;
-  transform: translateY(-100vh); /* slide out of view */
 }
 
 .filter-screen__header {
@@ -346,8 +346,7 @@
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    margin-left: 12px;
-    margin-right: 12px;
+    margin: 12px;
     background-color: var(--accent);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -363,8 +362,7 @@
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    margin-left: 12px;
-    margin-right: 12px;
+    margin: 12px;
     background-color: var(--accent);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -396,4 +394,10 @@
 .filter-screen__apply-button.active {
     background-color: var(--active-green);
     color: black;
+}
+
+@media (max-width: 768px) {
+  .filter-screen__header {
+    margin-top: 52px;
+  }
 }

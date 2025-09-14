@@ -18,7 +18,7 @@ const MainLayout: React.FC = () => {
     if (pathname === '/my-tickets') return 'Biletlerim';
     if (pathname === '/user/settings') return 'Ayarlar';
     if (pathname === '/calendar') return 'Takvim';
-    if (pathname === '/search') return 'Keşfet';
+    if (pathname.startsWith('/search')) return 'Keşfet';
     if (pathname.startsWith('/events/')) return 'Etkinlik Detayı';
     return undefined;
   };
