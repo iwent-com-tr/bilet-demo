@@ -36,7 +36,23 @@ export const getEventParticipants = async (req: Request, res: Response, next: Ne
     
     res.json({
       success: true,
-      participants
+      ...participants
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getEventChatGroupInfo = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { eventId } = req.params;
+    const userId = (req as any).user?.id;
+
+    const chatGroupInfo = await ChatService.getEventChatGroupInfo(eventId, userId);
+    
+    res.json({
+      success: true,
+      chatGroup: chatGroupInfo
     });
   } catch (error) {
     next(error);

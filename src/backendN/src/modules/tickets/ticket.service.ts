@@ -91,7 +91,12 @@ export class TicketService {
     }
 
     // Realtime: auto-join purchaser to event room
-    try { await joinUserToEventRoom(userId, params.eventId); } catch {}
+    try { 
+      await joinUserToEventRoom(userId, params.eventId);
+      console.log(`🎫 User ${userId} automatically added to event chat group for ticket purchase: ${event.name}`);
+    } catch (error) {
+      console.warn(`Failed to auto-join user ${userId} to event chat group:`, error);
+    }
 
     return ticket;
   }

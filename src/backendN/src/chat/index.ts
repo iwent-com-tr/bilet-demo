@@ -1,3 +1,4 @@
+
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../lib/prisma';
@@ -404,15 +405,97 @@ export function setupChat(server: http.Server): SocketIOServer {
 export async function joinUserToEventRoom(userId: string, eventId: string): Promise<void> {
   if (!io) return;
   const sockets = await io.in(userRoom(userId)).fetchSockets();
-  await Promise.all(sockets.map(s => s.join(eventRoom(eventId))));
-  sockets.forEach(s => s.emit('chat:joined', { eventId }));
+  
+  // Get event details for better user experience
+  const event = await prisma.event.findUnique({ 
+    where: { id: eventId }, 
+    select: { 
+      id: true,
+      name: true,
+      slug: true,
+      organizerId: true 
+    } 
+  });
+  
+  // Join both ID and slug-based rooms
+  await Promise.all(sockets.map(async s => {
+    await s.join(eventRoom(eventId));
+    if (event?.slug) {
+      await s.join(eventRoomBySlug(event.slug));
+    }
+  }));
+  
+  // Notify user they've joined the chat group
+  sockets.forEach(s => s.emit('chat:joined', { 
+    eventId,
+    eventName: event?.name,
+    eventSlug: event?.slug,
+    role: 'member',
+    message: `Welcome to ${event?.name} chat group!` 
+  }));
+  
+  console.log(`👥 User ${userId} joined event chat group: ${event?.name || eventId}`);
+}
+
+export async function joinOrganizerToEventRoom(organizerId: string, eventId: string): Promise<void> {
+  if (!io) return;
+  const sockets = await io.in(userRoom(organizerId)).fetchSockets();
+  
+  // Get event details
+  const event = await prisma.event.findUnique({ 
+    where: { id: eventId }, 
+    select: { 
+      id: true,
+      name: true,
+      slug: true 
+    } 
+  });
+  
+  // Join both ID and slug-based rooms
+  await Promise.all(sockets.map(async s => {
+    await s.join(eventRoom(eventId));
+    if (event?.slug) {
+      await s.join(eventRoomBySlug(event.slug));
+    }
+  }));
+  
+  // Notify organizer they're admin of the chat group
+  sockets.forEach(s => s.emit('chat:admin_joined', { 
+    eventId,
+    eventName: event?.name,
+    eventSlug: event?.slug,
+    role: 'admin',
+    message: `You are now admin of ${event?.name} chat group` 
+  }));
+  
+  console.log(`👑 Organizer ${organizerId} joined as admin of event chat group: ${event?.name || eventId}`);
 }
 
 export async function notifyEventCreated(eventId: string): Promise<void> {
   if (!io) return;
-  const ev = await prisma.event.findUnique({ where: { id: eventId }, select: { organizerId: true } });
+  const ev = await prisma.event.findUnique({ 
+    where: { id: eventId }, 
+    select: { 
+      id: true,
+      name: true,
+      slug: true,
+      organizerId: true 
+    } 
+  });
   if (ev?.organizerId) {
-    io.to(userRoom(ev.organizerId)).emit('chat:ready', { eventId });
+    // Automatically join organizer to the event room as admin
+    await joinOrganizerToEventRoom(ev.organizerId, eventId);
+    
+    // Notify organizer that the chat group is ready
+    io.to(userRoom(ev.organizerId)).emit('chat:ready', { 
+      eventId,
+      eventName: ev.name,
+      eventSlug: ev.slug,
+      role: 'admin',
+      message: 'Event chat group created. You are the admin of this group.' 
+    });
+    
+    console.log(`📢 Event chat group created for: ${ev.name} (${eventId}). Organizer ${ev.organizerId} is now admin.`);
   }
 }
 
@@ -420,23 +503,71 @@ export async function notifyEventPublished(eventId: string): Promise<void> {
   if (!io) return;
   const event = await prisma.event.findUnique({ 
     where: { id: eventId }, 
-    select: { id: true, slug: true, organizerId: true, name: true } 
+    select: { 
+      id: true,
+      name: true,
+      slug: true,
+      organizerId: true 
+    } 
   });
   
   if (!event) return;
+  
+  // Ensure organizer is in the event room as admin
+  await joinOrganizerToEventRoom(event.organizerId, eventId);
+  
+  // Notify organizer that event is published and chat is active
+  io.to(userRoom(event.organizerId)).emit('chat:event_published', { 
+    eventId,
+    eventName: event.name,
+    eventSlug: event.slug,
+    status: 'published',
+    message: `${event.name} is now published! Chat group is active and users can join when they purchase tickets.` 
+  });
+  
+  // Notify existing event room members (if any) that the event is now live
+  io.to(eventRoom(eventId)).to(eventRoomBySlug(event.slug)).emit('chat:event_published', {
+    eventId,
+    eventName: event.name,
+    status: 'published',
+    message: `${event.name} is now live! Welcome to the official event chat.`
+  });
+  
+  console.log(`🚀 Event published: ${event.name} (${eventId}). Chat group is now active.`);
+}
 
-  // Notify the organizer that the chat room is now active
-  if (event.organizerId) {
-    io.to(userRoom(event.organizerId)).emit('chat:event-published', { 
-      eventId: event.id, 
-      eventSlug: event.slug,
-      eventName: event.name 
-    });
-  }
+// Helper function to check if user is admin of event chat group
+export async function isEventChatAdmin(eventId: string, userId: string): Promise<boolean> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { organizerId: true }
+  });
+  
+  // Organizer is always admin of their event chat group
+  return event?.organizerId === userId;
+}
 
-  // The chat rooms are automatically created when users join
-  // Both event:${eventId} and event-slug:${slug} rooms will be available
-  console.log(`Event published: ${event.name} (${event.slug}) - Chat rooms ready`);
+// Helper function to get event chat admin info
+export async function getEventChatAdmin(eventId: string): Promise<{id: string, name: string} | null> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      organizer: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true
+        }
+      }
+    }
+  });
+  
+  if (!event?.organizer) return null;
+  
+  return {
+    id: event.organizer.id,
+    name: `${event.organizer.firstName} ${event.organizer.lastName}`
+  };
 }
 
 // Helper function to check if user is online

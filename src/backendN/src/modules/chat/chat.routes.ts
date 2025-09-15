@@ -9,6 +9,7 @@ const router = Router();
 router.get('/event/:eventId/messages', authGuard.required, chatController.getEventMessages);
 router.post('/event/:eventId/messages', authGuard.required, chatController.sendEventMessage);
 router.get('/event/:eventId/participants', authGuard.required, chatController.getEventParticipants);
+router.get('/event/:eventId/info', authGuard.required, chatController.getEventChatGroupInfo);
 
 // User's chat lists
 router.get('/my-event-chats', authGuard.required, chatController.getMyEventChats);

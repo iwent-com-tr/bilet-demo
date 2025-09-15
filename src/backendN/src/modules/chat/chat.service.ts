@@ -103,7 +103,7 @@ export class ChatService {
       distinct: ['userId']
     });
 
-    // Get event organizer
+    // Get event organizer (chat group admin)
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
@@ -128,22 +128,24 @@ export class ChatService {
     const onlineStatus = await UserService.getUsersOnlineStatus(allUserIds);
 
     const participants = [
-      // Add organizer first
+      // Add organizer first as admin
       ...(event?.organizer ? [{
         id: event.organizer.id,
         firstName: event.organizer.firstName,
         lastName: event.organizer.lastName,
         avatar: event.organizer.avatar,
         role: 'ORGANIZER' as const,
+        isAdmin: true, // Organizer is admin of the chat group
         isOnline: onlineStatus[event.organizer.id] || false
       }] : []),
-      // Add ticket holders
+      // Add ticket holders as members
       ...ticketHolders.map(ticket => ({
         id: ticket.user.id,
         firstName: ticket.user.firstName,
         lastName: ticket.user.lastName,
         avatar: ticket.user.avatar,
         role: 'USER' as const,
+        isAdmin: false, // Regular members are not admins
         isOnline: onlineStatus[ticket.user.id] || false
       }))
     ];
@@ -153,7 +155,85 @@ export class ChatService {
       index === self.findIndex(p => p.id === participant.id)
     );
 
-    return uniqueParticipants;
+    // Return with chat group info
+    return {
+      eventId,
+      eventName: event?.name,
+      chatGroupAdmin: event?.organizer ? {
+        id: event.organizer.id,
+        name: `${event.organizer.firstName} ${event.organizer.lastName}`,
+        avatar: event.organizer.avatar
+      } : null,
+      participants: uniqueParticipants,
+      totalMembers: uniqueParticipants.length,
+      onlineMembers: uniqueParticipants.filter(p => p.isOnline).length
+    };
+  }
+
+  // Get event chat group information
+  static async getEventChatGroupInfo(eventId: string, userId: string) {
+    // Check access
+    const hasAccess = await this.checkEventChatAccess(eventId, userId);
+    if (!hasAccess) {
+      throw new Error('Access denied to this event chat');
+    }
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    // Get member count
+    const ticketHolders = await prisma.ticket.findMany({
+      where: {
+        eventId,
+        status: 'ACTIVE'
+      },
+      select: {
+        userId: true
+      }
+    });
+    const memberCount = new Set(ticketHolders.map(t => t.userId)).size;
+
+    // Get recent message count
+    const recentMessageCount = await prisma.chatMessage.count({
+      where: {
+        eventId,
+        status: 'ACTIVE',
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+        }
+      }
+    });
+
+    return {
+      eventId: event.id,
+      eventName: event.name,
+      eventSlug: event.slug,
+      status: event.status,
+      chatGroupAdmin: event.organizer ? {
+        id: event.organizer.id,
+        name: `${event.organizer.firstName} ${event.organizer.lastName}`,
+        avatar: event.organizer.avatar
+      } : null,
+      memberCount: memberCount + 1, // +1 for organizer
+      recentActivityCount: recentMessageCount,
+      isUserAdmin: event.organizerId === userId,
+      created: event.createdAt
+    };
   }
 
   // Get user's event chats (events they have tickets for)

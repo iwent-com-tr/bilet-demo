@@ -356,7 +356,12 @@ export class EventService {
     eventIndex.addDocuments([{id: created.id, ...createInfoMeili}]);
 
     // Notify chat layer that the event room is ready
-    try { await notifyEventCreated(created.id); } catch {}
+    try { 
+      await notifyEventCreated(created.id);
+      console.log(`🎯 Event created successfully: "${created.name}" (${created.id}). Chat group established with organizer as admin.`);
+    } catch (error) {
+      console.warn('Failed to create event chat group:', error);
+    }
     return { ...created, details } as const;
   }
 
@@ -463,7 +468,8 @@ export class EventService {
 
     // Notify chat system that event is published and chat room should be available
     try { 
-      await notifyEventPublished(id); 
+      await notifyEventPublished(id);
+      console.log(`🚀 Event published: "${event.name}" (${id}). Chat group is now active and users can join when they purchase tickets.`);
     } catch (error) {
       console.error('Failed to notify chat system about event publication:', error);
     }
