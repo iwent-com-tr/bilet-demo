@@ -129,7 +129,7 @@ model Event {
 
   // Detailed event-type relations (kept from both sources)
 
-  /* Detailed event-type relations */
+ 
 
   concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
   festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
