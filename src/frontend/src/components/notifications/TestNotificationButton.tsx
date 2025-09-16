@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Button } from '../ui/button';
+import { Button } from '../ui/Button';
 import { Bell } from '../icons/Bell';
 import { Loader2 } from '../icons/Loader2';
 import { toast } from '../../utils/toast';
@@ -53,8 +53,7 @@ export default function TestNotificationButton({ className }: TestNotificationBu
     <Button
       onClick={sendTestNotification}
       disabled={isLoading}
-      variant="outline"
-      size="sm"
+      variant="secondary"
       className={className}
     >
       {isLoading ? (
