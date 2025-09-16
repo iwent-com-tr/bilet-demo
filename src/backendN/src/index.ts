@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 import { ZodError } from 'zod';
 import http from 'http';
 import https from 'https';
@@ -51,13 +52,14 @@ const allowedOrigins = [
 
 app.use(helmet());
 app.use(cors({
-  origin: allowedOrigins,
+  origin: process.env.FRONTEND_ORIGIN ? [process.env.FRONTEND_ORIGIN] : allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 app.use(morgan('dev'));
 app.use(express.json());
+app.use(cookieParser());
 // Serve uploaded assets
 app.use('/uploads', (req, res, next) => {
   if (req.url.includes('..')) return res.status(400).end();

@@ -10,6 +10,7 @@ datasource db {
 model User {
   id                      String                       @id @default(uuid())
   externalId              String                       @unique @default(cuid())
+  googleId                String?                      @unique
   firstName               String
   lastName                String
   email                   String                       @unique
@@ -33,7 +34,7 @@ model User {
   updatedAt               DateTime                     @updatedAt
   deletedAt               DateTime?
 
-  /* Relations */
+  // Relations
   tickets                 Ticket[]
   friendshipsFrom         Friendship[]                 @relation("UserFrom")
   friendshipsTo           Friendship[]                 @relation("UserTo")
@@ -84,7 +85,7 @@ model Organizer {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  /* Relations */
+  // Relations
   events        Event[]
   addedArtists  Artist[]
   addedVenues   Venue[]
@@ -114,14 +115,14 @@ model Event {
   updatedAt          DateTime            @updatedAt
   deletedAt          DateTime?
 
-  /* Relations */
+  // Relations
   organizer          Organizer           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   tickets            Ticket[]
   chatMessages       ChatMessage[]
   favoriteUsers      FavoriteEvent[]
   artists            EventArtist[]
 
-  /* Detailed event-type relations (kept from both sources) */
+  // Detailed event-type relations (kept from both sources)
   concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
   festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
   universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
@@ -131,7 +132,7 @@ model Event {
   performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
   educationDetails   EducationDetails?   @relation("EventToEducationDetails")
 
-  /* Optional venue relation to a Venue model (kept as experimental in one input) */
+  // Optional venue relation to a Venue model (kept as experimental in one input)
   venueExperimental  Venue?              @relation(fields: [venueId], references: [id], onDelete: SetNull)
   venueId            String?
 

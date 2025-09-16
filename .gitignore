@@ -11,13 +11,21 @@ build/
 dist/
 
 # Environment
+# Root env files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+# Ignore env files in all subdirectories
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
 # Allow example env files
 !.env.example
+!**/.env.example
 
 # Logs
 npm-debug.log*

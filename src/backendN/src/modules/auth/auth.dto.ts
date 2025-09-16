@@ -144,3 +144,22 @@ export const getCountiesForCity = (cityName: string) => {
   const city = citiesData.find((c: any) => c.name.toLowerCase() === cityName.toLowerCase());
   return city ? city.counties : [];
 };
+
+// Google OAuth DTOs
+export const GoogleAuthStartDTO = z.object({
+  redirectUri: z.string().url().optional(),
+  state: z.string().optional()
+});
+export type GoogleAuthStartInput = z.infer<typeof GoogleAuthStartDTO>;
+
+export const GoogleAuthCallbackDTO = z.object({
+  code: z.string().min(1, { message: 'Authorization code gerekli' }),
+  state: z.string().min(1, { message: 'State parametresi gerekli' }),
+  redirectUri: z.string().url().optional()
+});
+export type GoogleAuthCallbackInput = z.infer<typeof GoogleAuthCallbackDTO>;
+
+export const GoogleAuthRefreshDTO = z.object({
+  refreshToken: z.string().min(1, { message: 'Refresh token gerekli' })
+});
+export type GoogleAuthRefreshInput = z.infer<typeof GoogleAuthRefreshDTO>;
