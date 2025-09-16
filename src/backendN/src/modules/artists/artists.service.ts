@@ -82,21 +82,44 @@ export class ArtistsService {
     
         const [updateInfoMeili, updateInfoPrisma] = await generateArtistUpdateInfos(input);
     
-        const updated = await prisma.artist.update({
-          where: { id },
-          data: updateInfoPrisma as any, // ts ile uğraşmamak için
-        });
-    
-        // Update the artist in the meilisearch index
-        artistIndex.updateDocuments([{id, ...updateInfoMeili}]);
-    
-        return { ...updated } as const;
+        try {
+          const updated = await prisma.artist.update({
+            where: { id, deletedAt: null },
+            data: updateInfoPrisma as any, // ts ile uğraşmamak için
+          });
+          
+          // Update the artist in the meilisearch index
+          artistIndex.updateDocuments([{id, ...updateInfoMeili}]);
+          
+          return { ...updated } as const;
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            const e: any = new Error('artist not found');
+            e.status = 404;
+            e.code = 'NOT_FOUND';
+            throw e;
+          }
+          throw error;
+        }
     }
 
     static softDelete = async function softDelete(id: string) {
       await artistIndex.deleteDocument(id);
       
-      await prisma.artist.update({ where: { id }, data: { deletedAt: new Date() } });
+      try {
+        await prisma.artist.update({ 
+          where: { id, deletedAt: null }, 
+          data: { deletedAt: new Date() } 
+        });
+      } catch (error: any) {
+        if (error.code === 'P2025') {
+          const e: any = new Error('artist not found');
+          e.status = 404;
+          e.code = 'NOT_FOUND';
+          throw e;
+        }
+        throw error;
+      }
     }
 
     static async sendFollowRequest(artistId: string, userId: string) {

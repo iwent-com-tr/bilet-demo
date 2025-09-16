@@ -90,17 +90,27 @@ export class VenuesService {
     
         const [updateInfoMeili, updateInfoPrisma] = await generateVenueUpdateInfos(input);
     
-        const updated = await prisma.venue.update({
-          where: { id },
-          data: updateInfoPrisma as any, // ts ile uğraşmamak için
-        });
-    
-        // Update the event in the meilisearch index
-        if (venueIndex) {
-          venueIndex.updateDocuments([{id, ...updateInfoMeili}]);
+        try {
+          const updated = await prisma.venue.update({
+            where: { id, deletedAt: null },
+            data: updateInfoPrisma as any, // ts ile uğraşmamak için
+          });
+          
+          // Update the event in the meilisearch index
+          if (venueIndex) {
+            venueIndex.updateDocuments([{id, ...updateInfoMeili}]);
+          }
+          
+          return { ...updated } as const;
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            const e: any = new Error('venue not found');
+            e.status = 404;
+            e.code = 'NOT_FOUND';
+            throw e;
+          }
+          throw error;
         }
-    
-        return { ...updated } as const;
     }
 
     static softDelete = async function softDelete(id: string) {
@@ -108,7 +118,20 @@ export class VenuesService {
         await venueIndex.deleteDocument(id);
       }
       
-      await prisma.venue.update({ where: { id }, data: { deletedAt: new Date() } });
+      try {
+        await prisma.venue.update({ 
+          where: { id, deletedAt: null }, 
+          data: { deletedAt: new Date() } 
+        });
+      } catch (error: any) {
+        if (error.code === 'P2025') {
+          const e: any = new Error('venue not found');
+          e.status = 404;
+          e.code = 'NOT_FOUND';
+          throw e;
+        }
+        throw error;
+      }
     }
 
     static async sendFollowRequest(venueId: string, userId: string) {

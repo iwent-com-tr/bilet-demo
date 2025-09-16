@@ -140,21 +140,31 @@ export class OrganizerService {
   }
 
   static async selfUpdate(id: string, data: OrganizerSelfUpdateInput) {
-    return prisma.organizer.update({
-      where: { id },
-      data,
-      select: {
-        id: true, firstName: true, lastName: true, company: true, email: true, phone: true,
-        phoneVerified: true, avatar: true, approved: true, lastLogin: true, createdAt: true, updatedAt: true,
-        taxNumber: true, taxOffice: true, address: true, bankAccount: true,
-      },
-    });
+    try {
+      return prisma.organizer.update({
+        where: { id, deletedAt: null },
+        data,
+        select: {
+          id: true, firstName: true, lastName: true, company: true, email: true, phone: true,
+          phoneVerified: true, avatar: true, approved: true, lastLogin: true, createdAt: true, updatedAt: true,
+          taxNumber: true, taxOffice: true, address: true, bankAccount: true,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const err: any = new Error('organizer not found');
+        err.status = 404;
+        err.code = 'ORGANIZER_NOT_FOUND';
+        throw err;
+      }
+      throw error;
+    }
   }
 
   static async adminUpdate(id: string, data: OrganizerAdminUpdateInput) {
     try {
       return await prisma.organizer.update({
-        where: { id },
+        where: { id, deletedAt: null },
         data,
         select: {
           id: true, firstName: true, lastName: true, company: true, email: true, phone: true,
@@ -163,7 +173,12 @@ export class OrganizerService {
         },
       });
     } catch (e: any) {
-      if (e.code === 'P2002') {
+      if (e.code === 'P2025') {
+        const err: any = new Error('organizer not found');
+        err.status = 404;
+        err.code = 'ORGANIZER_NOT_FOUND';
+        throw err;
+      } else if (e.code === 'P2002') {
         const err: any = new Error('email already in use');
         err.status = 409; err.code = 'EMAIL_TAKEN';
         throw err;
@@ -173,19 +188,42 @@ export class OrganizerService {
   }
 
   static async softDelete(id: string) {
-    return prisma.organizer.update({ where: { id }, data: { deletedAt: new Date() } });
+    try {
+      return prisma.organizer.update({ 
+        where: { id, deletedAt: null }, 
+        data: { deletedAt: new Date() } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const err: any = new Error('organizer not found');
+        err.status = 404;
+        err.code = 'ORGANIZER_NOT_FOUND';
+        throw err;
+      }
+      throw error;
+    }
   }
 
   static async setApproval(id: string, approved: boolean) {
-    return prisma.organizer.update({
-      where: { id },
-      data: { approved },
-      select: {
-        id: true, firstName: true, lastName: true, company: true, email: true, phone: true,
-        phoneVerified: true, avatar: true, approved: true, lastLogin: true, createdAt: true, updatedAt: true,
-        taxNumber: true, taxOffice: true, address: true, bankAccount: true,
-      },
-    });
+    try {
+      return prisma.organizer.update({
+        where: { id, deletedAt: null },
+        data: { approved },
+        select: {
+          id: true, firstName: true, lastName: true, company: true, email: true, phone: true,
+          phoneVerified: true, avatar: true, approved: true, lastLogin: true, createdAt: true, updatedAt: true,
+          taxNumber: true, taxOffice: true, address: true, bankAccount: true,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const err: any = new Error('organizer not found');
+        err.status = 404;
+        err.code = 'ORGANIZER_NOT_FOUND';
+        throw err;
+      }
+      throw error;
+    }
   }
 
   static async sendFollowRequest(organizerId: string, userId: string) {

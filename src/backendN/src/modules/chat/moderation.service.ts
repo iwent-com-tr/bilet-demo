@@ -51,13 +51,23 @@ export class ChatModerationService {
     }
 
     // Soft delete the message
-    await prisma.chatMessage.update({
-      where: { id: messageId },
-      data: { 
-        status: 'DELETED',
-        message: '[Bu mesaj silindi]'
+    try {
+      await prisma.chatMessage.update({
+        where: { id: messageId },
+        data: { 
+          status: 'DELETED',
+          message: '[Bu mesaj silindi]'
+        }
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const error: any = new Error('Message not found');
+        error.status = 404;
+        error.code = 'NOT_FOUND';
+        throw error;
       }
-    });
+      throw error;
+    }
 
     console.log(`Message ${messageId} deleted by moderator ${moderatorId}`);
   }

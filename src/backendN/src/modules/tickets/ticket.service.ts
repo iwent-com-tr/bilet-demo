@@ -102,9 +102,21 @@ export class TicketService {
   }
 
   static async updateStatus(id: string, input: UpdateTicketStatusInput) {
-    const ticket = await prisma.ticket.update({ where: { id }, data: { status: input.status } });
-    
-    return ticket;
+    try {
+      const ticket = await prisma.ticket.update({ 
+        where: { id }, 
+        data: { status: input.status } 
+      });
+      return ticket;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('ticket not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
   }
 
   static async verify(id: string, input: VerifyTicketInput) {
@@ -120,11 +132,21 @@ export class TicketService {
       e.status = 400; e.code = 'TICKET_INVALID';
       throw e;
     }
-    const updated = await prisma.ticket.update({
-      where: { id },
-      data: { status: 'USED', entryTime: new Date(), deviceId: input.deviceId, gate: input.gate },
-    });
-    return updated;
+    try {
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: { status: 'USED', entryTime: new Date(), deviceId: input.deviceId, gate: input.gate },
+      });
+      return updated;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('ticket not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
   }
 
   static async countUserAttendedEvents(userId: string) {

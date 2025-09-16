@@ -152,17 +152,27 @@ export class FollowService {
     }
 
     // Create favorite and update organizer count
-    const [favorite] = await prisma.$transaction([
-      prisma.favoriteOrganizer.create({
-        data: { userId, organizerId }
-      }),
-      prisma.organizer.update({
-        where: { id: organizerId },
-        data: { favoriteCount: { increment: 1 } }
-      })
-    ]);
-
-    return favorite;
+    try {
+      const [favorite] = await prisma.$transaction([
+        prisma.favoriteOrganizer.create({
+          data: { userId, organizerId }
+        }),
+        prisma.organizer.update({
+          where: { id: organizerId, deletedAt: null },
+          data: { favoriteCount: { increment: 1 } }
+        })
+      ]);
+      
+      return favorite;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('Organizer not found');
+        e.status = 404;
+        e.code = 'ORGANIZER_NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
   }
 
   static async unfollowOrganizer(userId: string, organizerId: string) {
@@ -178,15 +188,25 @@ export class FollowService {
     }
 
     // Remove favorite and update organizer count
-    await prisma.$transaction([
-      prisma.favoriteOrganizer.delete({
-        where: { userId_organizerId: { userId, organizerId } }
-      }),
-      prisma.organizer.update({
-        where: { id: organizerId },
-        data: { favoriteCount: { decrement: 1 } }
-      })
-    ]);
+    try {
+      await prisma.$transaction([
+        prisma.favoriteOrganizer.delete({
+          where: { userId_organizerId: { userId, organizerId } }
+        }),
+        prisma.organizer.update({
+          where: { id: organizerId, deletedAt: null },
+          data: { favoriteCount: { decrement: 1 } }
+        })
+      ]);
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        // Either the favorite record or organizer doesn't exist
+        console.warn(`Failed to unfollow organizer ${organizerId} for user ${userId}: record not found`);
+        // Still return success as the end state is what user wanted
+      } else {
+        throw error;
+      }
+    }
 
     return { success: true };
   }

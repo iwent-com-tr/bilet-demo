@@ -49,10 +49,20 @@ export class PreferencesService {
     // sort by rating descending
     const sortedPreferences = [...currentPreferences].sort((a, b) => b.rating - a.rating);
 
-    return prisma.user.update({
-        where: { id: userId },
-        data: { preferences: sortedPreferences as any},
-    });
+    try {
+        return prisma.user.update({
+            where: { id: userId, deletedAt: null },
+            data: { preferences: sortedPreferences as any},
+        });
+    } catch (error: any) {
+        if (error.code === 'P2025') {
+            const err: any = new Error('user not found');
+            err.status = 404;
+            err.code = 'USER_NOT_FOUND';
+            throw err;
+        }
+        throw error;
+    }
 }
 
 

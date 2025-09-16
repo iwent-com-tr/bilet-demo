@@ -167,25 +167,48 @@ export class UserService {
   }
 
   static async updateSelf(id: string, data: { firstName?: string; lastName?: string; email?: string; phone?: string; city?: string; avatar?: string }) {
-    return prisma.user.update({ 
-      where: { id }, 
-      data, 
-      select: { 
-        id: true, 
-        firstName: true,
-        lastName: true,
-        email: true, 
-        userType: true, 
-        avatar: true,
-        city: true,
-        phone: true,
-        phoneVerified: true,
-        points: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true
-      } 
-    });
+    try {
+      // Check if user exists first
+      const userExists = await prisma.user.findUnique({
+        where: { id, deletedAt: null },
+        select: { id: true }
+      });
+      
+      if (!userExists) {
+        const err: any = new Error('user not found');
+        err.status = 404;
+        err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      
+      return await prisma.user.update({ 
+        where: { id, deletedAt: null }, 
+        data, 
+        select: { 
+          id: true, 
+          firstName: true,
+          lastName: true,
+          email: true, 
+          userType: true, 
+          avatar: true,
+          city: true,
+          phone: true,
+          phoneVerified: true,
+          points: true,
+          lastLogin: true,
+          createdAt: true,
+          updatedAt: true
+        } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const err: any = new Error('user not found');
+        err.status = 404;
+        err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      throw error;
+    }
   }
 
   static async adminUpdate(id: string, data: { 
@@ -214,8 +237,21 @@ export class UserService {
         updateData.userType = normalized as any;
       }
 
+      // Check if user exists first
+      const userExists = await prisma.user.findUnique({
+        where: { id, deletedAt: null },
+        select: { id: true }
+      });
+      
+      if (!userExists) {
+        const err: any = new Error('user not found');
+        err.status = 404;
+        err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      
       return await prisma.user.update({ 
-        where: { id }, 
+        where: { id, deletedAt: null }, 
         data: updateData,
         select: { 
           id: true, 
@@ -391,13 +427,33 @@ export class UserService {
   // Update user's last seen timestamp
   static async updateLastSeen(userId: string) {
     try {
+      // Check if user exists first to avoid P2025 error
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId, deletedAt: null },
+        select: { id: true }
+      });
+      
+      if (!userExists) {
+        console.warn(`Attempted to update lastSeenAt for non-existent user: ${userId}`);
+        return;
+      }
+      
       await prisma.user.update({
-        where: { id: userId },
+        where: { id: userId, deletedAt: null },
         data: { lastSeenAt: new Date() }
       });
-    } catch (error) {
-      console.error('Error updating lastSeenAt:', error);
-      // Don't throw error, this is not critical
+    } catch (error: any) {
+      // Log specific Prisma errors for debugging
+      if (error.code === 'P2025') {
+        console.warn(`User not found for lastSeenAt update: ${userId}`);
+      } else {
+        console.error('Error updating lastSeenAt:', {
+          userId,
+          error: error.message,
+          code: error.code
+        });
+      }
+      // Don't throw error, this is not critical for user experience
     }
   }
 

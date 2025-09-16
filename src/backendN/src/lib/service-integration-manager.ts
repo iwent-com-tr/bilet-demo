@@ -45,23 +45,37 @@ export class ServiceIntegrationManager {
   async initializeServices(): Promise<void> {
     console.log('🚀 Initializing services...');
 
-    // Check core dependencies first
-    await this.checkCoreDependencies();
-
-    // Initialize services in order of dependency
+    // Initialize database first (CRITICAL - must succeed)
     await this.initializeDatabase();
-    await this.initializeRedis();
-    await this.initializePushNotifications();
-    await this.initializeTwilio();
-    await this.initializeSendGrid();
-    await this.initializeMeiliSearch();
-    await this.initializeOpenAI();
-    await this.initializeWorker();
+
+    // Initialize other services with graceful failures
+    const serviceInitializers = [
+      { name: 'Redis', fn: () => this.initializeRedis() },
+      { name: 'Push Notifications', fn: () => this.initializePushNotifications() },
+      { name: 'Twilio', fn: () => this.initializeTwilio() },
+      { name: 'SendGrid', fn: () => this.initializeSendGrid() },
+      { name: 'MeiliSearch', fn: () => this.initializeMeiliSearch() },
+      { name: 'OpenAI', fn: () => this.initializeOpenAI() },
+      { name: 'Worker', fn: () => this.initializeWorker() }
+    ];
+
+    // Initialize services in parallel (non-blocking)
+    const initPromises = serviceInitializers.map(async ({ name, fn }) => {
+      try {
+        await fn();
+        console.log(`✅ ${name} initialized successfully`);
+      } catch (error) {
+        console.warn(`⚠️  ${name} initialization failed (non-critical):`, error);
+      }
+    });
+
+    // Wait for all service initializations to complete (but don't fail)
+    await Promise.allSettled(initPromises);
 
     // Start health monitoring
     this.startHealthMonitoring();
 
-    console.log('✅ Service initialization completed');
+    console.log('✅ Service initialization completed (with graceful fallbacks)');
   }
 
   /**
@@ -90,18 +104,29 @@ export class ServiceIntegrationManager {
    */
   private async initializeDatabase(): Promise<void> {
     try {
+      console.log('📊 Testing database connection...');
+      
+      // Connect to database
       await this.prisma.$connect();
-      await this.prisma.$queryRaw`SELECT 1`;
+      console.log('✅ Database connected');
+      
+      // Test with a simple query
+      await this.prisma.$queryRaw`SELECT 1 as test`;
+      console.log('✅ Database query test passed');
+      
+      // Test database schema (check if key tables exist)
+      const userCount = await this.prisma.user.count();
+      console.log(`✅ Database schema validated (${userCount} users found)`);
       
       this.servicesHealth.database = {
         name: 'Database (PostgreSQL)',
         status: 'healthy',
-        message: 'Database connection successful',
+        message: `Database connection successful - ${userCount} users`,
         lastChecked: new Date(),
         dependencies: []
       };
 
-      console.log('✅ Database connection established');
+      console.log('✅ Database connection established and validated');
     } catch (error) {
       this.servicesHealth.database = {
         name: 'Database (PostgreSQL)',
@@ -111,7 +136,8 @@ export class ServiceIntegrationManager {
         dependencies: []
       };
 
-      throw new Error('Database connection failed - cannot continue');
+      console.error('❌ Database connection failed:', error);
+      throw new Error(`Database connection failed - cannot continue: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

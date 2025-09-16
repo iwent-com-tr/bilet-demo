@@ -11,6 +11,7 @@ import path from 'path';
 import { validateEnvironmentOrExit } from './lib/runtime-environment-validator';
 import ServiceIntegrationManager from './lib/service-integration-manager';
 import { closeQueue } from './lib/queue/index';
+import { ensureDatabaseConnection, handlePrismaErrors, markDatabaseReady } from './middlewares/database.middleware';
 import healthRoutes from './routes/health.routes';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/user.routes';
@@ -21,7 +22,7 @@ import friendshipRoutes from './modules/friendship/friendship.routes';
 import searchRoutes from './modules/search/search.routes';
 import artistRoutes from './modules/artists/artists.routes';
 import venueRoutes from './modules/venues/venues.routes';
-import { prisma } from './lib/prisma';
+import { prisma, connectToDatabase, disconnectFromDatabase } from './lib/prisma';
 import { setupChat } from './chat';
 import { initMeili } from './lib/meili';
 // Development-only import (excluded in production)
@@ -48,6 +49,11 @@ const serviceManager = new ServiceIntegrationManager(prisma);
 // Function to initialize services
 async function initializeServices() {
   try {
+    // Connect to database first
+    console.log('🔌 Connecting to database...');
+    await connectToDatabase();
+    
+    // Initialize other services after database is connected
     await serviceManager.initializeServices();
   } catch (error) {
     console.error('❌ Failed to initialize services:', error);
@@ -92,6 +98,9 @@ app.use(cors({
 }));
 app.use(morgan('dev'));
 app.use(express.json());
+
+// Database connection middleware
+app.use(ensureDatabaseConnection);
 // Serve uploaded assets
 app.use('/uploads', (req, res, next) => {
   if (req.url.includes('..')) return res.status(400).end();
@@ -127,14 +136,27 @@ app.use(`${API_PREFIX}/health`, healthRoutes);
 // Database connection check
 app.get(`${API_PREFIX}/db-check`, async (_req, res) => {
   try {
-    await prisma.$connect();
-    res.json({ status: 'connected' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: 'Database connection failed' });
+    // Test database connection with a simple query
+    await prisma.$queryRaw`SELECT 1 as test`;
+    const result = await prisma.user.count();
+    res.json({ 
+      status: 'connected',
+      userCount: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Database check failed:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Database connection failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // Error handling middleware (must be after all routes)
+app.use(handlePrismaErrors);
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('API Error:', {
     error: err.message,
@@ -167,7 +189,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Create server (HTTP or HTTPS based on environment)
-let server;
+let server: http.Server | https.Server;
 
 if (process.env.HTTPS === 'true') {
   try {
@@ -183,25 +205,69 @@ if (process.env.HTTPS === 'true') {
 } else {
   server = http.createServer(app);
 }
-// Initialize Socket.IO chat server (namespace: /chat)
-setupChat(server);
-
-// Initialize MeiliSearch indexes
-initMeili();
-
-// Initialize services (database, Redis, push notifications, worker)
-initializeServices();
-
 const port = process.env.PORT || 3000;
-server.listen(port, () => {
-  const protocol = process.env.HTTPS === 'true' ? 'https' : 'http';
-  const host = process.env.HTTPS === 'true' ? '192.168.1.40' : 'localhost';
-  console.log(`Server running on ${protocol}://${host}:${port}`);
-  console.log(`Socket.IO chat listening at path /chat`);
-  if (process.env.HTTPS === 'true') {
-    console.log('HTTPS mode: Make sure SSL certificates (server.crt, server.key) are present');
+
+// Enhanced startup sequence
+async function startServer() {
+  try {
+    console.log('🔄 Starting application startup sequence...');
+    
+    // Step 1: Connect to database first (CRITICAL - must be first)
+    console.log('📊 Step 1: Connecting to database...');
+    await connectToDatabase();
+    
+    // Mark database as ready for requests
+    markDatabaseReady();
+    
+    // Step 2: Initialize other services (but don't wait for all of them)
+    console.log('⚙️  Step 2: Initializing critical services...');
+    await initializeServices();
+    
+    // Step 3: Initialize MeiliSearch indexes (can be async)
+    console.log('🔍 Step 3: Initializing MeiliSearch...');
+    initMeili(); // Don't await - let it run in background
+    
+    // Step 4: Initialize Socket.IO chat server
+    console.log('💬 Step 4: Setting up Socket.IO...');
+    setupChat(server);
+    
+    // Step 5: Start the server ONLY after database is ready
+    console.log('🚀 Step 5: Starting HTTP server...');
+    server.listen(port, () => {
+      const protocol = process.env.HTTPS === 'true' ? 'https' : 'http';
+      const host = process.env.HTTPS === 'true' ? '192.168.1.40' : 'localhost';
+      console.log(`✅ Server running on ${protocol}://${host}:${port}`);
+      console.log(`🔌 Socket.IO chat listening at path /chat`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Database: Connected and ready`);
+      
+      if (process.env.HTTPS === 'true') {
+        console.log('🔒 HTTPS mode: Make sure SSL certificates (server.crt, server.key) are present');
+      }
+      
+      console.log('🎉 Application startup completed successfully!');
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    
+    // Enhanced error information
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
+    
+    // Graceful shutdown on startup failure
+    await gracefulShutdown('startup-failure');
+    process.exit(1);
   }
-});
+}
+
+// Start the server
+startServer();
 
 
 // Graceful shutdown
@@ -219,7 +285,7 @@ const gracefulShutdown = async (signal: string) => {
     await closeQueue();
     
     // Close Prisma connection
-    await prisma.$disconnect();
+    await disconnectFromDatabase();
     
     console.log('✅ Graceful shutdown completed');
     process.exit(0);

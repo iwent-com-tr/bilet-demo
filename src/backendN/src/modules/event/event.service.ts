@@ -401,16 +401,27 @@ export class EventService {
 
     const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
 
-    const updated = await prisma.event.update({
-      where: { id },
-      data: updateInfoPrisma as any, // ts ile uğraşmamak için
-    });
-
-    // Update the event in the meilisearch index
-    eventIndex.updateDocuments([{id, ...updateInfoMeili}]);
+    let updated;
+    try {
+      updated = await prisma.event.update({
+        where: { id, deletedAt: null },
+        data: updateInfoPrisma as any, // ts ile uğraşmamak için
+      });
+      
+      // Update the event in the meilisearch index
+      eventIndex.updateDocuments([{id, ...updateInfoMeili}]);
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404; 
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
 
     // Queue notification if significant changes detected and event is published
-    if (changeDetection.requiresNotification && existing.status === 'ACTIVE') {
+    if (changeDetection.requiresNotification && existing && existing.status === 'ACTIVE') {
       try {
         await notificationService.queueEventUpdateNotification({
           eventId: id,
@@ -425,9 +436,9 @@ export class EventService {
       }
     }
 
-    if (input.details) await upsertCategoryDetails(id, updated.category, input.details as any);
-    const details = await loadCategoryDetails(id, updated.category);
-    return { ...updated, details } as const;
+    if (input.details && updated) await upsertCategoryDetails(id, updated.category, input.details as any);
+    const details = updated ? await loadCategoryDetails(id, updated.category) : null;
+    return updated ? { ...updated, details } as const : null;
   }
 
   static async softDelete(id: string) {
@@ -435,7 +446,20 @@ export class EventService {
     // Delete from search index
     await eventIndex.deleteDocument(id);
 
-    await prisma.event.update({ where: { id }, data: { deletedAt: new Date() } });
+    try {
+      await prisma.event.update({ 
+        where: { id, deletedAt: null }, 
+        data: { deletedAt: new Date() } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
   }
 
   static async publish(id: string) {
@@ -446,7 +470,21 @@ export class EventService {
       throw e;
     }
 
-    const event = await prisma.event.update({ where: { id }, data: { status: 'ACTIVE' } });
+    let event;
+    try {
+      event = await prisma.event.update({ 
+        where: { id, deletedAt: null }, 
+        data: { status: 'ACTIVE' } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
     const details = await loadCategoryDetails(id, event.category);
 
     // Update the event in the meilisearch index
@@ -489,7 +527,21 @@ export class EventService {
     // Update the event in the meilisearch index
     await eventIndex.updateDocuments([{id, status: 'DRAFT'}]);
 
-    const event = await prisma.event.update({ where: { id }, data: { status: 'DRAFT' } });
+    let event;
+    try {
+      event = await prisma.event.update({ 
+        where: { id, deletedAt: null }, 
+        data: { status: 'DRAFT' } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
     const details = await loadCategoryDetails(id, event.category);
     return { ...event, details };
   }

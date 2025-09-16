@@ -363,12 +363,19 @@ export class AdminUserService {
       throw new Error('Organizer not found');
     }
 
-    const updatedOrganizer = await prisma.organizer.update({
-      where: { id },
-      data: { approved },
-    });
-
-    return updatedOrganizer;
+    try {
+      const updatedOrganizer = await prisma.organizer.update({
+        where: { id, deletedAt: null },
+        data: { approved },
+      });
+      
+      return updatedOrganizer;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        throw new Error('Organizer not found');
+      }
+      throw error;
+    }
   }
 
   static async getUserAttendedEvents(id: string, category?: string) {
@@ -462,12 +469,19 @@ export class AdminUserService {
       }
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: updateData,
-    });
-
-    return updatedUser;
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id, deletedAt: null },
+        data: updateData,
+      });
+      
+      return updatedUser;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        throw new Error('User not found');
+      }
+      throw error;
+    }
   }
 }
 
