@@ -100,8 +100,10 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
+
 // Database connection middleware
 app.use(ensureDatabaseConnection);
+
 app.use(cookieParser());
 // Serve uploaded assets
 app.use('/uploads', (req, res, next) => {

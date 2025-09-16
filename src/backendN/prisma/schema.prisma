@@ -128,7 +128,9 @@ model Event {
   eventMutes         EventMute[]
 
   // Detailed event-type relations (kept from both sources)
+
   /* Detailed event-type relations */
+
   concertDetails     ConcertDetails?     @relation("EventToConcertDetails")
   festivalDetails    FestivalDetails?    @relation("EventToFestivalDetails")
   universityDetails  UniversityDetails?  @relation("EventToUniversityDetails")
@@ -138,7 +140,7 @@ model Event {
   performanceDetails PerformanceDetails? @relation("EventToPerformanceDetails")
   educationDetails   EducationDetails?   @relation("EventToEducationDetails")
 
-  /* Optional venue relation to a Venue model */
+
   // Optional venue relation to a Venue model (kept as experimental in one input)
   venueExperimental  Venue?              @relation(fields: [venueId], references: [id], onDelete: SetNull)
   venueId            String?
