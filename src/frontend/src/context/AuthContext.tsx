@@ -18,6 +18,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   register: (userData: any) => Promise<void>;
   registerOrganizer: (organizerData: any) => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isOrganizer: boolean;
@@ -103,6 +104,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('refreshToken');
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
+      return false;
+    }
+  };
+
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      const storedUserId = localStorage.getItem('user:id');
+      
+      if (!storedRefreshToken || !storedUserId) {
+        console.log('[Auth] No refresh token or user ID found');
+        return false;
+      }
+
+      console.log('[Auth] Attempting token refresh');
+      
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+        refreshToken: storedRefreshToken,
+        userId: storedUserId
+      });
+
+      console.log('[Auth] Token refresh response:', response.data);
+      
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
+      
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        console.log('[Auth] New access token set');
+      }
+      
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+        console.log('[Auth] New refresh token set');
+      }
+      
+      return true;
+    } catch (error: any) {
+      console.error('[Auth] Token refresh failed:', error);
+      
+      // If refresh fails, clear tokens and logout
+      if (error.response?.status === 401) {
+        console.log('[Auth] Refresh token expired, logging out');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user:id');
+        localStorage.removeItem('user:email');
+        localStorage.removeItem('user:firstName');
+        localStorage.removeItem('user:lastName');
+        localStorage.removeItem('user:type');
+        localStorage.removeItem('user:adminRole');
+        localStorage.removeItem('login:userType');
+        localStorage.removeItem('login:identifier');
+        localStorage.removeItem('login:remember');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+      }
+      
       return false;
     }
   };
@@ -363,7 +422,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user:firstName');
     localStorage.removeItem('user:lastName');
     localStorage.removeItem('user:type');
-    localStorage.removeItem('user:adminRole')
+    localStorage.removeItem('user:adminRole');
     localStorage.removeItem('login:userType');
     localStorage.removeItem('login:identifier');
     localStorage.removeItem('login:remember');
@@ -380,6 +439,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loginWithGoogle,
     register,
     registerOrganizer,
+    refreshToken,
     logout,
     isAuthenticated: !!user,
     isOrganizer: user?.userType === 'ORGANIZER',
@@ -401,4 +461,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export default AuthContext; 
+export default AuthContext;

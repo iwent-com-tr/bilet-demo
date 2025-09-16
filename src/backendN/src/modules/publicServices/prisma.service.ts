@@ -178,6 +178,7 @@ export class PrismaService {
 
         const final = ordered.map((o: any) => {
             o.favoriteCount = o._count.favoriteUsers;
+            o.eventsCount = o._count.events;
             delete o._count;
             return o;
         })

@@ -12,7 +12,7 @@ export class OrganizerService {
 
   static async getPopularOrganizers(data: { page: number; limit: number; q?: string }) {
     const val = await SearchService.searchOrganizer(data);
-    val.data.sort((a, b) => b._count.events - a._count.events);
+    val.data.sort((a, b) => b.eventsCount - a.eventsCount);
     return val;
   }
 
