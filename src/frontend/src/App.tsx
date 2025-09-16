@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './utils/axios'; // Configure axios interceptors
@@ -15,6 +15,7 @@ import EventDetail from './pages/events/EventDetail';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import OrganizerRegister from './pages/auth/OrganizerRegister';
+import AuthCallback from './pages/auth/AuthCallback';
 import Profile from './pages/user/Profile';
 import MyTickets from './pages/user/MyTickets';
 import OrganizerDashboard from './pages/organizer/Dashboard';
@@ -73,6 +74,7 @@ const App: React.FC = () => {
             <Route path="/events/:slug/event-ticket-categories" element={<EventTicketCategories />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/organizer" element={<OrganizerRegister />} />
             <Route path="/notifications-demo" element={<NotificationsDemo />} />

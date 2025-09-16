@@ -188,3 +188,25 @@ npm start
 ## Lisans
 
 Bu proje demo amaçlıdır ve özel lisans altındadır. Tüm hakları saklıdır.
+
+## Quick Start (Pre-Flight Passed)
+
+Önkoşullar
+- Node.js 18+ (öneri 20+), npm
+- Lokal Postgres çalışır durumda
+
+Kurulum
+- Bağımlılıklar: `npm run install:all`
+- Backend env: `src/backendN/.env.example` dosyasını `src/backendN/.env` olarak kopyalayın ve gizli anahtarları doldurun (Google, JWT, DB)
+- Frontend env: `src/frontend/.env.example` dosyasını `src/frontend/.env` olarak kopyalayın; `REACT_APP_API_URL` değerini doğrulayın
+
+Çalıştırma
+- Geliştirme: kökten `npm run start` (BE: 3000, FE: 5173)
+- HTTPS (opsiyonel): `npm run start:https` ve `server.key`/`server.crt`
+
+Build
+- `npm run build:all`
+
+Notlar
+- Prisma CLI backend devDependencies'e eklendi; şema değişimlerinde `npm run prisma:generate`
+- Alt dizinlerdeki `.env` dosyaları Git tarafından yok sayılıyor (gizli anahtar sızıntısını engeller)

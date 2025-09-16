@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import * as ctrl from './auth.controller';
 import * as citiesCtrl from './cities.controller';
+import * as googleCtrl from './google.controller';
 import { authGuard } from '../../middlewares/authGuard';
 
 const r = Router();
@@ -24,5 +25,10 @@ r.put('/profile', authGuard.required, ctrl.updateProfile);
 // City and county data
 r.get('/cities', citiesCtrl.getCitiesList);
 r.get('/counties', citiesCtrl.getCounties);
+
+// Google OAuth
+r.post('/google/start', googleCtrl.startGoogleAuth);
+r.get('/google/callback', googleCtrl.googleAuthCallback);
+r.post('/google/refresh', googleCtrl.refreshGoogleToken);
 
 export default r;

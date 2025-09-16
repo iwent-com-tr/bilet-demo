@@ -4,6 +4,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
 import MobileOrganizerButton from '../../components/MobileOrganizerButton';
+import GoogleButton from '../../components/GoogleButton';
 import showPasswordIcon from '../../assets/show-passowrd.svg';
 import './Login.css';
 
@@ -316,6 +317,26 @@ const Login: React.FC = () => {
               </label>
             )}
           </div>
+
+          {/* Google Login Button */}
+          {!isAdmin && (
+            <div className="flex flex-col gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-600" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-gray-800 text-gray-400">veya</span>
+                </div>
+              </div>
+              <GoogleButton
+                className="w-full"
+                onError={(error) => {
+                  setServerError(error.message);
+                }}
+              />
+            </div>
+          )}
 
           {/* Submit Button */}
           <button

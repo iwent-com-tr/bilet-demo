@@ -212,7 +212,7 @@ export const logout = async (req: any, res: Response, next: NextFunction) => {
 // City and county endpoints are now in cities.controller.ts
 
 // Sanitization functions
-const sanitizeUser = (u: any) => ({
+export const sanitizeUser = (u: any) => ({
   id: u.id,
   firstName: u.firstName,
   lastName: u.lastName,

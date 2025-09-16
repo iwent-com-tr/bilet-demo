@@ -31,6 +31,7 @@
   "devDependencies": {
     "@faker-js/faker": "^9.9.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/exceljs": "^0.5.3",
     "@types/express": "^5.0.3",
@@ -46,6 +47,7 @@
     "supertest": "^7.1.4",
 
     "dotenv-cli": "^10.0.0",
+    "prisma": "^5.15.0",
     "tsc-esm-fix": "^3.1.2",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2",
@@ -54,21 +56,23 @@
 
   },
   "dependencies": {
-    "@prisma/client": "^6.13.0",
+    "@prisma/client": "^5.15.0",
     "@sendgrid/mail": "^8.1.5",
     "@types/twilio": "^3.19.2",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
    
     "bullmq": "^5.58.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.1",
+    "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0",
    
     "ioredis": "^5.7.0",
+    "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
     "meilisearch": "^0.52.0",
     "morgan": "^1.10.1",
