@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Button } from '../ui/Button';
+import { Button } from '../ui/button';
 import { Bell } from '../icons/Bell';
 import { Loader2 } from '../icons/Loader2';
 import { toast } from '../../utils/toast';
