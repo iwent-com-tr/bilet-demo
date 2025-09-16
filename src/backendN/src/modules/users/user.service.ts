@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { isUserOnline as isSocketOnline } from '../../chat';
 
 export class UserService {
   static async list(params: { page: number; limit: number; q?: string }) {
@@ -68,10 +69,10 @@ export class UserService {
     return user;
   }
 
-  static async updateSelf(id: string, data: { firstName?: string; lastName?: string; email?: string; phone?: string; city?: string; avatar?: string }) {
-    return prisma.user.update({ 
-      where: { id }, 
-      data, 
+  // Get user profile with relationship status (for 3rd party view)
+  static async findByIdWithRelationship(id: string, currentUserId?: string) {
+    const user = await prisma.user.findUnique({ 
+      where: { id, deletedAt: null },
       select: { 
         id: true, 
         firstName: true,
@@ -82,12 +83,132 @@ export class UserService {
         city: true,
         phone: true,
         phoneVerified: true,
+        birthYear: true,
         points: true,
         lastLogin: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        _count: {
+          select: {
+            friendshipsFrom: { where: { status: 'ACCEPTED' } },
+            friendshipsTo: { where: { status: 'ACCEPTED' } },
+            tickets: { where: { status: 'ACTIVE' } }
+          }
+        }
       } 
     });
+
+    if (!user) {
+      const e: any = new Error('user not found');
+      e.status = 404;
+      e.code = 'NOT_FOUND';
+      throw e;
+    }
+
+    let relationshipStatus = null;
+    let canMessage = false;
+
+    // Check relationship status if currentUserId is provided
+    if (currentUserId && currentUserId !== id) {
+      // Check if they are friends
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          OR: [
+            { fromUserId: currentUserId, toUserId: id },
+            { fromUserId: id, toUserId: currentUserId }
+          ]
+        }
+      });
+
+      if (friendship) {
+        relationshipStatus = friendship.status; // PENDING, ACCEPTED, REJECTED
+        canMessage = friendship.status === 'ACCEPTED';
+        
+        // For pending requests, indicate direction
+        if (friendship.status === 'PENDING') {
+          if (friendship.fromUserId === currentUserId) {
+            relationshipStatus = 'PENDING_SENT';
+          } else {
+            relationshipStatus = 'PENDING_RECEIVED';
+          }
+        }
+      }
+
+      // Check if current user is blocked
+      const isBlocked = await prisma.block.findFirst({
+        where: {
+          OR: [
+            { blockerId: currentUserId, blockedId: id },
+            { blockerId: id, blockedId: currentUserId }
+          ]
+        }
+      });
+
+      if (isBlocked) {
+        relationshipStatus = 'BLOCKED';
+        canMessage = false;
+      }
+    }
+
+    const totalFriends = user._count.friendshipsFrom + user._count.friendshipsTo;
+
+    return {
+      ...user,
+      stats: {
+        totalFriends,
+        totalTickets: user._count.tickets
+      },
+      relationship: {
+        status: relationshipStatus,
+        canMessage,
+        isSelf: currentUserId === id
+      }
+    };
+  }
+
+  static async updateSelf(id: string, data: { firstName?: string; lastName?: string; email?: string; phone?: string; city?: string; avatar?: string }) {
+    try {
+      // Check if user exists first
+      const userExists = await prisma.user.findUnique({
+        where: { id, deletedAt: null },
+        select: { id: true }
+      });
+      
+      if (!userExists) {
+        const err: any = new Error('user not found');
+        err.status = 404;
+        err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      
+      return await prisma.user.update({ 
+        where: { id, deletedAt: null }, 
+        data, 
+        select: { 
+          id: true, 
+          firstName: true,
+          lastName: true,
+          email: true, 
+          userType: true, 
+          avatar: true,
+          city: true,
+          phone: true,
+          phoneVerified: true,
+          points: true,
+          lastLogin: true,
+          createdAt: true,
+          updatedAt: true
+        } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const err: any = new Error('user not found');
+        err.status = 404;
+        err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      throw error;
+    }
   }
 
   static async adminUpdate(id: string, data: { 
@@ -116,8 +237,21 @@ export class UserService {
         updateData.userType = normalized as any;
       }
 
+      // Check if user exists first
+      const userExists = await prisma.user.findUnique({
+        where: { id, deletedAt: null },
+        select: { id: true }
+      });
+      
+      if (!userExists) {
+        const err: any = new Error('user not found');
+        err.status = 404;
+        err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      
       return await prisma.user.update({ 
-        where: { id }, 
+        where: { id, deletedAt: null }, 
         data: updateData,
         select: { 
           id: true, 
@@ -288,5 +422,84 @@ export class UserService {
       include: { event: true }
     });
     return rows.map((r: any) => r.event);
+  }
+
+  // Update user's last seen timestamp
+  static async updateLastSeen(userId: string) {
+    try {
+      // Check if user exists first to avoid P2025 error
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId, deletedAt: null },
+        select: { id: true }
+      });
+      
+      if (!userExists) {
+        console.warn(`Attempted to update lastSeenAt for non-existent user: ${userId}`);
+        return;
+      }
+      
+      await prisma.user.update({
+        where: { id: userId, deletedAt: null },
+        data: { lastSeenAt: new Date() }
+      });
+    } catch (error: any) {
+      // Log specific Prisma errors for debugging
+      if (error.code === 'P2025') {
+        console.warn(`User not found for lastSeenAt update: ${userId}`);
+      } else {
+        console.error('Error updating lastSeenAt:', {
+          userId,
+          error: error.message,
+          code: error.code
+        });
+      }
+      // Don't throw error, this is not critical for user experience
+    }
+  }
+
+  // Check if user is considered online (hybrid: socket connection + recent activity)
+  static isUserOnline(userId: string, lastSeenAt: Date | null): boolean {
+    // First check if user has active socket connection
+    if (isSocketOnline(userId)) {
+      return true;
+    }
+    
+    // If no socket connection, check recent activity (2 minutes)
+    if (!lastSeenAt) return false;
+    
+    const now = new Date();
+    const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000); // 2 minutes ago
+    
+    return lastSeenAt > twoMinutesAgo;
+  }
+
+  // Get multiple users' online status with hybrid detection
+  static async getUsersOnlineStatus(userIds: string[]): Promise<Record<string, boolean>> {
+    // Get users with their lastSeenAt timestamps
+    const users = await prisma.user.findMany({
+      where: { 
+        id: { in: userIds },
+        deletedAt: null 
+      },
+      select: { 
+        id: true, 
+        lastSeenAt: true 
+      }
+    });
+
+    const onlineStatus: Record<string, boolean> = {};
+    
+    users.forEach(user => {
+      onlineStatus[user.id] = this.isUserOnline(user.id, user.lastSeenAt);
+    });
+
+    // Set offline for users not found
+    userIds.forEach(id => {
+      if (!(id in onlineStatus)) {
+        onlineStatus[id] = false;
+      }
+    });
+
+    return onlineStatus;
   }
 }

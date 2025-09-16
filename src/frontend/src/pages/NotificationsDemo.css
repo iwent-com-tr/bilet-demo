@@ -1,0 +1,143 @@
+.notifications-demo {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  padding: 20px;
+}
+
+.notifications-demo__container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.notifications-demo__header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.notifications-demo__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 16px 0;
+  background: linear-gradient(135deg, #05EF7E 0%, #667eea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.notifications-demo__description {
+  font-size: 1.1rem;
+  color: #ccc;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.notifications-demo__content {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.notifications-demo__section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.notifications-demo__section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 8px 0;
+}
+
+.notifications-demo__section-description {
+  font-size: 1rem;
+  color: #aaa;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.notifications-demo__test-button {
+  width: auto;
+  min-width: 200px;
+}
+
+.notifications-demo__info {
+  background: rgba(5, 239, 126, 0.1);
+  border: 1px solid rgba(5, 239, 126, 0.3);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 40px;
+}
+
+.notifications-demo__info h3 {
+  color: #05EF7E;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.notifications-demo__info ol {
+  color: #ccc;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+  padding-left: 20px;
+}
+
+.notifications-demo__info li {
+  margin-bottom: 8px;
+}
+
+.notifications-demo__note {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  color: #ffc107;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .notifications-demo {
+    padding: 16px;
+  }
+
+  .notifications-demo__title {
+    font-size: 2rem;
+  }
+
+  .notifications-demo__description {
+    font-size: 1rem;
+  }
+
+  .notifications-demo__section {
+    padding: 20px;
+  }
+
+  .notifications-demo__section-title {
+    font-size: 1.3rem;
+  }
+
+  .notifications-demo__info {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .notifications-demo__title {
+    font-size: 1.8rem;
+  }
+
+  .notifications-demo__section {
+    padding: 16px;
+  }
+
+  .notifications-demo__info {
+    padding: 16px;
+  }
+}

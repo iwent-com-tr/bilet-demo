@@ -54,15 +54,30 @@ export class PrismaService {
             socialMedia: true,
             bio: true,
             approved: true,
-            favoriteCount: true,
             deletedAt: true,
+            favoriteUsers: {
+                select: {
+                    userId: true,
+                },
+            },
+            _count: {
+                select: {
+                    favoriteUsers: true
+                },
+            },
             },
         })
 
         const dataById = new Map(data.map(d => [d.id, d]))
         const ordered = (ids as string[]).map(id => dataById.get(id));
 
-        return ordered;
+        const final = ordered.map((o: any) => {
+            o.favoriteCount = o._count.favoriteUsers;
+            delete o._count;
+            return o;
+        })
+
+        return final;
     }
 
     static getVenuesFromIds = async function getVenuesFromIds(ids: string[], limit = 12, page = 1) {
@@ -90,20 +105,36 @@ export class PrismaService {
             longitude: true,
             mapsLocation: true,
             approved: true,
-            favoriteCount: true,
             deletedAt: true,
             events: {
                 select: {
                         id: true,
                     },
                 },
+            favoriteUsers: {
+                select: {
+                    userId: true,
+                },
             },
+            _count: {
+                select: {
+                    favoriteUsers: true
+                },
+            },
+            },
+            
         })
 
         const dataById = new Map(data.map(d => [d.id, d]))
         const ordered = (ids as string[]).map(id => dataById.get(id));
 
-        return ordered;
+        const final = ordered.map((o: any) => {
+            o.favoriteCount = o._count.favoriteUsers;
+            delete o._count;
+            return o;
+        })
+
+        return final;
     }
 
     static getOrganizersFromIds = async function getOrganizersFromIds(ids: string[], limit = 12, page = 1) {
@@ -128,12 +159,29 @@ export class PrismaService {
                     },
                 },
             deletedAt: true,
+            favoriteUsers: {
+                select: {
+                    userId: true,
+                },
+            },
+            _count: {
+                select: {
+                    favoriteUsers: true,
+                    events: true
+                },
+            },
             },
         })
 
         const dataById = new Map(data.map(d => [d.id, d]))
         const ordered = (ids as string[]).map(id => dataById.get(id));
 
-        return ordered;
+        const final = ordered.map((o: any) => {
+            o.favoriteCount = o._count.favoriteUsers;
+            delete o._count;
+            return o;
+        })
+
+        return final;
     }
 }

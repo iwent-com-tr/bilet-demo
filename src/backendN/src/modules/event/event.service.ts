@@ -4,9 +4,35 @@ import type { CreateEventInput, ListEventsQuery, UpdateEventInput, EventStats } 
 import { EVENT_CATEGORIES } from '../constants';
 import { notifyEventCreated, notifyEventPublished } from '../../chat';
 import { eventIndex } from '../../lib/meili';
-import { oneSignalService } from '../push-notification/onesignal.service';
+import { EventChangeDetector } from '../../lib/event-change-detector';
+import { notificationService } from '../../lib/queue/notification.service';
+import { fi } from 'zod/v4/locales/index.cjs';
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+}
+
+async function generateUniqueSlug(base: string): Promise<string> {
+  const initial = slugify(base);
+  const existing = await prisma.event.findMany({
+    where: { slug: { startsWith: initial } },
+    select: { slug: true },
+  });
+  if (existing.length === 0) return initial;
+  const taken = new Set(existing.map((e: { slug: string }) => e.slug));
+  let i = 1;
+  while (taken.has(`${initial}-${i}`)) i += 1;
+  return `${initial}-${i}`;
+}
+
 import { generateUniqueEventSlug } from '../publicServices/slug.service';
 import { generateEventCreateInfos, generateEventUpdateInfos } from '../publicServices/createInfo.service';
+import { SearchService } from '../search/search.service';
 
 async function getEventIdsWithFilters(filters: ListEventsQuery) {
   // Try MeiliSearch first, with database fallback for reliability
@@ -270,44 +296,13 @@ async function generateUpdateInfos(input: UpdateEventInput) {
 
 export class EventService {
   static async list(filters: ListEventsQuery) {
-    const { page, limit } = filters;
-    
-    const [total, ids] = await getEventIdsWithFilters(filters);
+    const results = SearchService.searchEvent(filters);
+    return results;
+  }
 
-    if (ids.length === 0) {
-      return { page, limit, total, data: [] };
-    }
-
-    const data = await prisma.event.findMany({
-      where: { 
-        id: { in: ids as string[] },
-        deletedAt: null
-      },
-      orderBy: { startDate: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        category: true,
-        startDate: true,
-        endDate: true,
-        venue: true,
-        address: true,
-        city: true,
-        banner: true,
-        description: true,
-        status: true,
-        organizerId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    // Reorder to match the order from the search/filter query
-    const dataById = new Map(data.map(d => [d.id, d]));
-    const ordered = (ids as string[]).map(id => dataById.get(id)).filter(Boolean);
-
-    return { page, limit, total, data: ordered };
+  static async getPopularEvents(filters: ListEventsQuery) {
+    const results = SearchService.searchEvent(filters, "popularity");
+    return results;
   }
 
   static async findById(id: string) {
@@ -325,6 +320,13 @@ export class EventService {
     const event = await prisma.event.findFirst({
       where: { slug, deletedAt: null },
       // Remove invalid include; adjust later when relation is available
+      include: {
+        venueExperimental: {
+          select: {
+            id: true,
+          }
+        }
+      }
     });
     if (!event) {
       const e: any = new Error('event not found');
@@ -354,7 +356,12 @@ export class EventService {
     eventIndex.addDocuments([{id: created.id, ...createInfoMeili}]);
 
     // Notify chat layer that the event room is ready
-    try { await notifyEventCreated(created.id); } catch {}
+    try { 
+      await notifyEventCreated(created.id);
+      console.log(`🎯 Event created successfully: "${created.name}" (${created.id}). Chat group established with organizer as admin.`);
+    } catch (error) {
+      console.warn('Failed to create event chat group:', error);
+    }
     return { ...created, details } as const;
   }
 
@@ -389,19 +396,49 @@ export class EventService {
       }
     }
 
+    // Detect changes for notification purposes
+    const changeDetection = EventChangeDetector.detectChanges(existing, input);
+
     const [updateInfoMeili, updateInfoPrisma] = await generateEventUpdateInfos(input);
 
-    const updated = await prisma.event.update({
-      where: { id },
-      data: updateInfoPrisma as any, // ts ile uğraşmamak için
-    });
+    let updated;
+    try {
+      updated = await prisma.event.update({
+        where: { id, deletedAt: null },
+        data: updateInfoPrisma as any, // ts ile uğraşmamak için
+      });
+      
+      // Update the event in the meilisearch index
+      eventIndex.updateDocuments([{id, ...updateInfoMeili}]);
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404; 
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
 
-    // Update the event in the meilisearch index
-    eventIndex.updateDocuments([{id, ...updateInfoMeili}]);
+    // Queue notification if significant changes detected and event is published
+    if (changeDetection.requiresNotification && existing && existing.status === 'ACTIVE') {
+      try {
+        await notificationService.queueEventUpdateNotification({
+          eventId: id,
+          changeType: changeDetection.changeType === 'other' ? 'venue_change' : changeDetection.changeType as 'time_change' | 'venue_change' | 'cancellation',
+          changes: changeDetection.changes,
+          timestamp: new Date(),
+        });
+        console.log(`Queued notification for event ${id} due to ${changeDetection.changeType}`);
+      } catch (error) {
+        console.error(`Failed to queue notification for event ${id}:`, error);
+        // Don't fail the update if notification queuing fails
+      }
+    }
 
-    if (input.details) await upsertCategoryDetails(id, updated.category, input.details as any);
-    const details = await loadCategoryDetails(id, updated.category);
-    return { ...updated, details } as const;
+    if (input.details && updated) await upsertCategoryDetails(id, updated.category, input.details as any);
+    const details = updated ? await loadCategoryDetails(id, updated.category) : null;
+    return updated ? { ...updated, details } as const : null;
   }
 
   static async softDelete(id: string) {
@@ -409,19 +446,68 @@ export class EventService {
     // Delete from search index
     await eventIndex.deleteDocument(id);
 
-    await prisma.event.update({ where: { id }, data: { deletedAt: new Date() } });
+    try {
+      await prisma.event.update({ 
+        where: { id, deletedAt: null }, 
+        data: { deletedAt: new Date() } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
   }
 
   static async publish(id: string) {
-    const event = await prisma.event.update({ where: { id }, data: { status: 'ACTIVE' } });
+    const existingEvent = await prisma.event.findFirst({ where: { id, deletedAt: null } });
+    if (!existingEvent) {
+      const e: any = new Error('event not found');
+      e.status = 404; e.code = 'NOT_FOUND';
+      throw e;
+    }
+
+    let event;
+    try {
+      event = await prisma.event.update({ 
+        where: { id, deletedAt: null }, 
+        data: { status: 'ACTIVE' } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
     const details = await loadCategoryDetails(id, event.category);
 
     // Update the event in the meilisearch index
     await eventIndex.updateDocuments([{id, status: 'ACTIVE'}]);
 
+    // Queue new event notification if this is the first time publishing
+    if (EventChangeDetector.shouldNotifyForPublication(existingEvent.status, 'ACTIVE')) {
+      try {
+        await notificationService.queueNewEventNotification({
+          eventId: id,
+          timestamp: new Date(),
+        });
+        console.log(`Queued new event notification for event ${id}`);
+      } catch (error) {
+        console.error(`Failed to queue new event notification for event ${id}:`, error);
+        // Don't fail the publish if notification queuing fails
+      }
+    }
+
     // Notify chat system that event is published and chat room should be available
     try { 
-      await notifyEventPublished(id); 
+      await notifyEventPublished(id);
+      console.log(`🚀 Event published: "${event.name}" (${id}). Chat group is now active and users can join when they purchase tickets.`);
     } catch (error) {
       console.error('Failed to notify chat system about event publication:', error);
     }
@@ -441,7 +527,21 @@ export class EventService {
     // Update the event in the meilisearch index
     await eventIndex.updateDocuments([{id, status: 'DRAFT'}]);
 
-    const event = await prisma.event.update({ where: { id }, data: { status: 'DRAFT' } });
+    let event;
+    try {
+      event = await prisma.event.update({ 
+        where: { id, deletedAt: null }, 
+        data: { status: 'DRAFT' } 
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const e: any = new Error('event not found');
+        e.status = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      throw error;
+    }
     const details = await loadCategoryDetails(id, event.category);
     return { ...event, details };
   }
@@ -564,23 +664,8 @@ export class EventService {
    * Send notification to ticket holders when event is published
    */
   static async notifyTicketHoldersEventPublished(eventName: string, eventId: string) {
-    try {
-      await oneSignalService.sendToEventTicketHolders(
-        eventId,
-        `🎉 ${eventName} Etkinliği Açıldı!`,
-        `${eventName} etkinliği artık aktif! Bilet detaylarınızı kontrol edin ve hazırlıklarınızı tamamlayın.`,
-        {
-          data: {
-            notification_type: 'event_published',
-            event_id: eventId,
-            event_name: eventName
-          }
-        }
-      );
-    } catch (error) {
-      console.error('Failed to send event published notification:', error);
-      throw error;
-    }
+    // Note: OneSignal removed - implement VAPID push notifications here if needed
+    console.log(`Event published notification would be sent for: ${eventName} (${eventId})`);
   }
 
   /**
@@ -592,30 +677,8 @@ export class EventService {
     updateType: 'time_change' | 'venue_change' | 'general_update',
     message: string
   ) {
-    try {
-      const titles = {
-        time_change: `⏰ ${eventName} - Saat Değişikliği`,
-        venue_change: `📍 ${eventName} - Mekan Değişikliği`,
-        general_update: `📢 ${eventName} - Önemli Duyuru`
-      };
-
-      await oneSignalService.sendToEventTicketHolders(
-        eventId,
-        titles[updateType],
-        message,
-        {
-          data: {
-            notification_type: 'event_update',
-            update_type: updateType,
-            event_id: eventId,
-            event_name: eventName
-          }
-        }
-      );
-    } catch (error) {
-      console.error('Failed to send event update notification:', error);
-      throw error;
-    }
+    // Note: OneSignal removed - implement VAPID push notifications here if needed
+    console.log(`Event update notification would be sent for: ${eventName} (${eventId}) - ${updateType}`);
   }
 
   /**
@@ -632,18 +695,8 @@ export class EventService {
         throw new Error('Event not found');
       }
 
-      await oneSignalService.sendEventReminder(
-        eventId,
-        event.name,
-        hoursBeforeEvent,
-        {
-          venue: event.venue ?? 'Mekan belirtilmemiş',
-          startTime: event.startDate.toLocaleTimeString('tr-TR', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })
-        }
-      );
+      // Note: OneSignal removed - implement VAPID push notifications here if needed
+      console.log(`Event reminder would be sent for: ${event.name} (${eventId})`);
     } catch (error) {
       console.error('Failed to send event reminder:', error);
       throw error;

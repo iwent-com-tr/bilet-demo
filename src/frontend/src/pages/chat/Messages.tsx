@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import MobileNavbar from '../../components/layouts/MobileNavbar';
+import OnlineIndicator from '../../components/OnlineIndicator';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import NewChatModal from '../../components/chat/NewChatModal';
 import './Messages.css';
 
 interface ChatPreview {
@@ -19,6 +22,7 @@ interface ChatPreview {
   unreadCount: number;
   eventSlug?: string;
   userId?: string;
+  isOnline?: boolean;
 }
 
 interface FilterTab {
@@ -34,6 +38,9 @@ const Messages: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Hepsi');
+  const [error, setError] = useState<string | null>(null);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const { updateOnlineStatus, isUserOnline } = useOnlineStatus();
 
   const filterTabs: FilterTab[] = [
     { id: 'all', label: 'Hepsi', active: activeFilter === 'Hepsi' },
@@ -43,105 +50,116 @@ const Messages: React.FC = () => {
   ];
 
   useEffect(() => {
-    fetchChats();
-  }, []);
+    if (user) {
+      fetchChats();
+    }
+  }, [user]);
 
   useEffect(() => {
     filterChats();
   }, [chats, activeFilter, searchQuery]);
 
+  // Update online status when chats change
+  useEffect(() => {
+    const privateChats = chats.filter(chat => chat.type === 'private' && chat.userId);
+    const userIds = privateChats.map(chat => chat.userId!);
+    
+    if (userIds.length > 0) {
+      updateOnlineStatus(userIds);
+    }
+  }, [chats, updateOnlineStatus]);
+
   const fetchChats = async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
+      setError(null);
       
       // Fetch user's event chats (events they have tickets for)
-      const eventChatsResponse = await axios.get(
-        `${process.env.REACT_APP_API_URL}/chat/my-event-chats`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }
-      );
+      const [eventChatsResponse, privateChatsResponse] = await Promise.all([
+        axios.get(
+          `${process.env.REACT_APP_API_URL}/chat/my-event-chats`,
+          {
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          }
+        ),
+        axios.get(
+          `${process.env.REACT_APP_API_URL}/chat/my-private-chats`,
+          {
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          }
+        )
+      ]);
 
-      // Fetch private message chats
-      const privateChatsResponse = await axios.get(
-        `${process.env.REACT_APP_API_URL}/chat/my-private-chats`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }
-      );
+      // Handle both array and object response formats for backward compatibility
+      const eventChatsData = eventChatsResponse.data?.chats || eventChatsResponse.data || [];
+      const privateChatsData = privateChatsResponse.data?.chats || privateChatsResponse.data || [];
 
-      const eventChats: ChatPreview[] = eventChatsResponse.data.chats?.map((chat: any) => ({
-        id: `event-${chat.eventId}`,
-        type: 'event' as const,
-        name: chat.eventName,
-        avatar: chat.eventBanner,
-        lastMessage: {
-          text: chat.lastMessage?.message || 'Etkinliğe gidelim hadi 🎉',
-          time: formatTime(chat.lastMessage?.createdAt || chat.event?.startDate),
-          senderId: chat.lastMessage?.senderId || 'system',
-          senderName: chat.lastMessage?.senderName
-        },
-        unreadCount: chat.unreadCount || 0,
-        eventSlug: chat.eventSlug
-      })) || [];
+      const eventChats: ChatPreview[] = Array.isArray(eventChatsData) 
+        ? eventChatsData.map((chat: any) => ({
+            id: `event-${chat.eventId}`,
+            type: 'event' as const,
+            name: chat.eventName,
+            avatar: chat.eventBanner,
+            lastMessage: chat.lastMessage ? {
+              text: chat.lastMessage.senderName 
+                ? `${chat.lastMessage.senderName}: ${chat.lastMessage.message}`
+                : chat.lastMessage.message,
+              time: formatTime(chat.lastMessage.createdAt),
+              senderId: chat.lastMessage.senderId,
+              senderName: chat.lastMessage.senderName
+            } : {
+              text: 'Henüz mesaj yok',
+              time: formatTime(chat.event?.startDate),
+              senderId: 'system',
+              senderName: undefined
+            },
+            unreadCount: chat.unreadCount || 0,
+            eventSlug: chat.eventSlug
+          }))
+        : [];
 
-      const privateChats: ChatPreview[] = privateChatsResponse.data.chats?.map((chat: any) => ({
-        id: `private-${chat.userId}`,
-        type: 'private' as const,
-        name: `${chat.user.firstName} ${chat.user.lastName}`,
-        avatar: chat.user.avatar,
-        lastMessage: {
-          text: chat.lastMessage?.message || 'Merhaba! 👋',
-          time: formatTime(chat.lastMessage?.createdAt),
-          senderId: chat.lastMessage?.senderId || chat.userId,
-          senderName: chat.user.firstName
-        },
-        unreadCount: chat.unreadCount || 0,
-        userId: chat.userId
-      })) || [];
+      const privateChats: ChatPreview[] = Array.isArray(privateChatsData)
+        ? privateChatsData.map((chat: any) => ({
+            id: `private-${chat.userId}`,
+            type: 'private' as const,
+            name: chat.user ? `${chat.user.firstName} ${chat.user.lastName}` : 'Bilinmeyen Kullanıcı',
+            avatar: chat.user?.avatar,
+            lastMessage: {
+              text: chat.lastMessage?.message || 'Henüz mesaj yok',
+              time: formatTime(chat.lastMessage?.createdAt),
+              senderId: chat.lastMessage?.senderId || chat.userId,
+              senderName: chat.user?.firstName
+            },
+            unreadCount: chat.unreadCount || 0,
+            userId: chat.userId,
+            isOnline: chat.user?.isOnline || false
+          }))
+        : [];
 
-      const allChats = [...eventChats, ...privateChats].sort((a, b) => 
-        new Date(b.lastMessage.time).getTime() - new Date(a.lastMessage.time).getTime()
-      );
+      const allChats = [...eventChats, ...privateChats].sort((a, b) => {
+        const aTime = a.lastMessage.time || '0';
+        const bTime = b.lastMessage.time || '0';
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+      });
 
       setChats(allChats);
-      setLoading(false);
+      setError(null); // Clear any previous errors on successful fetch
     } catch (error) {
       console.error('Error fetching chats:', error);
+      setError('Mesajlar yüklenirken bir hata oluştu');
+      setChats([]);
+    } finally {
       setLoading(false);
-      
-      // Mock data for development
-      const mockChats: ChatPreview[] = [
-        {
-          id: 'event-1',
-          type: 'event',
-          name: 'Sonance Festival \'25',
-          avatar: '/api/placeholder/60/60',
-          lastMessage: {
-            text: 'Selin: Biz saat 3 gibi alanda olacağız ✨',
-            time: '19:35',
-            senderId: 'user-2',
-            senderName: 'Selin'
-          },
-          unreadCount: 3,
-          eventSlug: 'sonance-festival-25'
-        },
-        {
-          id: 'private-1',
-          name: 'Metehan Öztürk',
-          type: 'private',
-          avatar: '/api/placeholder/60/60',
-          lastMessage: {
-            text: 'Etkinliğe gidelim hadi 🎉',
-            time: '19:35',
-            senderId: 'user-3',
-            senderName: 'Metehan'
-          },
-          unreadCount: 3,
-          userId: 'user-3'
-        }
-      ];
-      setChats(mockChats);
     }
   };
 
@@ -205,6 +223,27 @@ const Messages: React.FC = () => {
     }
   };
 
+  // Show login prompt if user is not authenticated
+  if (!user) {
+    return (
+      <div className="messages-page">
+        <div className="messages-empty">
+          <div className="empty-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <h3>Mesajlarınızı Görüntülemek İçin Giriş Yapmalısınız</h3>
+          <p>Arkadaşlarınızla sohbet etmek ve etkinlik gruplarına katılmak için hesabınıza giriş yapın</p>
+          <Link to="/login" className="login-button">
+            Giriş Yap
+          </Link>
+        </div>
+        <MobileNavbar />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="messages-page">
@@ -222,7 +261,11 @@ const Messages: React.FC = () => {
       {/* Header */}
       <div className="messages-header">
         <h1 className="messages-title">Mesajlar</h1>
-        <button className="messages-add-button" aria-label="Yeni sohbet başlat">
+        <button 
+          className="messages-add-button" 
+          aria-label="Yeni sohbet başlat"
+          onClick={() => setShowNewChatModal(true)}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path 
               d="M12 5V19M5 12H19" 
@@ -270,12 +313,27 @@ const Messages: React.FC = () => {
         ))}
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="messages-error">
+          <p>{error}</p>
+          <button onClick={fetchChats} className="retry-button">
+            Tekrar Dene
+          </button>
+        </div>
+      )}
+
       {/* Chat List */}
       <div className="messages-list">
-        {filteredChats.length === 0 ? (
+        {filteredChats.length === 0 && !error ? (
           <div className="messages-empty">
-            <p>Henüz mesajınız bulunmuyor</p>
-            <span>Etkinliklere katılarak sohbet etmeye başlayın</span>
+            <div className="empty-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <h3>Henüz Hiç Mesajınız Yok</h3>
+            <p>Etkinliklere bilet alarak grup sohbetlerine katılabilir veya arkadaşlarınızla özel mesajlaşabilirsiniz</p>
           </div>
         ) : (
           filteredChats.map((chat) => (
@@ -304,7 +362,17 @@ const Messages: React.FC = () => {
                   <span className="chat-time">{chat.lastMessage.time}</span>
                 </div>
                 <div className="chat-message-row">
-                  <p className="chat-last-message">{chat.lastMessage.text}</p>
+                  <div className="chat-message-content">
+                    <p className="chat-last-message">{chat.lastMessage.text}</p>
+                    {/* Show online status for private chats */}
+                    {chat.type === 'private' && chat.userId && (
+                      <OnlineIndicator 
+                        isOnline={isUserOnline(chat.userId)} 
+                        size="sm" 
+                        className="mt-1" 
+                      />
+                    )}
+                  </div>
                   {chat.unreadCount > 0 && (
                     <div className="chat-unread-badge">
                       {chat.unreadCount}
@@ -318,6 +386,12 @@ const Messages: React.FC = () => {
       </div>
 
       <MobileNavbar />
+      
+      {/* New Chat Modal */}
+      <NewChatModal 
+        isOpen={showNewChatModal}
+        onClose={() => setShowNewChatModal(false)}
+      />
     </div>
   );
 };

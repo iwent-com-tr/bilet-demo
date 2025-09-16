@@ -5,6 +5,7 @@ import { resolveIsAdmin, resolveIsOrganizer } from '../publicServices/resolveRol
 import { resolveBannerPublicUrl } from '../publicServices/multer.service';
 import { sanitizeArtist } from '../publicServices/sanitizer.service';
 import { SearchService } from '../search/search.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function create(req: Request, res: Response, next: NextFunction) {
     
@@ -38,13 +39,44 @@ export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListArtistsQueryDTO.parse(req.query);
     const result = await SearchService.searchArtist(query as any);
-    res.json({ ...result, data: result.data.map(sanitizeArtist).filter(Boolean) });
+    const val = result.data.map((artist: any) => {
+      return {
+        ...artist, 
+        following: artist.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id)
+      }
+    })
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+
+    res.json({ ...result, data: val.map(sanitizeArtist).filter(Boolean) });
+  } catch (e) { next(e); }
+}
+
+export async function getPopularArtists(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = ListArtistsQueryDTO.parse(req.query);
+    const result = await SearchService.searchArtist(query as any, "popularity");
+    const val = result.data.map((artist: any) => {
+      return {
+        ...artist, 
+        following: req.user && artist.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      }
+    })
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+
+    res.json({ ...result, data: val.map(sanitizeArtist).filter(Boolean) });
   } catch (e) { next(e); }
 }
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
     const artist = await ArtistsService.findById(req.params.id);
+    const publicInfo = {
+      ...artist,
+      following: artist.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      favoriteCount: artist.favoriteUsers.length,
+    }
     res.json({ artist: sanitizeArtist(artist) });
   } catch (e) { next(e); }
 }
@@ -52,7 +84,12 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const artist = await ArtistsService.findBySlug(req.params.slug);
-    res.json((artist && sanitizeArtist(artist)) || null);
+    const publicInfo = {
+      ...artist,
+      following: artist.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      favoriteCount: artist.favoriteUsers.length,
+    }
+    res.json((artist && sanitizeArtist(publicInfo)) || null);
   } catch (e) { next(e); }
 }
 
@@ -81,5 +118,17 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
     await ArtistsService.softDelete(req.params.id);
     res.status(204).send();
   } catch (e) { next(e); }
+}
+
+export async function sendFollowRequest(req: any, res: Response, next: NextFunction) {
+  const result = await ArtistsService.sendFollowRequest(req.params.id, req.user.id);
+  if (result.id) return res.json(result);
+  return res.status(400).json(result);
+}
+
+export async function cancelFollowRequest(req: any, res: Response, next: NextFunction) {
+  const result = await ArtistsService.cancelFollowRequest(req.params.id, req.user.id);
+  if (result.id) return res.json(result);
+  return res.status(400).json(result);
 }
 

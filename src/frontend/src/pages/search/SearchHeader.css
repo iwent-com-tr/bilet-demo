@@ -35,7 +35,7 @@
   flex-direction: column;   /* stack: head above categories */
   align-items: center;
   padding: var(--header-padding) 0;
-  margin-top: 24px;
+  margin-top: 56px;
   gap: 16px;
   transition: transform 0.5s ease, opacity 0.5s ease;
 }
@@ -66,7 +66,7 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);

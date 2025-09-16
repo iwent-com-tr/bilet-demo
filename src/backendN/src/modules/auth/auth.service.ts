@@ -93,11 +93,20 @@ export class AuthService {
       throw err;
     }
     
-    // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() }
-    });
+    // Update last login - with safety check
+    try {
+      await prisma.user.update({
+        where: { id: user.id, deletedAt: null },
+        data: { lastLogin: new Date() }
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        console.warn(`User not found for lastLogin update: ${user.id}`);
+      } else {
+        console.error('Error updating lastLogin:', error);
+      }
+      // Continue with login even if lastLogin update fails
+    }
     
     const accessToken = signAccess({ sub: user.id, userType: user.userType });
     const refreshToken = signRefresh({ sub: user.id });
@@ -208,11 +217,20 @@ export class AuthService {
       throw err;
     }
     
-    // Update last login
-    await prisma.organizer.update({
-      where: { id: organizer.id },
-      data: { lastLogin: new Date() }
-    });
+    // Update last login - with safety check
+    try {
+      await prisma.organizer.update({
+        where: { id: organizer.id, deletedAt: null },
+        data: { lastLogin: new Date() }
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        console.warn(`Organizer not found for lastLogin update: ${organizer.id}`);
+      } else {
+        console.error('Error updating organizer lastLogin:', error);
+      }
+      // Continue with login even if lastLogin update fails
+    }
     
     const accessToken = signAccess({ sub: organizer.id, userType: 'ORGANIZER' });
     const refreshToken = signRefresh({ sub: organizer.id });
@@ -228,12 +246,21 @@ export class AuthService {
       throw err;
     }
     
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData
-    });
-    
-    return updatedUser;
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id: userId, deletedAt: null },
+        data: updateData
+      });
+      
+      return updatedUser;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        const err: any = new Error('user not found');
+        err.status = 404; err.code = 'USER_NOT_FOUND';
+        throw err;
+      }
+      throw error;
+    }
   }
   
   static async getUserById(userId: string) {

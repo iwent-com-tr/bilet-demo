@@ -35,8 +35,8 @@ export const ListEventsQueryDTO = z.object({
     .refine(val => !val || !isNaN(Date.parse(val)), { message: 'Geçersiz tarih formatı.' }),
   organizerId: z.string().uuid({ message: 'organizerId geçerli bir UUID olmalıdır.' }).optional(),
   status: z.enum(EventStatuses).optional(),
-  price: z.coerce.number().optional(),
-  distance: z.coerce.number().optional(),
+  price: z.coerce.number().optional().default(100000),
+  distance: z.coerce.number().optional().default(100000),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
 });
@@ -129,7 +129,7 @@ export const UpdateEventDTO = z.object({
   venue: z.string().min(2, { message: 'Mekan adı en az 2 karakter olmalıdır.' }).optional(),
   address: z.string().min(2, { message: 'Adres en az 2 karakter olmalıdır.' }).optional(),
   city: z.string().min(2, { message: 'Şehir adı en az 2 karakter olmalıdır.' }).optional(),
-  banner: z.string().url({ message: 'Banner geçerli bir URL olmalıdır.' }).optional(),
+  banner: z.string().url({ message: 'Banner geçerli bir URL olmalıdır.' }).or(z.literal('')).optional(),
   socialMedia: z.record(z.string(), z.any()).optional(),
   description: z.string().optional(),
   capacity: z
@@ -170,8 +170,8 @@ export const UpdateEventDTO = z.object({
     )
     .optional()
     .transform((arr) => {
-      const list = (arr || []) as Array<string | Record<string, any> | null | undefined>;
-      return list
+      if (!arr) return undefined; // <--- return undefined if input was undefined
+      return arr
         .map((item) => {
           if (typeof item === 'string') return item.trim();
           if (item && typeof item === 'object') {

@@ -1,210 +1,302 @@
 import axios from 'axios';
 
-// Types
-export interface DeviceInfo {
-  browser: 'CHROME' | 'SAFARI' | 'FIREFOX' | 'EDGE' | 'OPERA' | 'OTHER';
-  os: 'IOS' | 'ANDROID' | 'MACOS' | 'WINDOWS' | 'LINUX' | 'CHROME_OS' | 'OTHER';
-  deviceType: 'DESKTOP' | 'MOBILE' | 'TABLET';
-  pwa: boolean;
-  userAgent?: string;
+// Types compatible with PushSubscriptionManager
+export interface PushSubscriptionData {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  expirationTime?: number | null;
 }
 
-export interface SubscriptionStatus {
-  isSubscribed: boolean;
-  permissionGranted: boolean;
-  onesignalUserId?: string;
-  subscriptionHash?: string;
-  deviceInfo?: DeviceInfo;
-  externalUserId?: string;        // External ID currently set
-  isLoggedIn?: boolean;           // Whether user is logged into OneSignal
+export interface SubscriptionResult {
+  success: boolean;
+  subscription?: PushSubscriptionData;
   error?: string;
+  code?: string;
 }
 
-export interface NotificationPermissionState {
-  permission: NotificationPermission;
-  canRequestPermission: boolean;
-  requiresUserAction: boolean;
+export interface BrowserSupport {
   isSupported: boolean;
+  hasServiceWorker: boolean;
+  hasPushManager: boolean;
+  hasNotifications: boolean;
+  platform: 'desktop' | 'mobile' | 'unknown';
+  browser: string;
+  version?: string;
 }
 
 class PushNotificationManager {
-  private oneSignal: any = null;
-  private isInitialized = false;
-  private initPromise: Promise<void> | null = null;
-  private subscriptionCallbacks: Array<(status: SubscriptionStatus) => void> = [];
-  private permissionCallbacks: Array<(state: NotificationPermissionState) => void> = [];
-  private currentExternalUserId: string | null = null;
-  private loginPromise: Promise<boolean> | null = null;
+  private vapidPublicKey: string | null = null;
+  private serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
+  private readonly apiBaseUrl: string;
 
-  constructor() {
-    this.detectEnvironment();
+  constructor(apiBaseUrl: string = process.env.REACT_APP_API_URL || '/api/v1') {
+    this.apiBaseUrl = apiBaseUrl;
   }
 
   /**
-   * Initialize OneSignal SDK
+   * Check if push notifications are supported in the current browser
    */
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
-    if (this.initPromise) return this.initPromise;
+  getBrowserSupport(): BrowserSupport {
+    const hasServiceWorker = 'serviceWorker' in navigator;
+    const hasPushManager = 'PushManager' in window;
+    const hasNotifications = 'Notification' in window;
+    
+    // Detect platform
+    const userAgent = navigator.userAgent.toLowerCase();
+    let platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
+    if (/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)) {
+      platform = 'mobile';
+    } else if (/windows|macintosh|linux/i.test(userAgent)) {
+      platform = 'desktop';
+    }
 
-    this.initPromise = this._initialize();
-    return this.initPromise;
+    // Detect browser
+    let browser = 'unknown';
+    let version: string | undefined;
+    
+    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
+      browser = 'chrome';
+      const match = userAgent.match(/chrome\/(\d+)/);
+      version = match ? match[1] : undefined;
+    } else if (userAgent.includes('firefox')) {
+      browser = 'firefox';
+      const match = userAgent.match(/firefox\/(\d+)/);
+      version = match ? match[1] : undefined;
+    } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      browser = 'safari';
+      const match = userAgent.match(/version\/(\d+)/);
+      version = match ? match[1] : undefined;
+    } else if (userAgent.includes('edg')) {
+      browser = 'edge';
+      const match = userAgent.match(/edg\/(\d+)/);
+      version = match ? match[1] : undefined;
+    }
+
+    const isSupported = hasServiceWorker && hasPushManager && hasNotifications && window.isSecureContext;
+
+    return {
+      isSupported,
+      hasServiceWorker,
+      hasPushManager,
+      hasNotifications,
+      platform,
+      browser,
+      version,
+    };
   }
 
-  private async _initialize(): Promise<void> {
+  /**
+   * Check if push notifications are supported
+   */
+  isSupported(): boolean {
+    return this.getBrowserSupport().isSupported;
+  }
+
+  /**
+   * Get the current notification permission status
+   */
+  getPermissionStatus(): NotificationPermission {
+    if (!('Notification' in window)) {
+      return 'denied';
+    }
+    return Notification.permission;
+  }
+
+  /**
+   * Request notification permission from the user
+   */
+  async requestPermission(): Promise<NotificationPermission> {
+    if (!('Notification' in window)) {
+      throw new Error('Notifications not supported');
+    }
+
+    if (Notification.permission === 'granted') {
+      return 'granted';
+    }
+
+    if (Notification.permission === 'denied') {
+      return 'denied';
+    }
+
+    // Request permission
+    const permission = await Notification.requestPermission();
+    return permission;
+  }
+
+  /**
+   * Initialize the service worker registration
+   */
+  async initializeServiceWorker(): Promise<ServiceWorkerRegistration> {
+    if (!('serviceWorker' in navigator)) {
+      throw new Error('Service Worker not supported');
+    }
+
+    if (this.serviceWorkerRegistration) {
+      return this.serviceWorkerRegistration;
+    }
+
     try {
-      // Check if OneSignal is supported
-      if (!this.isPushNotificationSupported()) {
-        throw new Error('Push notifications are not supported in this browser');
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      // Wait for the service worker to be ready
+      await navigator.serviceWorker.ready;
+      
+      this.serviceWorkerRegistration = registration;
+      return registration;
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+      throw new Error('Failed to register Service Worker');
+    }
+  }
+
+  /**
+   * Fetch the VAPID public key from the server
+   */
+  async getVapidPublicKey(): Promise<string> {
+    if (this.vapidPublicKey) {
+      return this.vapidPublicKey;
+    }
+
+    try {
+      const response = await axios.get(`${this.apiBaseUrl}/push/public-key`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.data.publicKey) {
+        throw new Error('Invalid VAPID public key response');
       }
 
-      // Check if we should initialize OneSignal for this environment
-      if (!this.shouldInitializeOneSignal()) {
-        console.log('[PushManager] OneSignal initialization skipped for this environment');
-        // Mark as initialized but with limited functionality
-        this.isInitialized = true;
-        return;
+      this.vapidPublicKey = response.data.publicKey;
+      return response.data.publicKey;
+    } catch (error) {
+      console.error('Error fetching VAPID public key:', error);
+      
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to fetch VAPID public key: ${error.response?.status || error.message}`);
+      }
+      
+      throw new Error('Failed to get VAPID public key');
+    }
+  }
+
+  /**
+   * Convert VAPID public key from base64 to Uint8Array
+   */
+  private urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  /**
+   * Get the current push subscription
+   */
+  async getCurrentSubscription(): Promise<PushSubscription | null> {
+    if (!this.isSupported()) {
+      return null;
+    }
+
+    try {
+      const registration = await this.initializeServiceWorker();
+      return await registration.pushManager.getSubscription();
+    } catch (error) {
+      console.error('Error getting current subscription:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Subscribe to push notifications - main method that BildirimiDene.tsx expects
+   */
+  async subscribe(): Promise<SubscriptionResult> {
+    try {
+      // Check browser support
+      if (!this.isSupported()) {
+        return {
+          success: false,
+          error: 'Push notifications not supported in this browser',
+          code: 'NOT_SUPPORTED',
+        };
       }
 
-      // Wait for OneSignal to be available
-      await this.waitForOneSignal();
+      // Check permission
+      const permission = await this.requestPermission();
+      if (permission !== 'granted') {
+        return {
+          success: false,
+          error: 'Notification permission denied',
+          code: 'PERMISSION_DENIED',
+        };
+      }
 
-      // Initialize OneSignal
-      await window.OneSignal.init({
-        appId: this.getOneSignalAppId(),
-        allowLocalhostAsSecureOrigin: process.env.NODE_ENV === 'development',
-        requiresUserPrivacyConsent: false, // Changed to false for demo purposes
-        notificationClickHandlerAction: 'focus',
-        notificationClickHandlerMatch: 'origin',
-        autoRegister: false, // We'll handle registration manually
-        autoResubscribe: true,
+      // Initialize service worker
+      const registration = await this.initializeServiceWorker();
+
+      // Check if already subscribed
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        const subscriptionData = this.convertSubscriptionToData(existingSubscription);
+        
+        // Register with backend
+        const registerResult = await this.registerWithBackend(subscriptionData);
+        if (registerResult.success) {
+          return {
+            success: true,
+            subscription: subscriptionData,
+          };
+        } else {
+          return registerResult;
+        }
+      }
+
+      // Get VAPID public key
+      const vapidPublicKey = await this.getVapidPublicKey();
+      const applicationServerKey = this.urlBase64ToUint8Array(vapidPublicKey);
+
+      // Subscribe to push manager
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
       });
 
-      this.oneSignal = window.OneSignal;
-      this.isInitialized = true;
+      const subscriptionData = this.convertSubscriptionToData(subscription);
 
-      // Set up event listeners
-      this.setupEventListeners();
-
-      console.log('[PushManager] OneSignal initialized successfully');
-    } catch (error) {
-      console.error('[PushManager] Failed to initialize OneSignal:', error);
-      // Don't throw the error, just mark as failed initialization
-      this.isInitialized = false;
-      throw error;
-    }
-  }
-
-  /**
-   * Request notification permission and subscribe user
-   */
-  async requestPermissionAndSubscribe(): Promise<SubscriptionStatus> {
-    try {
-      await this.initialize();
-
-      if (!this.oneSignal) {
-        throw new Error('OneSignal not initialized');
-      }
-
-      // For demo purposes, skip marketing consent check
-      // const hasMarketingConsent = this.checkMarketingConsent();
-      // if (!hasMarketingConsent) {
-      //   throw new Error('Marketing consent required for push notifications');
-      // }
-
-      // Provide user consent to OneSignal (not needed if requiresUserPrivacyConsent is false)
-      // await this.oneSignal.provideUserConsent(true);
-
-      // Request permission using the simpler method
-      const permissionResult = await this.oneSignal.requestPermission();
-
-      if (!permissionResult) {
-        throw new Error('Permission denied by user');
-      }
-
-      // Get subscription status
-      const subscriptionStatus = await this.getSubscriptionStatus();
-      
-      if (subscriptionStatus.isSubscribed && subscriptionStatus.onesignalUserId) {
-        // Sync with backend
-        await this.syncWithBackend(subscriptionStatus.onesignalUserId);
-      }
-
-      // Notify callbacks
-      this.notifySubscriptionCallbacks(subscriptionStatus);
-
-      return subscriptionStatus;
-    } catch (error) {
-      console.error('[PushManager] Failed to request permission:', error);
-      const errorStatus: SubscriptionStatus = {
-        isSubscribed: false,
-        permissionGranted: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-      
-      this.notifySubscriptionCallbacks(errorStatus);
-      return errorStatus;
-    }
-  }
-
-  /**
-   * Get current subscription status
-   */
-  async getSubscriptionStatus(): Promise<SubscriptionStatus> {
-    try {
-      if (!this.isInitialized) {
-        console.log('[PushManager] OneSignal not initialized yet');
+      // Register with backend
+      const registerResult = await this.registerWithBackend(subscriptionData);
+      if (registerResult.success) {
         return {
-          isSubscribed: false,
-          permissionGranted: false,
-          externalUserId: this.currentExternalUserId || undefined,
-          isLoggedIn: false,
-          error: 'OneSignal not initialized',
+          success: true,
+          subscription: subscriptionData,
         };
+      } else {
+        // If backend registration fails, unsubscribe from push manager
+        try {
+          await subscription.unsubscribe();
+        } catch (unsubError) {
+          console.error('Error unsubscribing after backend failure:', unsubError);
+        }
+        return registerResult;
       }
-
-      if (!this.oneSignal) {
-        console.log('[PushManager] OneSignal instance not available');
-        return {
-          isSubscribed: false,
-          permissionGranted: false,
-          externalUserId: this.currentExternalUserId || undefined,
-          isLoggedIn: false,
-          error: 'OneSignal instance not available',
-        };
-      }
-
-      const [isSubscribed, onesignalUserId, permissionGranted, externalUserId] = await Promise.all([
-        this.oneSignal.isPushNotificationsEnabled(),
-        this.oneSignal.getUserId(),
-        this.oneSignal.getNotificationPermission() === 'granted',
-        this.oneSignal.getExternalUserId(),
-      ]);
-
-      const deviceInfo = this.detectDeviceInfo();
-      const isLoggedIn = !!externalUserId;
-
-      // Update local state with the actual external user ID from OneSignal
-      if (externalUserId && externalUserId !== this.currentExternalUserId) {
-        this.currentExternalUserId = externalUserId;
-      }
-
-      return {
-        isSubscribed,
-        permissionGranted,
-        onesignalUserId: onesignalUserId || undefined,
-        deviceInfo,
-        externalUserId: externalUserId || this.currentExternalUserId || undefined,
-        isLoggedIn,
-      };
     } catch (error) {
-      console.error('[PushManager] Failed to get subscription status:', error);
+      console.error('Error subscribing to push notifications:', error);
       return {
-        isSubscribed: false,
-        permissionGranted: false,
-        externalUserId: this.currentExternalUserId || undefined,
-        isLoggedIn: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        code: 'SUBSCRIPTION_ERROR',
       };
     }
   }
@@ -212,529 +304,260 @@ class PushNotificationManager {
   /**
    * Unsubscribe from push notifications
    */
-  async unsubscribe(): Promise<boolean> {
+  async unsubscribe(): Promise<SubscriptionResult> {
     try {
-      if (!this.isInitialized || !this.oneSignal) {
-        throw new Error('OneSignal not initialized');
+      if (!this.isSupported()) {
+        return {
+          success: false,
+          error: 'Push notifications not supported',
+          code: 'NOT_SUPPORTED',
+        };
       }
 
-      await this.oneSignal.setSubscription(false);
+      const registration = await this.initializeServiceWorker();
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        return {
+          success: true, // Already unsubscribed
+        };
+      }
+
+      const subscriptionData = this.convertSubscriptionToData(subscription);
+
+      // Unsubscribe from push manager
+      const unsubscribed = await subscription.unsubscribe();
       
-      // Notify backend
-      try {
-        await axios.delete('/api/v1/push/subscription');
-      } catch (error) {
-        console.warn('[PushManager] Failed to notify backend about unsubscription:', error);
+      if (!unsubscribed) {
+        return {
+          success: false,
+          error: 'Failed to unsubscribe from push manager',
+          code: 'UNSUBSCRIBE_ERROR',
+        };
       }
 
-      // Notify callbacks
-      this.notifySubscriptionCallbacks({
-        isSubscribed: false,
-        permissionGranted: false,
-      });
-
-      return true;
+      // Unregister from backend
+      const unregisterResult = await this.unregisterFromBackend(subscriptionData.endpoint);
+      
+      return unregisterResult;
     } catch (error) {
-      console.error('[PushManager] Failed to unsubscribe:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Set user tags for segmentation
-   */
-  async setUserTags(tags: Record<string, string>): Promise<boolean> {
-    try {
-      if (!this.isInitialized || !this.oneSignal) {
-        throw new Error('OneSignal not initialized');
-      }
-
-      // Set tags in OneSignal
-      await this.oneSignal.sendTags(tags);
-
-      // Update backend
-      try {
-        await axios.post('/api/v1/push/tags', { tags });
-      } catch (error) {
-        console.warn('[PushManager] Failed to sync tags with backend:', error);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('[PushManager] Failed to set user tags:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Login user with external ID
-   */
-  async loginUser(externalUserId: string): Promise<boolean> {
-    // Prevent concurrent login attempts
-    if (this.loginPromise) {
-      console.log('[PushManager] Login already in progress, waiting...');
-      return this.loginPromise;
-    }
-
-    // If already logged in with the same external ID, return success
-    if (this.currentExternalUserId === externalUserId) {
-      console.log('[PushManager] Already logged in with the same external ID');
-      return true;
-    }
-
-    this.loginPromise = this._performLogin(externalUserId);
-    const result = await this.loginPromise;
-    this.loginPromise = null;
-    return result;
-  }
-
-  /**
-   * Perform the actual login operation
-   */
-  private async _performLogin(externalUserId: string): Promise<boolean> {
-    try {
-      if (!this.isInitialized) {
-        console.log('[PushManager] Initializing OneSignal before login...');
-        await this.initialize();
-      }
-
-      if (!this.oneSignal) {
-        throw new Error('OneSignal not initialized');
-      }
-
-      console.log('[PushManager] Logging in user with external ID:', externalUserId);
-      
-      // Login with external ID
-      await this.oneSignal.login(externalUserId);
-      this.currentExternalUserId = externalUserId;
-      
-      // Set default user tags for segmentation
-      const deviceInfo = this.detectDeviceInfo();
-      await this.setUserTags({
-        env: process.env.NODE_ENV === 'production' ? 'prod' : 'dev',
-        browser: deviceInfo.browser.toLowerCase(),
-        os: deviceInfo.os.toLowerCase(),
-        device_type: deviceInfo.deviceType.toLowerCase(),
-        pwa: deviceInfo.pwa.toString(),
-        user_id: externalUserId,
-        last_login: new Date().toISOString(),
-      });
-
-      // Sync with backend
-      try {
-        const subscriptionStatus = await this.getSubscriptionStatus();
-        if (subscriptionStatus.isSubscribed && subscriptionStatus.onesignalUserId) {
-          await this.syncWithBackend(subscriptionStatus.onesignalUserId, externalUserId);
-        }
-      } catch (syncError) {
-        console.warn('[PushManager] Failed to sync with backend after login:', syncError);
-        // Don't fail the login if backend sync fails
-      }
-
-      console.log('[PushManager] User logged in successfully with external ID:', externalUserId);
-      return true;
-    } catch (error) {
-      console.error('[PushManager] Failed to login user:', error);
-      this.currentExternalUserId = null;
-      return false;
-    }
-  }
-
-  /**
-   * Logout user
-   */
-  async logoutUser(): Promise<boolean> {
-    try {
-      if (!this.isInitialized || !this.oneSignal) {
-        console.log('[PushManager] OneSignal not initialized, clearing local state');
-        this.currentExternalUserId = null;
-        return true;
-      }
-
-      const previousExternalId = this.currentExternalUserId;
-      console.log('[PushManager] Logging out user with external ID:', previousExternalId);
-      
-      // Logout from OneSignal
-      await this.oneSignal.logout();
-      this.currentExternalUserId = null;
-      
-      // Clear user-specific tags
-      try {
-        await this.oneSignal.sendTags({
-          user_id: '',
-          last_login: '',
-        });
-      } catch (tagError) {
-        console.warn('[PushManager] Failed to clear user tags on logout:', tagError);
-      }
-      
-      // Notify backend about logout
-      try {
-        await axios.post('/api/v1/push/logout');
-      } catch (backendError) {
-        console.warn('[PushManager] Failed to notify backend about logout:', backendError);
-      }
-
-      console.log('[PushManager] User logged out successfully');
-      return true;
-    } catch (error) {
-      console.error('[PushManager] Failed to logout user:', error);
-      // Clear local state even if OneSignal logout fails
-      this.currentExternalUserId = null;
-      return false;
-    }
-  }
-
-  /**
-   * Get notification permission state
-   */
-  getPermissionState(): NotificationPermissionState {
-    const isSupported = this.isPushNotificationSupported();
-    const permission = isSupported ? Notification.permission : 'denied';
-    const isIOS = this.detectDeviceInfo().os === 'IOS';
-    const isPWA = this.isPWA();
-    
-    return {
-      permission: permission as NotificationPermission,
-      canRequestPermission: permission === 'default',
-      requiresUserAction: true, // Always require user action for GDPR compliance
-      isSupported: isSupported && (!isIOS || isPWA), // iOS only supports push in PWA
-    };
-  }
-
-  /**
-   * Subscribe to subscription status changes
-   */
-  onSubscriptionChange(callback: (status: SubscriptionStatus) => void): () => void {
-    this.subscriptionCallbacks.push(callback);
-    
-    // Return unsubscribe function
-    return () => {
-      const index = this.subscriptionCallbacks.indexOf(callback);
-      if (index > -1) {
-        this.subscriptionCallbacks.splice(index, 1);
-      }
-    };
-  }
-
-  /**
-   * Subscribe to permission state changes
-   */
-  onPermissionChange(callback: (state: NotificationPermissionState) => void): () => void {
-    this.permissionCallbacks.push(callback);
-    
-    // Return unsubscribe function
-    return () => {
-      const index = this.permissionCallbacks.indexOf(callback);
-      if (index > -1) {
-        this.permissionCallbacks.splice(index, 1);
-      }
-    };
-  }
-
-  /**
-   * Check if user is currently logged in to OneSignal
-   */
-  isUserLoggedIn(): boolean {
-    return !!this.currentExternalUserId;
-  }
-
-  /**
-   * Get current external user ID
-   */
-  getCurrentExternalUserId(): string | null {
-    return this.currentExternalUserId;
-  }
-
-  /**
-   * Auto-login user if authenticated but not logged into OneSignal
-   */
-  async autoLoginIfAuthenticated(externalUserId: string): Promise<boolean> {
-    try {
-      // Only auto-login if not already logged in with the same ID
-      if (this.currentExternalUserId === externalUserId) {
-        return true;
-      }
-
-      // Auto-initialize if needed
-      if (!this.isInitialized) {
-        await this.initialize();
-      }
-
-      // Only login if OneSignal is properly initialized
-      if (this.isInitialized && this.oneSignal) {
-        return await this.loginUser(externalUserId);
-      }
-
-      return false;
-    } catch (error) {
-      console.error('[PushManager] Auto-login failed:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Ensure user is logged in with correct external ID
-   */
-  async ensureUserLogin(externalUserId: string): Promise<boolean> {
-    try {
-      const currentStatus = await this.getSubscriptionStatus();
-      
-      // If already logged in with the correct external ID, nothing to do
-      if (currentStatus.isLoggedIn && currentStatus.externalUserId === externalUserId) {
-        return true;
-      }
-
-      // Login with the correct external ID
-      return await this.loginUser(externalUserId);
-    } catch (error) {
-      console.error('[PushManager] Failed to ensure user login:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Check if push notifications are supported
-   */
-  isPushNotificationSupported(): boolean {
-    return (
-      'Notification' in window &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window
-    );
-  }
-
-  /**
-   * Check if running as PWA
-   */
-  isPWA(): boolean {
-    return (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      // @ts-ignore
-      window.navigator.standalone === true
-    );
-  }
-
-  /**
-   * Detect device information
-   */
-  detectDeviceInfo(): DeviceInfo {
-    const userAgent = navigator.userAgent.toLowerCase();
-    
-    // Detect browser
-    let browser: DeviceInfo['browser'] = 'OTHER';
-    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
-      browser = 'CHROME';
-    } else if (userAgent.includes('firefox')) {
-      browser = 'FIREFOX';
-    } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      browser = 'SAFARI';
-    } else if (userAgent.includes('edg')) {
-      browser = 'EDGE';
-    } else if (userAgent.includes('opera') || userAgent.includes('opr')) {
-      browser = 'OPERA';
-    }
-
-    // Detect OS
-    let os: DeviceInfo['os'] = 'OTHER';
-    if (userAgent.includes('windows')) {
-      os = 'WINDOWS';
-    } else if (userAgent.includes('mac') && !userAgent.includes('iphone') && !userAgent.includes('ipad')) {
-      os = 'MACOS';
-    } else if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
-      os = 'IOS';
-    } else if (userAgent.includes('android')) {
-      os = 'ANDROID';
-    } else if (userAgent.includes('linux')) {
-      os = 'LINUX';
-    } else if (userAgent.includes('cros')) {
-      os = 'CHROME_OS';
-    }
-
-    // Detect device type
-    let deviceType: DeviceInfo['deviceType'] = 'DESKTOP';
-    if (userAgent.includes('mobile')) {
-      deviceType = 'MOBILE';
-    } else if (userAgent.includes('tablet') || userAgent.includes('ipad')) {
-      deviceType = 'TABLET';
-    }
-
-    return {
-      browser,
-      os,
-      deviceType,
-      pwa: this.isPWA(),
-      userAgent: navigator.userAgent,
-    };
-  }
-
-  // Private methods
-
-  private detectEnvironment(): void {
-    const hostname = window.location.hostname;
-    const isDevelopment = (
-      hostname === 'localhost' ||
-      hostname.startsWith('192.168.') ||
-      hostname.includes('dev.')
-    );
-    
-    console.log('[PushManager] Environment:', {
-      hostname,
-      isDevelopment,
-      protocol: window.location.protocol,
-      isPWA: this.isPWA(),
-    });
-  }
-
-  private shouldInitializeOneSignal(): boolean {
-    const hostname = window.location.hostname;
-    
-    // Only initialize on HTTPS or localhost
-    if (window.location.protocol !== 'https:' && hostname !== 'localhost') {
-      console.log('[PushManager] OneSignal requires HTTPS or localhost');
-      return false;
-    }
-
-    // Check if OneSignal should be initialized for this domain
-    const isDevelopment = (
-      hostname === 'localhost' ||
-      hostname.startsWith('192.168.') ||
-      hostname.includes('dev.') ||
-      process.env.NODE_ENV === 'development'
-    );
-
-    // In development, check if explicitly enabled OR if we're on localhost
-    if (isDevelopment) {
-      const isExplicitlyEnabled = process.env.REACT_APP_ENABLE_PUSH_NOTIFICATIONS === 'true';
-      const isLocalhost = hostname === 'localhost';
-      
-      // Allow initialization on localhost even without the env var for demo purposes
-      if (isLocalhost || isExplicitlyEnabled) {
-        console.log('[PushManager] OneSignal enabled for development environment');
-        return true;
-      }
-      
-      console.log('[PushManager] OneSignal disabled in development. Set REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true to enable.');
-      return false;
-    }
-
-    // In production, initialize based on domain or if explicitly configured
-    const isProductionDomain = hostname.includes('iwent.com.tr') || hostname.includes('bilet-demo.');
-    const hasAppId = process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || process.env.REACT_APP_ONESIGNAL_DEV_APP_ID;
-    
-    return isProductionDomain || !!hasAppId;
-  }
-
-  private getOneSignalAppId(): string {
-    // Use development app ID for dev environment
-    if (process.env.NODE_ENV === 'development') {
-      return process.env.REACT_APP_ONESIGNAL_DEV_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
-    }
-    
-    // Use production app ID for production
-    return process.env.REACT_APP_ONESIGNAL_PROD_APP_ID || '6fb68b33-a968-4288-b0dd-5003baec3ce7';
-  }
-
-  private async waitForOneSignal(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const maxAttempts = 50; // 5 seconds timeout
-      
-      const checkOneSignal = () => {
-        if (window.OneSignal) {
-          resolve();
-          return;
-        }
-        
-        attempts++;
-        if (attempts >= maxAttempts) {
-          reject(new Error('OneSignal SDK failed to load'));
-          return;
-        }
-        
-        setTimeout(checkOneSignal, 100);
+      console.error('Error unsubscribing from push notifications:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        code: 'UNSUBSCRIBE_ERROR',
       };
-      
-      checkOneSignal();
-    });
-  }
-
-  private setupEventListeners(): void {
-    if (!this.oneSignal) return;
-
-    // Listen for subscription changes
-    this.oneSignal.on('subscriptionChange', (isSubscribed: boolean) => {
-      console.log('[PushManager] Subscription changed:', isSubscribed);
-      this.handleSubscriptionChange();
-    });
-
-    // Listen for permission changes
-    this.oneSignal.on('permissionChange', (permissionState: string) => {
-      console.log('[PushManager] Permission changed:', permissionState);
-      this.handlePermissionChange();
-    });
-  }
-
-  private async handleSubscriptionChange(): Promise<void> {
-    const status = await this.getSubscriptionStatus();
-    this.notifySubscriptionCallbacks(status);
-  }
-
-  private handlePermissionChange(): void {
-    const state = this.getPermissionState();
-    this.notifyPermissionCallbacks(state);
-  }
-
-  private notifySubscriptionCallbacks(status: SubscriptionStatus): void {
-    this.subscriptionCallbacks.forEach(callback => {
-      try {
-        callback(status);
-      } catch (error) {
-        console.error('[PushManager] Subscription callback error:', error);
-      }
-    });
-  }
-
-  private notifyPermissionCallbacks(state: NotificationPermissionState): void {
-    this.permissionCallbacks.forEach(callback => {
-      try {
-        callback(state);
-      } catch (error) {
-        console.error('[PushManager] Permission callback error:', error);
-      }
-    });
-  }
-
-  private checkMarketingConsent(): boolean {
-    // Check if user has given marketing consent
-    // This should be integrated with your consent management platform
-    const consent = localStorage.getItem('marketing-consent');
-    return consent === 'true';
-  }
-
-  private async syncWithBackend(onesignalUserId: string, externalUserId?: string): Promise<void> {
-    try {
-      const deviceInfo = this.detectDeviceInfo();
-      
-      await axios.post('/api/v1/push/sync', {
-        onesignalUserId,
-        browser: deviceInfo.browser,
-        os: deviceInfo.os,
-        deviceType: deviceInfo.deviceType,
-        pwa: deviceInfo.pwa,
-        externalUserId: externalUserId || this.currentExternalUserId,
-      });
-      
-      console.log('[PushManager] Synced with backend successfully');
-    } catch (error) {
-      console.error('[PushManager] Failed to sync with backend:', error);
-      throw error;
     }
+  }
+
+  /**
+   * Convert PushSubscription to PushSubscriptionData
+   */
+  private convertSubscriptionToData(subscription: PushSubscription): PushSubscriptionData {
+    const p256dhKey = subscription.getKey('p256dh');
+    const authKey = subscription.getKey('auth');
+    
+    if (!p256dhKey || !authKey) {
+      throw new Error('Invalid subscription keys');
+    }
+
+    return {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: this.arrayBufferToBase64(p256dhKey),
+        auth: this.arrayBufferToBase64(authKey),
+      },
+      expirationTime: subscription.expirationTime,
+    };
+  }
+
+  /**
+   * Convert ArrayBuffer to base64 string
+   */
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  /**
+   * Register subscription with backend
+   */
+  private async registerWithBackend(subscriptionData: PushSubscriptionData): Promise<SubscriptionResult> {
+    try {
+      const response = await axios.post(`${this.apiBaseUrl}/push/subscribe`, {
+        subscription: subscriptionData,
+        userAgent: navigator.userAgent,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      return {
+        success: true,
+        subscription: subscriptionData,
+      };
+    } catch (error) {
+      console.error('Error registering with backend:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data || {};
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${error.response?.status}`,
+          code: errorData.code || 'BACKEND_ERROR',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Unregister subscription from backend
+   */
+  private async unregisterFromBackend(endpoint: string): Promise<SubscriptionResult> {
+    try {
+      await axios.delete(`${this.apiBaseUrl}/push/unsubscribe`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        data: {
+          endpoint,
+        },
+      });
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error unregistering from backend:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data || {};
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${error.response?.status}`,
+          code: errorData.code || 'BACKEND_ERROR',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Get user's push subscriptions from backend
+   */
+  async getUserSubscriptions(): Promise<{
+    success: boolean;
+    subscriptions?: Array<{
+      id: string;
+      endpoint: string;
+      enabled: boolean;
+      userAgent?: string;
+      createdAt: string;
+      lastSeenAt: string;
+    }>;
+    error?: string;
+    code?: string;
+  }> {
+    try {
+      const response = await axios.get(`${this.apiBaseUrl}/push/subscriptions`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      return {
+        success: true,
+        subscriptions: response.data.subscriptions,
+      };
+    } catch (error) {
+      console.error('Error getting user subscriptions:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data || {};
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${error.response?.status}`,
+          code: errorData.code || 'BACKEND_ERROR',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Get detailed information about the current subscription and browser support
+   * Compatible with the BildirimiDene.tsx expectations
+   */
+  async getSubscriptionInfo(): Promise<{
+    browserSupport: BrowserSupport;
+    permission: NotificationPermission;
+    hasSubscription: boolean;
+    subscription?: PushSubscriptionData;
+    backendSubscriptions?: Array<{
+      id: string;
+      endpoint: string;
+      enabled: boolean;
+      userAgent?: string;
+      createdAt: string;
+      lastSeenAt: string;
+    }>;
+  }> {
+    const browserSupport = this.getBrowserSupport();
+    const permission = this.getPermissionStatus();
+    
+    let hasSubscription = false;
+    let subscription: PushSubscriptionData | undefined;
+    let backendSubscriptions: any[] | undefined;
+
+    if (browserSupport.isSupported && permission === 'granted') {
+      const currentSub = await this.getCurrentSubscription();
+      if (currentSub) {
+        hasSubscription = true;
+        subscription = this.convertSubscriptionToData(currentSub);
+      }
+
+      // Get backend subscriptions
+      const backendResult = await this.getUserSubscriptions();
+      if (backendResult.success) {
+        backendSubscriptions = backendResult.subscriptions;
+      }
+    }
+
+    return {
+      browserSupport,
+      permission,
+      hasSubscription,
+      subscription,
+      backendSubscriptions,
+    };
   }
 }
 
-// Singleton instance
+// Export a default instance compatible with the working system
 export const pushNotificationManager = new PushNotificationManager();
 
-// Global types are declared elsewhere to avoid conflicts
+// Also export the class for direct instantiation if needed
+export { PushNotificationManager };

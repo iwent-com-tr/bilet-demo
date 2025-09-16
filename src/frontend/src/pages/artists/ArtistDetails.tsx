@@ -1,7 +1,7 @@
 import axios from "axios";
 import PageHeader from "components/layouts/PageHeader";
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import instagramIcon from "../../assets/social-media/instagram.png";
 import tiktokIcon from "../../assets/social-media/tiktok.png";
 import youtubeIcon from "../../assets/social-media/youtube.png";
@@ -9,6 +9,8 @@ import xIcon from "../../assets/social-media/x.png";
 import approved from "../../assets/approved.png";
 import ArtistsEventList from "./ArtistsEventList";
 import MobileNavbar from "components/layouts/MobileNavbar";
+import { useAuth } from "context/AuthContext";
+import { toast } from "react-toastify";
 
 interface Artist {
     id: string;
@@ -18,7 +20,7 @@ interface Artist {
     bio: string;
     approved: boolean;
     favoriteCount: number;
-    deletedAt: Date;
+    deletedAt: Date | null;
     genres: string[];
     socialMedia: {
         instagram?: string;
@@ -27,28 +29,78 @@ interface Artist {
         tiktok?: string;
     }
     events: string[];
+    following: boolean;
 }
 
 const ArtistsDetail: React.FC = () => {
-    const artist = useRef<Artist | null>(null);
+    const [artist, setArtist] = useState<Artist | null>(null);
     const artistStats = useRef<any>(null);
+    const { isAuthenticated, user } = useAuth();
+    const navigate = useNavigate();
 
     const { slug } = useParams();
 
     const [loading, setLoading] = useState(true);
+
     async function getArtist() {
-        const dbArtist = await axios.get(`${process.env.REACT_APP_API_URL}/artists/slug/${slug}`);
-        if (dbArtist.status === 200) {
-            artist.current = dbArtist.data as Artist;
+        try {
+            const dbArtist = await axios.get(`${process.env.REACT_APP_API_URL}/artists/slug/${slug}`);
+            if (dbArtist.status === 200) {
+                setArtist(dbArtist.data as Artist);
+            } else {
+                setArtist(null);
+            }
+        } catch (err) {
+            setArtist(null);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }
 
-    useEffect( () => { 
-        getArtist();
-    }, [])
+    async function handleFollow() {
+        if (!isAuthenticated) {
+            toast.error("Takip etmek için giriş yapmalısınız");
+            navigate("/login");
+            return;
+        }
 
-    if (artist.current === null) return (
+        if (user?.userType !== "USER") {
+            toast.error("Sadece kullanıcılar takip edebilir");
+            return;
+        }
+
+        if (!artist) return;
+
+        try {
+            if (artist.following) {
+                const res = await axios.delete(`${process.env.REACT_APP_API_URL}/artists/follow/${artist.id}`);
+                if (res.status === 200) {
+                    setArtist({
+                        ...artist,
+                        favoriteCount: artist.favoriteCount - 1,
+                        following: false,
+                    });
+                }
+            } else {
+                const res = await axios.post(`${process.env.REACT_APP_API_URL}/artists/follow/${artist.id}`);
+                if (res.status === 200) {
+                    setArtist({
+                        ...artist,
+                        favoriteCount: artist.favoriteCount + 1,
+                        following: true,
+                    });
+                }
+            }
+        } catch (error) {
+            toast.error("Takip isteği sırasında bir hata oluştu.");
+        }
+    }
+
+    useEffect(() => {
+        getArtist();
+    }, [slug]);
+
+    if (artist === null) return (
         <div className="venues-detail">
             <PageHeader title="Sanatçı Detayları" />
             <h1 className="venues-detail__not-found">Sanatçı Bulunamadı</h1>
@@ -60,50 +112,54 @@ const ArtistsDetail: React.FC = () => {
             <PageHeader title="Sanatçı Detayları" />
             <div className="venues-detail__content">
                 <div className="venues-detail__approved-wrapper">
-                    {artist.current?.approved && <img src={approved} alt="Approved" className="venues-detail__approved" />}
+                    {artist?.approved && <img src={approved} alt="Approved" className="venues-detail__approved" />}
                 </div>
                 <div className="venue-banner-wrapper">
-                    <img src={artist.current?.banner} alt={artist.current?.name} className="venue-banner" />
+                    <img src={artist?.banner} alt={artist?.name} className="venue-banner" />
                 </div>
                 <div className="venue-details">
-                    <h2 className="venue-detail__name">{artist.current?.name + ' - Sanatçı'}</h2>
+                    <h2 className="venue-detail__name">{artist?.name + ' - Sanatçı'}</h2>
                     <div className="venue-socials">
-                        {artist.current?.socialMedia.instagram && (
-                            <a href={artist.current?.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {artist?.socialMedia.instagram && (
+                            <a href={artist?.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={instagramIcon} alt="Instagram" className="venue-socials__icon" />
                             </a>
                         )}
-                        {artist.current?.socialMedia.x && (
-                            <a href={artist.current?.socialMedia.x} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {artist?.socialMedia.x && (
+                            <a href={artist?.socialMedia.x} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={xIcon} alt="X" className="venue-socials__icon" />
                             </a>
                         )}
-                        {artist.current?.socialMedia.youtube && (
-                            <a href={artist.current?.socialMedia.youtube} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {artist?.socialMedia.youtube && (
+                            <a href={artist?.socialMedia.youtube} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={youtubeIcon} alt="Youtube" className="venue-socials__icon" />
                             </a>
                         )}
-                        {artist.current?.socialMedia.tiktok && (
-                            <a href={artist.current?.socialMedia.tiktok} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
+                        {artist?.socialMedia.tiktok && (
+                            <a href={artist?.socialMedia.tiktok} target="_blank" rel="noopener noreferrer" className="venue-socials__icon-wrapper">
                                 <img src={tiktokIcon} alt="TikTok" className="venue-socials__icon" />
                             </a>
                         )}
                     </div>
                     <div className="venue-stats">
-                        <span className="venue-details-text">{artist.current?.events.length}<br />Etkinlik</span>
-                        <span className="venue-details-text">{artist.current?.favoriteCount}<br />Takipçi</span>
+                        <span className="venue-details-text">{artist?.events.length}<br />Etkinlik</span>
+                        <span className="venue-details-text">{artist?.favoriteCount}<br />Takipçi</span>
                         <span className="venue-details-text">Son Ayda<br />{artistStats.current}<br />Katılımcı</span>
                     </div>
                     <div className="venue-additional">
-                        <p className="venue-additional__details">{artist.current?.bio}</p>
+                        <p className="venue-additional__details">{artist?.bio}</p>
                     </div>
                 </div>
             </div>
-            <div className="follow-button-wrapper">
-                <button className="follow-button">Takip Et</button>
+
+            <div className={artist.following ? "follow-button-wrapper following" : "follow-button-wrapper"}>
+                <button className={artist.following ? "follow-button following" : "follow-button"} onClick={handleFollow}>
+                    {artist.following ? "Takipten Çık" : "Takip Et"}
+                </button>
             </div>
-            <ArtistsEventList eventIds={artist.current?.events} />
-        <MobileNavbar />
+
+            <ArtistsEventList eventIds={artist.events} />
+            <MobileNavbar />
         </div>
     );
 }

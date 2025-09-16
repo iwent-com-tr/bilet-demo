@@ -12,6 +12,7 @@ import {
 } from './organizer.dto';
 
 import { sanitizeOrganizer, sanitizePublicOrganizer } from '../publicServices/sanitizer.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -25,7 +26,31 @@ export async function listPublic(req: Request, res: Response, next: NextFunction
   try {
     const { page, limit, q } = ListOrganizersQueryDTO.parse(req.query);
     const result = await OrganizerService.listPublic({ page, limit, q });
-    res.json({ ...result, data: result.data.map(sanitizePublicOrganizer) });
+    const refined = result.data.map((organizer: any) => {
+      return {
+        ...organizer,
+        following: organizer.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      };
+    });
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, q);
+
+    res.json({ ...result, data: refined.map(sanitizePublicOrganizer) });
+  } catch (e) { next(e); }
+}
+
+export async function getPopularOrganizers(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { page, limit, q } = ListOrganizersQueryDTO.parse(req.query);
+    const result = await OrganizerService.getPopularOrganizers({ page, limit, q });
+    const refined = result.data.map((organizer: any) => {
+      return {
+        ...organizer,
+        following: req.user && organizer.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
+      };
+    });
+
+    res.json({ ...result, data: refined.map(sanitizePublicOrganizer) });
   } catch (e) { next(e); }
 }
 
@@ -56,7 +81,8 @@ export async function getPublicById(req: Request, res: Response, next: NextFunct
       events: organizer.events.map((event: any) => event.id),
       approved: organizer.approved,
       name: organizer.firstName + ' ' + organizer.lastName,
-      favoriteCount: organizer.favoriteCount,
+      favoriteCount: organizer.favoriteUsers.length,
+      following: organizer.favoriteUsers.some((user: any) => user.userId === (req as any).user?.id),
     };
     res.json(publicInfo);
   } catch (e) { next(e); }
@@ -138,6 +164,18 @@ export async function resendVerificationCode(req: any, res: Response, next: Next
     if (result.success) return res.json(result);
     return res.status(400).json(result);
   } catch (e) { next(e); }
+}
+
+export async function sendFollowRequest(req: any, res: Response, next: NextFunction) {
+  const result = await OrganizerService.sendFollowRequest(req.params.id, req.user.id);
+  if (result.id) return res.json(result);
+  return res.status(400).json(result);
+}
+
+export async function cancelFollowRequest(req: any, res: Response, next: NextFunction) {
+  const result = await OrganizerService.cancelFollowRequest(req.params.id, req.user.id);
+  if (result.id) return res.json(result);
+  return res.status(400).json(result);
 }
 
 // ===== EVENT REPORT GENERATION =====

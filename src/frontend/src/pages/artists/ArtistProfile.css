@@ -1,0 +1,499 @@
+.artist-profile-page {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  padding-bottom: 80px; /* Space for mobile navbar */
+}
+
+/* Header */
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #374151;
+  position: sticky;
+  top: 0;
+  background: #000;
+  z-index: 10;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #05EF7E;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: #1F2937;
+}
+
+.profile-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #fff;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.menu-button:hover {
+  background: #1F2937;
+  color: #fff;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #1F2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 180px;
+  z-index: 20;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.menu-dropdown button {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #fff;
+  padding: 12px 16px;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.menu-dropdown button:hover {
+  background: #374151;
+}
+
+/* Profile Info */
+.profile-info {
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.profile-avatar-container {
+  position: relative;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.profile-avatar,
+.profile-avatar-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  margin: 0 auto;
+  display: block;
+}
+
+.profile-avatar {
+  object-fit: cover;
+}
+
+.profile-avatar-placeholder {
+  background: #05EF7E;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 48px;
+}
+
+.verified-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: #05EF7E;
+  color: #000;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #000;
+}
+
+.profile-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #fff;
+}
+
+.profile-username {
+  font-size: 14px;
+  color: #9CA3AF;
+  margin-bottom: 16px;
+}
+
+/* Genres */
+.genres {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.genre-tag {
+  background: #374151;
+  color: #05EF7E;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Social Media */
+.social-media {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #1F2937;
+  border-radius: 50%;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.social-link:hover {
+  background: #374151;
+  transform: scale(1.1);
+}
+
+.social-icon {
+  font-size: 18px;
+}
+
+/* Stats */
+.profile-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #9CA3AF;
+}
+
+/* Actions */
+.profile-actions {
+  margin-bottom: 32px;
+}
+
+.profile-action-button {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 280px;
+}
+
+.profile-action-button.follow {
+  background: #05EF7E;
+  color: #000;
+}
+
+.profile-action-button.follow:hover {
+  background: #04d970;
+  transform: translateY(-1px);
+}
+
+.profile-action-button.following {
+  background: #374151;
+  color: #fff;
+  border: 1px solid #4B5563;
+}
+
+.profile-action-button.following:hover {
+  background: #EF4444;
+  color: #fff;
+}
+
+.profile-action-button.following:hover::after {
+  content: "Takibi Bırak";
+}
+
+.profile-action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Bio */
+.artist-bio {
+  background: #1F2937;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 0 16px 32px 16px;
+  border: 1px solid #374151;
+}
+
+.artist-bio p {
+  font-size: 14px;
+  color: #9CA3AF;
+  line-height: 1.5;
+  margin: 0;
+  text-align: left;
+}
+
+/* Events */
+.profile-events {
+  padding: 0 16px;
+}
+
+.events-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #fff;
+}
+
+.no-events {
+  text-align: center;
+  padding: 40px 16px;
+  color: #9CA3AF;
+}
+
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.event-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #1F2937;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  align-items: center;
+}
+
+.event-card:hover {
+  background: #374151;
+  transform: translateY(-1px);
+}
+
+.event-banner {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.event-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-date {
+  font-size: 12px;
+  color: #05EF7E;
+  margin: 0 0 4px 0;
+}
+
+.event-venue {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-arrow {
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+/* Loading and Error States */
+.profile-loading,
+.profile-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #374151;
+  border-top: 3px solid #05EF7E;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.profile-loading p,
+.profile-error p {
+  font-size: 16px;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.profile-error h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #fff;
+}
+
+.profile-error .back-button {
+  background: #05EF7E;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 16px;
+}
+
+.profile-error .back-button:hover {
+  background: #04d970;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .profile-header {
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+  
+  .profile-info {
+    padding: 24px 16px;
+  }
+  
+  .profile-avatar,
+  .profile-avatar-placeholder {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .profile-avatar-placeholder {
+    font-size: 40px;
+  }
+  
+  .verified-badge {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .profile-stats {
+    gap: 24px;
+  }
+  
+  .stat-number {
+    font-size: 20px;
+  }
+  
+  .artist-bio {
+    margin: 0 0 24px 0;
+  }
+  
+  .genres {
+    margin-bottom: 12px;
+  }
+}
+
+/* PWA support */
+@media (display-mode: standalone) {
+  .profile-header {
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+  
+  .artist-profile-page {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+}
+

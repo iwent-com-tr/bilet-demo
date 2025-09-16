@@ -7,11 +7,26 @@ import { resolveBannerPublicUrl } from '../publicServices/multer.service';
 import { SearchService } from '../search/search.service';
 import { resolveIsAdmin, resolveIsOrganizer } from '../publicServices/resolveRoles.service';
 import { sanitizeEvent } from '../publicServices/sanitizer.service';
+import { PreferencesService } from '../publicServices/preferences.service';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = ListEventsQueryDTO.parse(req.query);
+
     const result = await EventService.list(query);
+
+    if (req.user) PreferencesService.addPreferences(req.user.id, query.q);
+
+    res.json({ ...result, data: result.data.map(sanitizeEvent).filter(Boolean) });
+  } catch (e) { next(e); }
+}
+
+export async function getPopularEvents(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = ListEventsQueryDTO.parse(req.query);
+
+    const result = await EventService.getPopularEvents(query);
+
     res.json({ ...result, data: result.data.map(sanitizeEvent).filter(Boolean) });
   } catch (e) { next(e); }
 }
@@ -26,7 +41,6 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const event = await EventService.findBySlug(req.params.slug);
-    console.log(`Event Response from getBySlug: ${JSON.stringify(event)}`);
     res.json(event);
   } catch (e) { next(e); }
 }
@@ -83,6 +97,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     if (!isAdmin && event.organizerId !== requesterId) {
       return res.status(403).json({ error: 'forbidden', code: 'FORBIDDEN' });
     }
+    console.log(req.body);
     const input = UpdateEventDTO.parse(req.body);
     const updated = await EventService.update(req.params.id, input);
     res.json({ event: sanitizeEvent(updated) });

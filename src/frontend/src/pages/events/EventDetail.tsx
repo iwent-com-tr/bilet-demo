@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/layouts/PageHeader';
 import './EventDetail.css';
+import IWentMap from 'components/iwent-map/IWentMap';
 
 interface Event {
   id: string;
@@ -41,6 +42,7 @@ interface Event {
     artistId: string;
     time: string;
   }>;
+  venueExperimental: {id: string};
 }
 
 interface Organizer {
@@ -548,6 +550,12 @@ const EventDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        {event.venueExperimental ? (<div className='event-map-wrapper'>
+          <h2 className="event-detail__ticket-title">Etkinlik Konumu</h2>
+          <IWentMap venueId={event.venueExperimental.id}/>
+        </div>) : (<h2 className='event-detail__ticket-title'>
+          Mekan Bilgisi Belirtilmemiş.
+        </h2>)}
       </div>
 
       {/* Mobile only purchase button */}

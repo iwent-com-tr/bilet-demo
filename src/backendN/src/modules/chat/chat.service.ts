@@ -1,4 +1,6 @@
 import { prisma } from '../../lib/prisma';
+import { ChatModerationService } from './moderation.service';
+import { UserService } from '../users/user.service';
 
 export class ChatService {
   
@@ -73,7 +75,7 @@ export class ChatService {
     return messagesWithSenders.reverse(); // Return in chronological order
   }
 
-  // Get participants for an event chat
+  // Get participants for an event chat with online status
   static async getEventParticipants(eventId: string, userId: string) {
     // Check access
     const hasAccess = await this.checkEventChatAccess(eventId, userId);
@@ -93,14 +95,15 @@ export class ChatService {
             id: true,
             firstName: true,
             lastName: true,
-            avatar: true
+            avatar: true,
+            lastSeenAt: true
           }
         }
       },
       distinct: ['userId']
     });
 
-    // Get event organizer
+    // Get event organizer (chat group admin)
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
@@ -115,24 +118,35 @@ export class ChatService {
       }
     });
 
+    // Collect all user IDs for online status check
+    const allUserIds = [
+      ...ticketHolders.map(t => t.user.id),
+      ...(event?.organizer ? [event.organizer.id] : [])
+    ];
+
+    // Get online status for all participants using hybrid method
+    const onlineStatus = await UserService.getUsersOnlineStatus(allUserIds);
+
     const participants = [
-      // Add organizer first
+      // Add organizer first as admin
       ...(event?.organizer ? [{
         id: event.organizer.id,
         firstName: event.organizer.firstName,
         lastName: event.organizer.lastName,
         avatar: event.organizer.avatar,
         role: 'ORGANIZER' as const,
-        isOnline: false // TODO: Implement online status
+        isAdmin: true, // Organizer is admin of the chat group
+        isOnline: onlineStatus[event.organizer.id] || false
       }] : []),
-      // Add ticket holders
+      // Add ticket holders as members
       ...ticketHolders.map(ticket => ({
         id: ticket.user.id,
         firstName: ticket.user.firstName,
         lastName: ticket.user.lastName,
         avatar: ticket.user.avatar,
         role: 'USER' as const,
-        isOnline: false // TODO: Implement online status
+        isAdmin: false, // Regular members are not admins
+        isOnline: onlineStatus[ticket.user.id] || false
       }))
     ];
 
@@ -141,7 +155,85 @@ export class ChatService {
       index === self.findIndex(p => p.id === participant.id)
     );
 
-    return uniqueParticipants;
+    // Return with chat group info
+    return {
+      eventId,
+      eventName: event?.name,
+      chatGroupAdmin: event?.organizer ? {
+        id: event.organizer.id,
+        name: `${event.organizer.firstName} ${event.organizer.lastName}`,
+        avatar: event.organizer.avatar
+      } : null,
+      participants: uniqueParticipants,
+      totalMembers: uniqueParticipants.length,
+      onlineMembers: uniqueParticipants.filter(p => p.isOnline).length
+    };
+  }
+
+  // Get event chat group information
+  static async getEventChatGroupInfo(eventId: string, userId: string) {
+    // Check access
+    const hasAccess = await this.checkEventChatAccess(eventId, userId);
+    if (!hasAccess) {
+      throw new Error('Access denied to this event chat');
+    }
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    // Get member count
+    const ticketHolders = await prisma.ticket.findMany({
+      where: {
+        eventId,
+        status: 'ACTIVE'
+      },
+      select: {
+        userId: true
+      }
+    });
+    const memberCount = new Set(ticketHolders.map(t => t.userId)).size;
+
+    // Get recent message count
+    const recentMessageCount = await prisma.chatMessage.count({
+      where: {
+        eventId,
+        status: 'ACTIVE',
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+        }
+      }
+    });
+
+    return {
+      eventId: event.id,
+      eventName: event.name,
+      eventSlug: event.slug,
+      status: event.status,
+      chatGroupAdmin: event.organizer ? {
+        id: event.organizer.id,
+        name: `${event.organizer.firstName} ${event.organizer.lastName}`,
+        avatar: event.organizer.avatar
+      } : null,
+      memberCount: memberCount + 1, // +1 for organizer
+      recentActivityCount: recentMessageCount,
+      isUserAdmin: event.organizerId === userId,
+      created: event.createdAt
+    };
   }
 
   // Get user's event chats (events they have tickets for)
@@ -260,75 +352,116 @@ export class ChatService {
     });
   }
 
-  // Get user's private message chats
+  // Get user's private chats with friends
   static async getMyPrivateChats(userId: string) {
-    // Get recent private message conversations
-    const recentMessages = await prisma.privateMessage.findMany({
+    const friendships = await prisma.friendship.findMany({
       where: {
         OR: [
-          { senderId: userId },
-          { receiverId: userId }
-        ],
-        status: { not: 'DELETED' }
+          { fromUserId: userId, status: 'ACCEPTED' },
+          { toUserId: userId, status: 'ACCEPTED' }
+        ]
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100 // Get recent messages to find unique conversations
-    });
-
-    // Group by conversation partner
-    const conversationMap = new Map();
-    
-    recentMessages.forEach(msg => {
-      const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-      
-      if (!conversationMap.has(partnerId)) {
-        conversationMap.set(partnerId, {
-          userId: partnerId,
-          lastMessage: msg,
-          unreadCount: 0
-        });
-      }
-      
-      // Count unread messages (messages sent by partner that are not read)
-      if (msg.receiverId === userId && msg.status === 'SENT') {
-        const conversation = conversationMap.get(partnerId);
-        conversation.unreadCount++;
-      }
-    });
-
-    // Get user details for each conversation
-    const conversations = await Promise.all(
-      Array.from(conversationMap.values()).map(async (conv) => {
-        const user = await prisma.user.findUnique({
-          where: { id: conv.userId },
+      include: {
+        fromUser: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
-            avatar: true
+            avatar: true,
+            lastSeenAt: true
           }
-        });
+        },
+        toUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            lastSeenAt: true
+          }
+        }
+      }
+    });
 
-        return {
-          userId: conv.userId,
-          user,
-          lastMessage: {
-            message: conv.lastMessage.message,
-            createdAt: conv.lastMessage.createdAt,
-            senderId: conv.lastMessage.senderId
-          },
-          unreadCount: Math.min(conv.unreadCount, 99)
-        };
-      })
-    );
+    // Get all friend user IDs
+    const friendIds = friendships.map(f => f.fromUserId === userId ? f.toUserId : f.fromUserId);
+    
+    if (friendIds.length === 0) {
+      return [];
+    }
 
-    return conversations.sort((a, b) => 
-      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
-    );
+    // Get online status for all friends using the hybrid method
+    const onlineStatus = await UserService.getUsersOnlineStatus(friendIds);
+
+    // Get last messages with each friend
+    const chats = await Promise.all(friendships.map(async (friendship) => {
+      const friend = friendship.fromUserId === userId ? friendship.toUser : friendship.fromUser;
+      
+      // Get last message between these users
+      const lastMessage = await prisma.privateMessage.findFirst({
+        where: {
+          OR: [
+            { senderId: userId, receiverId: friend.id },
+            { senderId: friend.id, receiverId: userId }
+          ],
+          status: { not: 'DELETED' }
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sender: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
+
+      // Count unread messages from this friend
+      const unreadCount = await prisma.privateMessage.count({
+        where: {
+          senderId: friend.id,
+          receiverId: userId,
+          status: 'SENT' // Not read yet
+        }
+      });
+
+      return {
+        userId: friend.id,
+        user: {
+          ...friend,
+          isOnline: onlineStatus[friend.id] || false
+        },
+        lastMessage,
+        unreadCount
+      };
+    }));
+
+    // Sort by last message time
+    chats.sort((a, b) => {
+      const aTime = a.lastMessage?.createdAt || new Date(0);
+      const bTime = b.lastMessage?.createdAt || new Date(0);
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+
+    return chats;
   }
 
   // Get private messages between two users
   static async getPrivateMessages(userId: string, otherUserId: string, options: { limit?: number; before?: string } = {}) {
+    // Check if either user has blocked the other
+    const blockExists = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: otherUserId },
+          { blockerId: otherUserId, blockedId: userId }
+        ]
+      }
+    });
+
+    if (blockExists) {
+      throw new Error('Cannot access messages with blocked users');
+    }
     const { limit = 50, before } = options;
     
     const whereClause: any = {
@@ -366,6 +499,20 @@ export class ChatService {
 
   // Send private message
   static async sendPrivateMessage(senderId: string, receiverId: string, message: string) {
+    // Check if either user has blocked the other
+    const blockExists = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: senderId, blockedId: receiverId },
+          { blockerId: receiverId, blockedId: senderId }
+        ]
+      }
+    });
+
+    if (blockExists) {
+      throw new Error('Cannot send messages to blocked users');
+    }
+
     // Check if users are friends (optional - remove if not needed)
     const friendship = await prisma.friendship.findFirst({
       where: {
@@ -407,6 +554,46 @@ export class ChatService {
             avatar: true
           }
         }
+      }
+    });
+
+    return sentMessage;
+  }
+
+  // Send message to event chat
+  static async sendEventMessage(eventId: string, userId: string, userType: 'user' | 'organizer', message: string) {
+    // Check if user is muted in this event
+    if (userType === 'user') {
+      const isMuted = await ChatModerationService.isUserMuted(eventId, userId);
+      if (isMuted) {
+        throw new Error('You are muted in this event chat');
+      }
+    }
+
+    // Check if event exists
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, name: true }
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    // Check if user has access to this event chat
+    const hasAccess = await this.checkEventChatAccess(eventId, userId);
+    if (!hasAccess && userType === 'user') {
+      throw new Error('Access denied to this event chat');
+    }
+
+    const sentMessage = await prisma.chatMessage.create({
+      data: {
+        eventId,
+        userId,
+        senderId: userId,
+        senderType: userType === 'organizer' ? 'ORGANIZER' : 'USER',
+        message,
+        status: 'ACTIVE'
       }
     });
 

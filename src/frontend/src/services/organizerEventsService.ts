@@ -106,7 +106,9 @@ export class OrganizerEventsService {
           data: validEvents
         };
       } else {
-        console.log('No events data found in response');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('No events data found in response');
+        }
         return {
           page,
           limit,
@@ -115,12 +117,15 @@ export class OrganizerEventsService {
         };
       }
     } catch (error: any) {
-      console.error('Event fetching error:', error);
-      console.error('Error details:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
+      // Log errors only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Event fetching error:', error);
+        console.error('Error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+      }
       
       // Re-throw the error so components can handle it appropriately
       throw error;
@@ -140,7 +145,9 @@ export class OrganizerEventsService {
       
       return response.data;
     } catch (error) {
-      console.error('Dashboard events fetching error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Dashboard events fetching error:', error);
+      }
       throw error;
     }
   }

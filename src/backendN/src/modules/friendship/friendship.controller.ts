@@ -16,6 +16,7 @@ export async function request(req: Request, res: Response, next: NextFunction) {
     const input = CreateFriendRequestDTO.parse(req.body);
     const userId = (req as any).user?.id as string;
     const data = await FriendshipService.request(userId, input);
+    
     res.status(201).json({ friendship: data });
   } catch (e) { next(e); }
 }
@@ -25,6 +26,7 @@ export async function accept(req: Request, res: Response, next: NextFunction) {
     const { id } = PathIdDTO.parse(req.params);
     const userId = (req as any).user?.id as string;
     const data = await FriendshipService.accept(userId, id);
+    
     res.json({ friendship: data });
   } catch (e) { next(e); }
 }
@@ -69,6 +71,14 @@ export async function createBlock(req: Request, res: Response, next: NextFunctio
     const input = CreateBlockDTO.parse(req.body);
     const userId = (req as any).user?.id as string;
     const data = await BlockService.create(userId, input);
+    
+    // Remove any existing friendship when blocking
+    try {
+      await FriendshipService.removeExistingFriendship(userId, input.blockedId);
+    } catch (friendshipError) {
+      console.error('Failed to remove friendship when blocking:', friendshipError);
+    }
+    
     res.status(201).json({ block: data });
   } catch (e) { next(e); }
 }

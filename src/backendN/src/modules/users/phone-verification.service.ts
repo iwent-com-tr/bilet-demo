@@ -133,13 +133,20 @@ export class PhoneVerificationService {
 
       // Update user's phone number if it's different
       if (user.phone !== formattedPhone) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { 
-            phone: formattedPhone,
-            phoneVerified: false 
+        try {
+          await prisma.user.update({
+            where: { id: userId, deletedAt: null },
+            data: { 
+              phone: formattedPhone,
+              phoneVerified: false 
+            }
+          });
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            throw new Error('User not found');
           }
-        });
+          throw error;
+        }
       }
 
       // Track attempt
@@ -190,21 +197,32 @@ export class PhoneVerificationService {
       const verificationCheck = await TwilioService.verifyCode(formattedPhone, code);
 
       if (verificationCheck.valid && verificationCheck.status === 'approved') {
-        // Code is correct - update user
-        const user = await prisma.user.update({
-          where: { id: userId },
-          data: {
-            phone: formattedPhone,
-            phoneVerified: true
-          },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            phoneVerified: true
+        // Code is correct - update user with P2025 error handling
+        let user;
+        try {
+          user = await prisma.user.update({
+            where: { id: userId, deletedAt: null },
+            data: {
+              phone: formattedPhone,
+              phoneVerified: true
+            },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              phoneVerified: true
+            }
+          });
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            return {
+              success: false,
+              message: 'Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.'
+            };
           }
-        });
+          throw error;
+        }
 
         // Clear verification tracking
         const key = this.generateKey(userId, formattedPhone);
@@ -434,10 +452,17 @@ export class PhoneVerificationService {
       const verificationResult = await TwilioService.sendVerificationCode(formattedPhone);
 
       if (organizer.phone !== formattedPhone) {
-        await prisma.organizer.update({
-          where: { id: organizerId },
-          data: { phone: formattedPhone, phoneVerified: false }
-        });
+        try {
+          await prisma.organizer.update({
+            where: { id: organizerId, deletedAt: null },
+            data: { phone: formattedPhone, phoneVerified: false }
+          });
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            throw new Error('Organizatör bulunamadı');
+          }
+          throw error;
+        }
       }
 
       const currentAttempt = existingAttempt || {
@@ -463,10 +488,20 @@ export class PhoneVerificationService {
       const formattedPhone = TwilioService.formatPhoneNumber(phoneNumber);
       const verificationCheck = await TwilioService.verifyCode(formattedPhone, code);
       if (verificationCheck.valid && verificationCheck.status === 'approved') {
-        await prisma.organizer.update({
-          where: { id: organizerId },
-          data: { phone: formattedPhone, phoneVerified: true }
-        });
+        try {
+          await prisma.organizer.update({
+            where: { id: organizerId, deletedAt: null },
+            data: { phone: formattedPhone, phoneVerified: true }
+          });
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            return {
+              success: false,
+              message: 'Organizatör bulunamadı. Lütfen tekrar giriş yapın.'
+            };
+          }
+          throw error;
+        }
         const key = this.generateKey(organizerId, formattedPhone);
         VerificationStore.delete(key);
         return { success: true, message: 'Telefon numaranız başarıyla doğrulandı!' };
